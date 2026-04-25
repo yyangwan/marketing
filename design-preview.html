@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContentOS Design System Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Primary */
+    --primary: #4F46E5;
+    --primary-foreground: #FFFFFF;
+
+    /* Neutrals - Light */
+    --background: #F9FAFB;
+    --surface: #FFFFFF;
+    --border: #E5E7EB;
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+    --text-muted: #9CA3AF;
+
+    /* Secondary */
+    --secondary: #F3F4F6;
+
+    /* Platform */
+    --wechat: #16A34A;
+    --weibo: #DC2626;
+    --xiaohongshu: #EC4899;
+    --douyin: #000000;
+
+    /* Status */
+    --status-draft-bg: #DBEAFE;
+    --status-draft-text: #1E40AF;
+    --status-editing-bg: #FEF3C7;
+    --status-editing-text: #92400E;
+    --status-review-bg: #EDE9FE;
+    --status-review-text: #5B21B6;
+    --status-approved-bg: #DCFCE7;
+    --status-approved-text: #166534;
+    --status-published-bg: #F3F4F6;
+    --status-published-text: #374151;
+
+    /* Semantic */
+    --success: #16A34A;
+    --warning: #D97706;
+    --error: #DC2626;
+    --info: #2563EB;
+
+    /* Radius */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius-full: 9999px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--background);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .preview-container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 48px 24px;
+  }
+
+  /* Header */
+  .preview-header {
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .preview-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  .preview-header p {
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+
+  /* Section */
+  .section {
+    margin-bottom: 48px;
+  }
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Typography Preview */
+  .type-row {
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .type-label {
+    width: 120px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+  .type-sample-2xl { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+  .type-sample-xl { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .type-sample-lg { font-size: 16px; font-weight: 500; }
+  .type-sample-base { font-size: 14px; font-weight: 400; }
+  .type-sample-sm { font-size: 13px; font-weight: 400; }
+  .type-sample-xs { font-size: 12px; font-weight: 400; }
+
+  /* Color Swatches */
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  .color-card {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .color-swatch {
+    height: 64px;
+    display: flex;
+    align-items: flex-end;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-family: monospace;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+  .color-swatch.light-text { color: #111; text-shadow: none; }
+  .color-info {
+    padding: 8px;
+    font-size: 12px;
+  }
+  .color-info .name { font-weight: 500; color: var(--text-primary); }
+  .color-info .token { color: var(--text-muted); margin-top: 2px; }
+
+  /* Status Badges */
+  .badge-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+  .badge-draft { background: var(--status-draft-bg); color: var(--status-draft-text); }
+  .badge-editing { background: var(--status-editing-bg); color: var(--status-editing-text); }
+  .badge-review { background: var(--status-review-bg); color: var(--status-review-text); }
+  .badge-approved { background: var(--status-approved-bg); color: var(--status-approved-text); }
+  .badge-published { background: var(--status-published-bg); color: var(--status-published-text); }
+
+  /* Platform Badges */
+  .badge-wechat { background: rgba(22,163,74,0.1); color: var(--wechat); }
+  .badge-weibo { background: rgba(220,38,38,0.1); color: var(--weibo); }
+  .badge-xiaohongshu { background: rgba(236,72,153,0.1); color: var(--xiaohongshu); }
+  .badge-douyin { background: rgba(0,0,0,0.06); color: var(--douyin); }
+
+  /* Buttons */
+  .button-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 100ms ease-out;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+  .btn-primary:hover { background: #4338CA; }
+  .btn-secondary {
+    background: var(--secondary);
+    color: var(--text-primary);
+  }
+  .btn-secondary:hover { background: #E5E7EB; }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+  }
+  .btn-outline:hover { background: var(--secondary); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+  .btn-ghost:hover { background: var(--secondary); color: var(--text-primary); }
+  .btn-danger {
+    background: rgba(220,38,38,0.1);
+    color: var(--error);
+  }
+  .btn-danger:hover { background: rgba(220,38,38,0.2); }
+  .btn-sm { padding: 4px 8px; font-size: 13px; }
+
+  /* Spacing Scale */
+  .spacing-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 6px 0;
+  }
+  .spacing-label {
+    width: 60px;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .spacing-value {
+    width: 40px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+  .spacing-bar {
+    height: 16px;
+    background: var(--primary);
+    opacity: 0.3;
+    border-radius: 2px;
+    min-width: 2px;
+  }
+
+  /* Kanban Preview */
+  .kanban-preview {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 4px 0;
+  }
+  .kanban-column {
+    min-width: 220px;
+    flex: 1;
+    background: var(--background);
+    border-radius: var(--radius-lg);
+    padding: 12px;
+  }
+  .kanban-column-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .kanban-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--surface);
+    padding: 0 6px;
+    border-radius: var(--radius-full);
+    line-height: 20px;
+  }
+  .kanban-card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: box-shadow 100ms ease-out;
+  }
+  .kanban-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .kanban-card-title {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  .kanban-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .kanban-card-date {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* Radius Preview */
+  .radius-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .radius-box {
+    width: 64px;
+    height: 64px;
+    background: var(--primary);
+    opacity: 0.15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .radius-box span {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  /* Sidebar Preview */
+  .layout-preview {
+    display: flex;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    height: 360px;
+  }
+  .sidebar-preview {
+    width: 240px;
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    flex-shrink: 0;
+  }
+  .sidebar-logo {
+    padding: 0 16px 16px;
+    font-size: 16px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 100ms ease-out;
+  }
+  .sidebar-nav-item:hover { background: var(--secondary); color: var(--text-primary); }
+  .sidebar-nav-item.active {
+    background: rgba(79,70,229,0.08);
+    color: var(--primary);
+    font-weight: 500;
+  }
+  .sidebar-nav-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.6;
+  }
+  .sidebar-nav-item.active .sidebar-nav-icon { opacity: 1; }
+  .content-preview {
+    flex: 1;
+    padding: 24px;
+    overflow: hidden;
+  }
+  .content-title-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .content-title-bar h2 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  /* Motion table */
+  .spec-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .spec-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--secondary);
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .spec-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .spec-table code {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    background: var(--secondary);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  /* Toast preview */
+  .toast-preview {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    font-size: 13px;
+    min-width: 200px;
+  }
+  .toast-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+<div class="preview-container">
+
+  <!-- Header -->
+  <div class="preview-header">
+    <h1>ContentOS Design System</h1>
+    <p>AI 内容营销平台 — 工业风/实用主义设计系统预览</p>
+  </div>
+
+  <!-- Typography -->
+  <div class="section">
+    <h2 class="section-title">Typography 排版</h2>
+    <div class="type-row">
+      <span class="type-label">2xl / 24px / 600</span>
+      <span class="type-sample-2xl">页面标题 Page Title</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">xl / 20px / 600</span>
+      <span class="type-sample-xl">区块标题 Section Header</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">lg / 16px / 500</span>
+      <span class="type-sample-lg">卡片标题 Card Title</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">base / 14px / 400</span>
+      <span class="type-sample-base">正文文本 Body Text — 这是默认的正文样式，用于表单标签、段落和常规内容。</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">sm / 13px / 400</span>
+      <span class="type-sample-sm">辅助信息 Meta — 时间戳、徽章、次要说明</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">xs / 12px / 400</span>
+      <span class="type-sample-xs">平台标签 Platform Tags — 状态标签、极小文字</span>
+    </div>
+  </div>
+
+  <!-- Primary & Neutrals -->
+  <div class="section">
+    <h2 class="section-title">Colors — Primary & Neutrals</h2>
+    <div class="color-grid">
+      <div class="color-card">
+        <div class="color-swatch" style="background:var(--primary)">#4F46E5</div>
+        <div class="color-info"><div class="name">Primary</div><div class="token">indigo-600</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch light-text" style="background:var(--background)">#F9FAFB</div>
+        <div class="color-info"><div class="name">Background</div><div class="token">page background</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch light-text" style="background:var(--surface)">#FFFFFF</div>
+        <div class="color-info"><div class="name">Surface</div><div class="token">cards, dialogs</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch light-text" style="background:var(--border)">#E5E7EB</div>
+        <div class="color-info"><div class="name">Border</div><div class="token">borders, dividers</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch light-text" style="background:var(--text-primary)">#111827</div>
+        <div class="color-info"><div class="name">Text Primary</div><div class="token">headings, body</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch light-text" style="background:var(--text-secondary)">#6B7280</div>
+        <div class="color-info"><div class="name">Text Secondary</div><div class="token">descriptions, meta</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch light-text" style="background:var(--text-muted)">#9CA3AF</div>
+        <div class="color-info"><div class="name">Text Muted</div><div class="token">placeholders, disabled</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch light-text" style="background:var(--secondary)">#F3F4F6</div>
+        <div class="color-info"><div class="name">Secondary</div><div class="token">hover states</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Semantic Colors -->
+  <div class="section">
+    <h2 class="section-title">Colors — Semantic 语义色</h2>
+    <div class="color-grid">
+      <div class="color-card">
+        <div class="color-swatch" style="background:var(--success)">#16A34A</div>
+        <div class="color-info"><div class="name">Success</div><div class="token">green-600</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background:var(--warning)">#D97706</div>
+        <div class="color-info"><div class="name">Warning</div><div class="token">amber-600</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background:var(--error)">#DC2626</div>
+        <div class="color-info"><div class="name">Error</div><div class="token">red-600</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background:var(--info)">#2563EB</div>
+        <div class="color-info"><div class="name">Info</div><div class="token">blue-600</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Platform Colors -->
+  <div class="section">
+    <h2 class="section-title">Colors — Platform 平台色</h2>
+    <div class="color-grid">
+      <div class="color-card">
+        <div class="color-swatch" style="background:var(--wechat)">#16A34A</div>
+        <div class="color-info"><div class="name">微信公众号</div><div class="token">green-600</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background:var(--weibo)">#DC2626</div>
+        <div class="color-info"><div class="name">微博</div><div class="token">red-600</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background:var(--xiaohongshu)">#EC4899</div>
+        <div class="color-info"><div class="name">小红书</div><div class="token">pink-500</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background:var(--douyin)">#000000</div>
+        <div class="color-info"><div class="name">抖音</div><div class="token">black</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Badges -->
+  <div class="section">
+    <h2 class="section-title">Status Badges 状态徽章</h2>
+    <div class="badge-row">
+      <span class="badge badge-draft">AI 草稿</span>
+      <span class="badge badge-editing">人工编辑</span>
+      <span class="badge badge-review">客户审核</span>
+      <span class="badge badge-approved">已批准</span>
+      <span class="badge badge-published">已发布</span>
+    </div>
+    <div class="badge-row" style="margin-top:16px">
+      <span class="badge badge-wechat">微信</span>
+      <span class="badge badge-weibo">微博</span>
+      <span class="badge badge-xiaohongshu">小红书</span>
+      <span class="badge badge-douyin">抖音</span>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="section">
+    <h2 class="section-title">Buttons 按钮</h2>
+    <div class="button-row">
+      <button class="btn btn-primary">主要按钮</button>
+      <button class="btn btn-secondary">次要按钮</button>
+      <button class="btn btn-outline">描边按钮</button>
+      <button class="btn btn-ghost">幽灵按钮</button>
+      <button class="btn btn-danger">危险操作</button>
+    </div>
+    <div class="button-row">
+      <button class="btn btn-primary btn-sm">小按钮</button>
+      <button class="btn btn-secondary btn-sm">小按钮</button>
+      <button class="btn btn-outline btn-sm">小按钮</button>
+    </div>
+  </div>
+
+  <!-- Spacing -->
+  <div class="section">
+    <h2 class="section-title">Spacing 间距</h2>
+    <div class="spacing-row">
+      <span class="spacing-label">2xs</span>
+      <span class="spacing-value">2px</span>
+      <div class="spacing-bar" style="width:2px"></div>
+    </div>
+    <div class="spacing-row">
+      <span class="spacing-label">xs</span>
+      <span class="spacing-value">4px</span>
+      <div class="spacing-bar" style="width:4px"></div>
+    </div>
+    <div class="spacing-row">
+      <span class="spacing-label">sm</span>
+      <span class="spacing-value">8px</span>
+      <div class="spacing-bar" style="width:8px"></div>
+    </div>
+    <div class="spacing-row">
+      <span class="spacing-label">md</span>
+      <span class="spacing-value">12px</span>
+      <div class="spacing-bar" style="width:12px"></div>
+    </div>
+    <div class="spacing-row">
+      <span class="spacing-label">lg</span>
+      <span class="spacing-value">16px</span>
+      <div class="spacing-bar" style="width:16px"></div>
+    </div>
+    <div class="spacing-row">
+      <span class="spacing-label">xl</span>
+      <span class="spacing-value">24px</span>
+      <div class="spacing-bar" style="width:24px"></div>
+    </div>
+    <div class="spacing-row">
+      <span class="spacing-label">2xl</span>
+      <span class="spacing-value">32px</span>
+      <div class="spacing-bar" style="width:32px"></div>
+    </div>
+    <div class="spacing-row">
+      <span class="spacing-label">3xl</span>
+      <span class="spacing-value">48px</span>
+      <div class="spacing-bar" style="width:48px"></div>
+    </div>
+  </div>
+
+  <!-- Border Radius -->
+  <div class="section">
+    <h2 class="section-title">Border Radius 圆角</h2>
+    <div class="radius-row">
+      <div class="radius-box" style="border-radius:var(--radius-sm)">
+        <span>sm</span><span>4px</span>
+      </div>
+      <div class="radius-box" style="border-radius:var(--radius-md)">
+        <span>md</span><span>6px</span>
+      </div>
+      <div class="radius-box" style="border-radius:var(--radius-lg)">
+        <span>lg</span><span>8px</span>
+      </div>
+      <div class="radius-box" style="border-radius:var(--radius-xl)">
+        <span>xl</span><span>12px</span>
+      </div>
+      <div class="radius-box" style="border-radius:var(--radius-full)">
+        <span>full</span><span>9999px</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="section">
+    <h2 class="section-title">Toast 通知 (Sonner)</h2>
+    <div class="toast-preview">
+      <div class="toast">
+        <div class="toast-dot" style="background:var(--success)"></div>
+        <span>内容已保存</span>
+      </div>
+      <div class="toast">
+        <div class="toast-dot" style="background:var(--error)"></div>
+        <span>发布失败，请重试</span>
+      </div>
+      <div class="toast">
+        <div class="toast-dot" style="background:var(--warning)"></div>
+        <span>审核即将到期</span>
+      </div>
+      <div class="toast">
+        <div class="toast-dot" style="background:var(--info)"></div>
+        <span>AI 正在生成内容...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Motion -->
+  <div class="section">
+    <h2 class="section-title">Motion 动效</h2>
+    <table class="spec-table">
+      <thead>
+        <tr><th>Level</th><th>Duration</th><th>Easing</th><th>Usage</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>micro</code></td><td>100ms</td><td>ease-out</td><td>Hover states, focus rings</td></tr>
+        <tr><td><code>short</code></td><td>200ms</td><td>ease-out</td><td>Tab switches, dropdown open</td></tr>
+        <tr><td><code>medium</code></td><td>300ms</td><td>ease-in-out</td><td>Sidebar collapse, toast</td></tr>
+        <tr><td><code>long</code></td><td>500ms</td><td>ease-in-out</td><td>Page transitions</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Layout: Sidebar + Kanban -->
+  <div class="section">
+    <h2 class="section-title">Layout — Sidebar + Kanban</h2>
+    <div class="layout-preview">
+      <div class="sidebar-preview">
+        <div class="sidebar-logo">ContentOS</div>
+        <div class="sidebar-nav-item active">
+          <svg class="sidebar-nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M6 2v12M2 6h12"/></svg>
+          看板
+        </div>
+        <div class="sidebar-nav-item">
+          <svg class="sidebar-nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+          内容库
+        </div>
+        <div class="sidebar-nav-item">
+          <svg class="sidebar-nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+          简报
+        </div>
+        <div class="sidebar-nav-item">
+          <svg class="sidebar-nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h10l-1 12H4L3 2zM6 5v4M10 5v4"/></svg>
+          发布
+        </div>
+        <div class="sidebar-nav-item">
+          <svg class="sidebar-nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 3-5 6-5s6 2 6 5"/></svg>
+          客户
+        </div>
+      </div>
+      <div class="content-preview">
+        <div class="content-title-bar">
+          <h2>内容看板</h2>
+          <button class="btn btn-primary btn-sm">+ 新建简报</button>
+        </div>
+        <div class="kanban-preview">
+          <div class="kanban-column">
+            <div class="kanban-column-header">
+              <span class="badge badge-draft">AI 草稿</span>
+              <span class="kanban-count">3</span>
+            </div>
+            <div class="kanban-card">
+              <div class="kanban-card-title">春季护肤指南：5个科学方法</div>
+              <div class="kanban-card-meta">
+                <span><span class="badge badge-xiaohongshu" style="font-size:11px;padding:1px 5px">小红书</span></span>
+                <span class="kanban-card-date">4月24日</span>
+              </div>
+            </div>
+            <div class="kanban-card">
+              <div class="kanban-card-title">品牌故事：从0到1的创业之路</div>
+              <div class="kanban-card-meta">
+                <span><span class="badge badge-wechat" style="font-size:11px;padding:1px 5px">微信</span></span>
+                <span class="kanban-card-date">4月23日</span>
+              </div>
+            </div>
+          </div>
+          <div class="kanban-column">
+            <div class="kanban-column-header">
+              <span class="badge badge-editing">人工编辑</span>
+              <span class="kanban-count">2</span>
+            </div>
+            <div class="kanban-card">
+              <div class="kanban-card-title">新品上市预热文案</div>
+              <div class="kanban-card-meta">
+                <span><span class="badge badge-weibo" style="font-size:11px;padding:1px 5px">微博</span></span>
+                <span class="kanban-card-date">4月22日</span>
+              </div>
+            </div>
+          </div>
+          <div class="kanban-column">
+            <div class="kanban-column-header">
+              <span class="badge badge-review">客户审核</span>
+              <span class="kanban-count">1</span>
+            </div>
+            <div class="kanban-card">
+              <div class="kanban-card-title">618大促营销方案</div>
+              <div class="kanban-card-meta">
+                <span>
+                  <span class="badge badge-wechat" style="font-size:11px;padding:1px 5px">微信</span>
+                  <span class="badge badge-douyin" style="font-size:11px;padding:1px 5px">抖音</span>
+                </span>
+                <span class="kanban-card-date">4月21日</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border);text-align:center;color:var(--text-muted);font-size:12px;">
+    ContentOS Design System — Generated from DESIGN.md
+  </div>
+
+</div>
+</body>
+</html>
