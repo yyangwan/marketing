@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+
+  memberships  WorkspaceMember[]
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  members   WorkspaceMember[]
+  projects  Project[]
+  invites   WorkspaceInvite[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String   @default("member")
+  joinedAt    DateTime @default(now())
+
+  @@unique([workspaceId, userId])
+}
+
+model WorkspaceInvite {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  token       String    @unique @default(cuid())
+  email       String
+  role        String    @default("member")
+  invitedBy   String
+  usedAt      DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  clientName  String   @default("")
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  contentPieces ContentPiece[]
+
+  @@unique([workspaceId, name])
+}
+
+model ContentPiece {
+  id               String            @id @default(cuid())
+  projectId        String
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title            String
+  type             String            @default("blog_post")
+  brief            String
+  status           String            @default("draft")
+  reviewToken      String?           @unique
+  reviewExpiresAt  DateTime?
+  platformContents PlatformContent[]
+  reviewComments   ReviewComment[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model PlatformContent {
+  id              String       @id @default(cuid())
+  contentPieceId  String
+  contentPiece    ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+  platform        String
+  status          String       @default("draft")
+  content         String?
+  publishedUrl    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([contentPieceId, platform])
+}
+
+model ReviewComment {
+  id             String       @id @default(cuid())
+  contentPieceId String
+  contentPiece   ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+  authorName     String
+  comment        String?
+  action         String
+  createdAt      DateTime     @default(now())
+}
