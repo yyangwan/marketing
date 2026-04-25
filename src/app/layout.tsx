@@ -7,6 +7,8 @@ import { Toaster } from "sonner";
 import { auth } from "@/lib/auth/config";
 import { prisma } from "@/lib/db";
 import { SignOutButton } from "@/components/sign-out-button";
+import { FeedbackButton } from "@/components/feedback-button";
+import { initAnalytics } from "@/lib/analytics";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,6 +25,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Initialize analytics (client-side only)
+  if (typeof window !== "undefined") {
+    initAnalytics();
+  }
+
   const session = await auth();
 
   let workspaceName: string | null = null;
@@ -114,6 +121,7 @@ export default async function RootLayout({
         )}
         <main className="flex-1 overflow-hidden">{children}</main>
         <Toaster position="top-right" richColors closeButton />
+        <FeedbackButton />
       </body>
     </html>
   );

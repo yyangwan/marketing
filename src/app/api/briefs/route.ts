@@ -4,15 +4,17 @@ import { auth } from "@/lib/auth/config";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { generateForAllPlatforms } from "@/lib/ai/generator";
 import type { Brief } from "@/types";
+import { responses, errors, apiError, ERROR_CODES } from "@/lib/errors";
+import { LLMError } from "@/lib/ai/client";
 
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
   const { searchParams } = new URL(req.url);
@@ -46,11 +48,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
   try {
@@ -58,10 +60,7 @@ export async function POST(req: Request) {
     const { projectId, ...briefData } = body;
 
     if (!projectId) {
-      return NextResponse.json(
-        { error: "projectId is required" },
-        { status: 400 }
-      );
+      return responses.badRequest(errors.missingParam("projectId"));
     }
 
     // Verify project belongs to this workspace
@@ -69,7 +68,7 @@ export async function POST(req: Request) {
       where: { id: projectId, workspaceId: ws.workspaceId },
     });
     if (!project) {
-      return NextResponse.json({ error: "project not found" }, { status: 404 });
+      return responses.notFound(errors.projectNotFound(projectId));
     }
 
     const brief: Brief = {
@@ -124,6 +123,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json(result);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    // Distinguish LLM errors from other errors
+    if (err instanceof LLMError) {
+      return responses.serverError(errors.llmError(err.originalError));
+    }
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    return responses.serverError(
+      apiError("api_error", ERROR_CODES.INTERNAL_ERROR, `服务器内部错误: ${errorMessage}`)
+    );
   }
 }

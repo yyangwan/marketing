@@ -1,6 +1,17 @@
 const DEEPSEEK_URL = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1";
 const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || "";
 
+export class LLMError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number,
+    public originalError: string
+  ) {
+    super(message);
+    this.name = "LLMError";
+  }
+}
+
 export async function callLLM(prompt: string, systemPrompt?: string): Promise<string> {
   if (process.env.MOCK_AI === "true" || !DEEPSEEK_KEY) {
     return mockResponse(prompt);
@@ -25,7 +36,11 @@ export async function callLLM(prompt: string, systemPrompt?: string): Promise<st
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`LLM API error: ${res.status} ${err}`);
+    throw new LLMError(
+      `LLM API error: ${res.status} ${err}`,
+      res.status,
+      err
+    );
   }
 
   const data = await res.json();

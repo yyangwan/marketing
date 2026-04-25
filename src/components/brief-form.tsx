@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import type { Platform, Brief } from "@/types";
 import { PLATFORM_CONFIG } from "@/types";
 
@@ -67,7 +68,18 @@ export function BriefForm({ projectId }: { projectId?: string }) {
       router.push(`/content/${result.id}`);
     } else {
       const data = await res.json();
-      alert(data.error || "创建失败，请检查输入");
+      // Handle structured error format: { error: { type, code, message, param, doc_url } }
+      const errorMessage = data.error?.message || data.error || "创建失败，请检查输入";
+      const errorCode = data.error?.code;
+      const docUrl = data.error?.doc_url;
+
+      toast.error(errorMessage, {
+        description: errorCode ? `错误代码: ${errorCode}` : undefined,
+        action: docUrl ? {
+          label: "查看文档",
+          onClick: () => window.open(docUrl, "_blank"),
+        } : undefined,
+      });
       setSubmitting(false);
     }
   };
