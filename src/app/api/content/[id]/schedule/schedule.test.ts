@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { POST, DELETE } from "../route";
+import { POST, DELETE } from "./route";
 
 // Mock dependencies
 vi.mock("@/lib/db", () => ({
