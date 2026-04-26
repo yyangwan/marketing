@@ -172,9 +172,14 @@ model ContentSchedule {
   contentPiece ContentPiece @relation(fields: [contentId], references: [id], onDelete: Cascade)
   scheduledAt DateTime
   publishedAt DateTime?
-  status      String   @default("scheduled") // "scheduled" | "publishing" | "published" | "failed"
+  // Status values must match ScheduleStatus type in src/types/index.ts
+  // Valid values: "scheduled" | "publishing" | "published" | "failed"
+  // Note: SQLite CHECK constraint should be added via migration for production:
+  // ALTER TABLE ContentSchedule ADD COLUMN status TEXT CHECK(status IN ('scheduled', 'publishing', 'published', 'failed'));
+  status      String   @default("scheduled")
   createdAt   DateTime @default(now())
 
+  @@unique([contentId])
   @@index([scheduledAt])
   @@index([status])
 }

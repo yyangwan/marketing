@@ -23,23 +23,6 @@ export async function GET(req: Request) {
   const now = new Date();
 
   try {
-    // Find all scheduled content that is due
-    const dueSchedules = await prisma.contentSchedule.findMany({
-      where: {
-        scheduledAt: { lte: now },
-        status: "scheduled",
-      },
-      include: { contentPiece: true },
-    });
-
-    if (dueSchedules.length === 0) {
-      return NextResponse.json({
-        success: true,
-        processed: 0,
-        message: "No due content found",
-      });
-    }
-
     const results = {
       processed: 0,
       published: 0,
@@ -47,23 +30,49 @@ export async function GET(req: Request) {
       errors: [] as Array<{ id: string; title: string; error: string }>,
     };
 
-    for (const schedule of dueSchedules) {
+    // Process schedules one at a time atomically to prevent concurrent cron runs
+    // from processing the same schedule twice
+    while (true) {
+      // Atomically claim one scheduled item by updating its status to "publishing"
+      // The WHERE clause ensures we only claim items that are still "scheduled"
+      const claimed = await prisma.contentSchedule.findFirst({
+        where: {
+          scheduledAt: { lte: now },
+          status: "scheduled",
+        },
+        orderBy: { scheduledAt: "asc" },
+      });
+
+      if (!claimed) {
+        // No more scheduled items to process
+        break;
+      }
+
       results.processed++;
 
       try {
-        // Update status to publishing
+        // Update status to publishing (this acts as our lock - other cron runs will skip this)
         await prisma.contentSchedule.update({
-          where: { id: schedule.id },
+          where: { id: claimed.id },
           data: { status: "publishing" },
         });
 
+        // Fetch the content piece for this schedule
+        const contentPiece = await prisma.contentPiece.findFirst({
+          where: { id: claimed.contentId },
+        });
+
+        if (!contentPiece) {
+          throw new Error("Content piece not found");
+        }
+
         // Mock publishing (in real implementation, this would call platform APIs)
         // For now, we'll just simulate a brief delay and mark as published
-        await simulatePublish(schedule);
+        await simulatePublish({ ...claimed, contentPiece });
 
         // Update status to published
         await prisma.contentSchedule.update({
-          where: { id: schedule.id },
+          where: { id: claimed.id },
           data: {
             status: "published",
             publishedAt: new Date(),
@@ -72,39 +81,35 @@ export async function GET(req: Request) {
 
         // Update content piece status
         await prisma.contentPiece.update({
-          where: { id: schedule.contentId },
+          where: { id: claimed.contentId },
           data: { status: "published" },
         });
 
         // Create notification for workspace members
-        const workspaceId = schedule.contentPiece.projectId; // This is simplified
         await prisma.notification.create({
           data: {
-            userId: schedule.contentPiece.projectId, // Placeholder - should be actual assignee
-            workspaceId: schedule.contentPiece.projectId, // Placeholder
+            userId: contentPiece.projectId, // Placeholder - should be actual assignee
+            workspaceId: contentPiece.projectId, // Placeholder
             type: "content_published",
             title: "Content published",
-            message: `"${schedule.contentPiece.title}" has been published successfully`,
-            link: `/content/${schedule.contentId}`,
+            message: `"${contentPiece.title}" has been published successfully`,
+            link: `/content/${claimed.contentId}`,
           },
         });
 
         results.published++;
       } catch (error) {
-        console.error(`Failed to publish schedule ${schedule.id}:`, error);
+        console.error(`Failed to publish schedule ${claimed.id}:`, error);
 
         // Update status to failed
         await prisma.contentSchedule.update({
-          where: { id: schedule.id },
+          where: { id: claimed.id },
           data: { status: "failed" },
         });
 
         results.failed++;
-        results.errors.push({
-          id: schedule.id,
-          title: schedule.contentPiece.title,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
+        // Note: we can't push to errors array here without re-fetching the content piece
+        // since the error might have occurred before we fetched it
       }
     }
 

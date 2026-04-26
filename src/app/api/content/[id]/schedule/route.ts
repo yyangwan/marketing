@@ -78,32 +78,20 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   }
 
   try {
-    // Check if schedule already exists
-    const existing = await prisma.contentSchedule.findFirst({
+    // Use upsert to handle race condition - ensures atomic operation
+    // If concurrent requests create a record, one wins via unique constraint
+    schedule = await prisma.contentSchedule.upsert({
       where: { contentId: id },
+      create: {
+        contentId: id,
+        scheduledAt: scheduledDate,
+        status: "scheduled",
+      },
+      update: {
+        scheduledAt: scheduledDate,
+        status: "scheduled",
+      },
     });
-
-    let schedule;
-
-    if (existing) {
-      // Update existing schedule
-      schedule = await prisma.contentSchedule.update({
-        where: { id: existing.id },
-        data: {
-          scheduledAt: scheduledDate,
-          status: "scheduled",
-        },
-      });
-    } else {
-      // Create new schedule
-      schedule = await prisma.contentSchedule.create({
-        data: {
-          contentId: id,
-          scheduledAt: scheduledDate,
-          status: "scheduled",
-        },
-      });
-    }
 
     // Update content piece status
     await prisma.contentPiece.update({

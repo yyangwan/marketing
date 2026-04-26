@@ -102,6 +102,7 @@ export default function CalendarClient({
           >
             <option value="">All Statuses</option>
             <option value="scheduled">Scheduled</option>
+            <option value="publishing">Publishing</option>
             <option value="published">Published</option>
             <option value="failed">Failed</option>
           </select>
