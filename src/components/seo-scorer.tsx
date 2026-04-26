@@ -110,6 +110,8 @@ export function SEOScorer({ content }: SEOProps) {
         return { text: "偏低", color: "text-amber-600" };
       case "stuffed":
         return { text: "过高", color: "text-red-600" };
+      default:
+        return { text: "未知", color: "text-gray-600" };
     }
   };
 

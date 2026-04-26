@@ -4,7 +4,7 @@ import { configure } from '@testing-library/dom';
 
 // Configure @testing-library/dom
 configure({
-  computedStyleSupportsCssColorScheme: true,
+  // computedStyleSupportsCssColorScheme is not available, removed
 });
 
 // Cleanup after each test
@@ -18,6 +18,14 @@ beforeEach(() => {
 
 // Mock window.confirm globally
 global.confirm = vi.fn(() => true) as unknown as () => boolean;
+
+// Ensure window and document are available for happy-dom
+if (typeof window === 'undefined') {
+  global.window = global.window as any;
+}
+if (typeof document === 'undefined') {
+  global.document = global.document as any;
+}
 
 // Mock Next.js router
 vi.mock('next/navigation', () => ({

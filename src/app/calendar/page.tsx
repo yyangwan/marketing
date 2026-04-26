@@ -30,13 +30,7 @@ export default async function CalendarPage() {
 
         {/* Unscheduled sidebar */}
         <div className="w-80 border-l">
-          <UnscheduledPanel
-            workspaceId={ws.workspaceId}
-            onScheduleClick={(contentId) => {
-              // Open schedule dialog for this content
-              console.log("Schedule content:", contentId);
-            }}
-          />
+          <UnscheduledPanel workspaceId={ws.workspaceId} />
         </div>
       </main>
     </div>
