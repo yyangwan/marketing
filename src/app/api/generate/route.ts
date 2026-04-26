@@ -5,11 +5,15 @@ import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { callLLM } from "@/lib/ai/client";
 import { buildWeChatPrompt } from "@/lib/ai/prompts/wechat";
 import { buildWeiboPrompt } from "@/lib/ai/prompts/weibo";
-import type { Brief, Platform } from "@/types";
+import { buildXiaohongshuPrompt } from "@/lib/ai/prompts/xiaohongshu";
+import { buildDouyinPrompt } from "@/lib/ai/prompts/douyin";
+import type { Brief, Platform, BrandVoice } from "@/types";
 
-const BUILDERS: Record<string, (brief: Brief) => string> = {
+const BUILDERS: Record<Platform, (brief: Brief, brandVoice?: BrandVoice) => string> = {
   wechat: buildWeChatPrompt,
   weibo: buildWeiboPrompt,
+  xiaohongshu: buildXiaohongshuPrompt,
+  douyin: buildDouyinPrompt,
 };
 
 export async function POST(req: Request) {
@@ -26,7 +30,12 @@ export async function POST(req: Request) {
 
   const piece = await prisma.contentPiece.findUnique({
     where: { id: contentPieceId },
-    include: { project: true },
+    include: {
+      project: {
+        include: { brandVoice: true },
+      },
+      brandVoice: true,
+    },
   });
   if (!piece || piece.project.workspaceId !== ws.workspaceId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -38,7 +47,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `No prompt for ${platform}` }, { status: 400 });
   }
 
-  const prompt = builder(brief);
+  // Use contentPiece's brandVoice, fall back to project's default
+  const brandVoice = piece.brandVoice || piece.project.brandVoice;
+
+  const prompt = builder(brief, brandVoice || undefined);
   const content = await callLLM(prompt);
 
   const pc = await prisma.platformContent.upsert({
