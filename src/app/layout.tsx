@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { LayoutDashboard, FileText, LogOut, Settings, FolderOpen, Plus } from "lucide-react";
+import { LayoutDashboard, FileText, LogOut, Settings, FolderOpen, Plus, Calendar, Bell } from "lucide-react";
 import { Toaster } from "sonner";
 import { auth } from "@/lib/auth/config";
 import { prisma } from "@/lib/db";
 import { SignOutButton } from "@/components/sign-out-button";
 import { FeedbackButton } from "@/components/feedback-button";
+import NotificationBellWrapper from "@/components/notification-bell-wrapper";
 import { initAnalytics } from "@/lib/analytics";
 
 const geistSans = Geist({
@@ -68,6 +69,13 @@ export default async function RootLayout({
                 看板
               </Link>
               <Link
+                href="/calendar"
+                className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-100"
+              >
+                <Calendar className="w-4 h-4" />
+                日历
+              </Link>
+              <Link
                 href="/brief/new"
                 className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-100"
               >
@@ -99,7 +107,7 @@ export default async function RootLayout({
                 </Link>
               </div>
             </nav>
-            <div className="px-3 py-2 border-t border-sidebar-border">
+            <div className="px-3 py-2 border-t border-sidebar-border flex items-center justify-between">
               <Link
                 href="/settings"
                 className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-100"
@@ -107,6 +115,9 @@ export default async function RootLayout({
                 <Settings className="w-4 h-4" />
                 设置
               </Link>
+              {session?.user?.workspaceId && (
+                <NotificationBellWrapper workspaceId={session.user.workspaceId} />
+              )}
             </div>
             <div className="px-4 py-3 border-t border-sidebar-border">
               <div className="flex items-center justify-between">
