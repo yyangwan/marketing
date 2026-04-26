@@ -8,7 +8,10 @@ ContentOS 是一个多租户 SaaS 平台，使用 Next.js 16 (App Router)、Pris
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Client Layer                            │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-│  │  看板视图  │  │ Brief表单 │  │ 内容编辑器 │  │ 设置页面  │      │
+│  │  看板视图  │  │ Brief表单 │  │ 内容编辑器 │  │ 日历视图  │      │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
+│  │ 品牌调性  │  │ 模板管理  │  │ 质量面板  │  │ 通知铃铛  │      │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -16,8 +19,16 @@ ContentOS 是一个多租户 SaaS 平台，使用 Next.js 16 (App Router)、Pris
 ┌─────────────────────────────────────────────────────────────────┐
 │                      API Layer (Next.js)                        │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-│  │ /api/briefs│ │ /api/content│ │ /api/projects│ │ /api/workspaces│   │
+│  │ /api/briefs│ │ /api/content│ │ /api/projects│ │ /api/workspaces│  │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
+│  │/api/brand│ │ /api/templates│ │/api/calendar │ │/api/notifications││
+│  │ _voices  │  │             │  │  /events   │  │                │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                       │
+│  │/api/content│ │ /api/cron/publish│ │ /api/quality│            │
+│  │/[id]/schedule│ │              │  │              │             │
+│  └──────────┘  └──────────┘  └──────────┘                       │
 └─────────────────────────────────────────────────────────────────┘
          │                    │                    │
          ▼                    ▼                    ▼
@@ -111,7 +122,13 @@ POST /api/briefs
     ↓
 调用 AI 生成 (generateForAllPlatforms)
     ↓
+品牌调性注入 (Brand Voice)
+    ↓
 更新 PlatformContent.content
+    ↓
+质量评估 (Quality Panel)
+    ↓
+SEO 分析 (SEO Scorer)
     ↓
 返回完整 ContentPiece
 ```
@@ -120,6 +137,7 @@ POST /api/briefs
 - **主要**: DeepSeek API (`https://api.deepseek.com/v1`)
 - **回退**: Mock 模式（开发/测试）
 - **Prompt**: 平台特定 prompt builders (`src/lib/ai/prompts/`)
+- **品牌调性**: 自动注入品牌调性上下文到所有平台 prompts
 
 **平台适配**:
 ```typescript
@@ -130,15 +148,28 @@ interface PlatformConfig {
   hashtags: boolean;
   emojis: boolean;
 }
+
+// 品牌调性注入
+interface BrandVoice {
+  name: string;
+  description: string;
+  guidelines: string;
+  sampleContent: string;
+}
 ```
+
+**质量评估**:
+- 4 维度评分: 质量、互动性、品牌匹配度、平台适配度
+- AI 驱动的改进建议
+- 实时 SEO 分析（字符数、词数、关键词密度）
 
 ### 4. 内容审核 (Review Workflow)
 
 **Kanban 状态流转**:
 ```
-draft (草稿) → in_review (审核中) → approved (已批准) → published (已发布)
-                    ↓
-              revision_requested (需修改)
+draft (草稿) → in_review (审核中) → approved (已批准) → scheduled (已调度) → publishing (发布中) → published (已发布)
+                    ↓                                           ↓
+              revision_requested (需修改)                   failed (发布失败)
 ```
 
 **审核评论**:
@@ -151,6 +182,81 @@ interface ReviewComment {
 }
 ```
 
+### 5. 日历与调度 (Calendar & Scheduling)
+
+**日历系统**:
+- 月视图/周视图切换
+- 拖拽重新调度内容
+- 状态颜色编码
+- 日期范围导航
+
+**调度工作流**:
+```
+用户设置发布时间
+    ↓
+POST /api/content/[id]/schedule
+    ↓
+创建/更新 ContentSchedule (原子 upsert)
+    ↓
+状态变更为 scheduled
+    ↓
+Cron job 定期检查到期内容
+    ↓
+POST /api/cron/publish
+    ↓
+状态变更为 publishing → published/failed
+    ↓
+触发通知
+```
+
+**数据模型**:
+```typescript
+interface ContentSchedule {
+  contentPieceId: string;
+  scheduledFor: DateTime;
+  status: "scheduled" | "publishing" | "published" | "failed";
+  publishedAt?: DateTime;
+  error?: string;
+}
+```
+
+### 6. 通知系统 (Notifications)
+
+**通知类型**:
+- `content_review`: 内容审核状态变更
+- `schedule_reminder`: 即将发布的内容提醒
+- `content_published`: 内容发布成功/失败
+
+**通知流**:
+```
+事件触发 (trigger.ts)
+    ↓
+创建 Notification 记录
+    ↓
+关联到用户/工作区
+    ↓
+实时推送 (30s 轮询)
+    ↓
+前端显示通知铃铛 + 下拉列表
+    ↓
+用户标记已读/删除
+```
+
+**数据模型**:
+```typescript
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  actionUrl?: string;
+  userId: string;
+  workspaceId: string;
+  read: boolean;
+  createdAt: DateTime;
+}
+```
+
 ## 数据模型
 
 ### Entity Relationships
@@ -158,24 +264,30 @@ interface ReviewComment {
 ```
 User ────< WorkspaceMember >──── Workspace
                                      │
-                                     │
                                      │ has many
-                                     ▼
-                                  Project
+                                     ├── Project
+                                     │    │
+                                     │    │ has many
+                                     │    ▼
+                                     │  ContentPiece
+                                     │    │
+                                     │    │ has many
+                                     │    ├── PlatformContent
+                                     │    │    │
+                                     │    │    │ has many
+                                     │    │    ▼
+                                     │    │  ReviewComment
+                                     │    │
+                                     │    ├── BrandVoice (per-project)
+                                     │    └── AITemplate (per-project)
                                      │
-                                     │ has many
-                                     ▼
-                               ContentPiece
+                                     ├── Notification
                                      │
-                                     │ has many
-                                     ▼
-                             PlatformContent
+                                     ├── Invite
                                      │
-                                     │ has many
-                                     ▼
-                               ReviewComment
-
-Invite ─────> Workspace (通过 targetWorkspaceId)
+                                     └── ContentSchedule
+                                          │
+                                          └── ContentPiece (one-to-one)
 ```
 
 ### 关键表结构

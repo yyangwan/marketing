@@ -72,18 +72,40 @@ src/
 │   ├── api/               # API 路由
 │   │   ├── briefs/        # Brief 创建、查询
 │   │   ├── content/        # 内容管理、状态更新
+│   │   │   └── [id]/      # 内容详情
+│   │   │       ├── quality/ # 质量评估
+│   │   │       └── schedule/ # 发布调度
 │   │   ├── generate/      # AI 生成接口
 │   │   ├── projects/      # 项目管理
 │   │   ├── workspaces/     # 工作空间
-│   │   └── invites/        # 邀请协作
+│   │   ├── invites/        # 邀请协作
+│   │   ├── brand-voices/  # 品牌调性管理
+│   │   ├── templates/     # 内容模板
+│   │   ├── calendar/      # 日历事件
+│   │   ├── notifications/ # 通知系统
+│   │   └── cron/          # 定时任务
 │   ├── brief/             # Brief 表单
 │   ├── content/           # 内容编辑器
+│   ├── calendar/          # 日历视图
+│   ├── templates/         # 模板管理
 │   ├── login/             # 登录页面
 │   └── settings/         # 设置页面
+│       └── brand-voice/  # 品牌调性设置
 ├── components/            # React 组件
+│   ├── brand-voice-client.tsx    # 品牌调性组件
+│   ├── templates-client.tsx       # 模板管理组件
+│   ├── quality-panel.tsx          # 质量评估面板
+│   ├── seo-scorer.tsx             # SEO 分析组件
+│   ├── calendar-client.tsx        # 日历视图
+│   ├── schedule-dialog.tsx        # 调度对话框
+│   ├── notification-bell.tsx      # 通知铃铛
+│   └── content-editor.tsx         # 内容编辑器（含质量/SEO面板）
 ├── lib/                   # 核心逻辑
 │   ├── ai/               # AI 生成、prompts
+│   │   └── prompts/      # 平台特定 prompt（含品牌调性注入）
 │   ├── auth/             # 认证配置
+│   ├── notifications/    # 通知触发器
+│   ├── dates.ts          # 日期工具函数
 │   └── db.ts             # Prisma 客户端
 └── types/                 # TypeScript 类型定义
 ```
@@ -197,7 +219,7 @@ npm run db:setup
 
 查看 [CHANGELOG.md](CHANGELOG.md) 了解版本历史和迁移指南。
 
-当前版本: `v0.1.0`
+当前版本: `v0.3.0`
 
 ## 隐私与分析
 
@@ -211,6 +233,24 @@ ContentOS 使用隐私优先的分析来改进 DX。详见 [隐私政策](docs/a
 - **[贡献指南](CONTRIBUTING.md)** — 开发者参与指南
 - **[设计系统](DESIGN.md)** — UI 组件和设计规范
 
+## 测试
+
+```bash
+# 运行所有测试
+npm test
+
+# 监听模式
+npm run test:watch
+
+# 测试覆盖率
+npm run test:coverage
+
+# UI 模式
+npm run test:ui
+```
+
+测试框架: Vitest + Testing Library + jsdom
+
 ## 技术栈
 
 - **框架**: Next.js 16 (App Router)
@@ -218,7 +258,9 @@ ContentOS 使用隐私优先的分析来改进 DX。详见 [隐私政策](docs/a
 - **数据库**: Prisma + SQLite (可切换 PostgreSQL)
 - **UI**: React 19 + Tailwind CSS + Shadcn UI
 - **编辑器**: TipTap
-- **通知**: Sonner
+- **日历**: Schedule-X
+- **通知**: Sonner (UI), 自定义通知系统
+- **测试**: Vitest + Testing Library
 
 ## 部署
 

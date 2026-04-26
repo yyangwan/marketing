@@ -5,7 +5,7 @@ All notable changes to ContentOS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.com/spec/v2.0.0.html).
 
-## [0.3.0] - 2025-04-26
+## [0.3.0] - 2026-04-26
 
 ### Added
 - **Calendar System**: Full calendar UI for managing content publication schedules
@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.com/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0] - 2025-04-26
+## [0.2.0] - 2026-04-26
 
 ### Added
 - **Brand Voice System**: Create and manage brand voices with custom samples, guidelines, and descriptions
@@ -79,6 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.com/spec/v2.0.0
 ### Fixed
 - Added defensive error handling for JSON parsing in prompt builders (try-catch with fallback)
 - Vitest test infrastructure improvements with jsdom environment and setup file
+
+## [0.1.0] - 2026-04-26
 
 ### Added
 - Initial release of ContentOS
