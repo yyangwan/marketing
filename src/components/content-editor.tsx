@@ -8,6 +8,8 @@ import type { Platform } from "@/types";
 import { PLATFORM_CONFIG } from "@/types";
 import { toast } from "sonner";
 import { Link, Copy, Send } from "lucide-react";
+import { SEOScorer } from "@/components/seo-scorer";
+import { QualityPanel } from "@/components/quality-panel";
 
 interface EditorProps {
   platforms: { platform: string; content: string; id: string; status: string }[];
@@ -209,6 +211,12 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
             </button>
           )}
         </div>
+      </div>
+
+      {/* SEO Scoring and Quality Panels */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <SEOScorer content={editor?.getHTML() || ""} />
+        <QualityPanel contentPieceId={contentPieceId} />
       </div>
     </div>
   );
