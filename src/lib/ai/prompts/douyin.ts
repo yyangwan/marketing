@@ -1,7 +1,7 @@
-import type { Brief } from "@/types";
+import type { Brief, BrandVoice } from "@/types";
 
-export function buildDouyinPrompt(brief: Brief): string {
-  return `你是一位专业的抖音短视频脚本创作者。请根据以下简报，撰写一份抖音短视频脚本。
+export function buildDouyinPrompt(brief: Brief, brandVoice?: BrandVoice): string {
+  let prompt = `你是一位专业的抖音短视频脚本创作者。请根据以下简报，撰写一份抖音短视频脚本。
 
 ## 简报信息
 - 主题：${brief.topic}
@@ -22,4 +22,27 @@ export function buildDouyinPrompt(brief: Brief): string {
 6. 避免生硬的广告感，内容要有价值输出
 
 请直接输出脚本内容，不要添加额外说明。`;
+
+  if (brandVoice) {
+    let samples: string[];
+    try {
+      samples = JSON.parse(brandVoice.samples);
+    } catch {
+      samples = [];
+    }
+    const promptWithBrand = `【品牌调性指南】
+${brandVoice.description || ""}
+${brandVoice.guidelines || ""}
+
+【品牌声音示例】
+${samples.map((s: string, i: number) => `示例 ${i + 1}:\n${s}`).join("\n\n")}
+
+请遵循以上品牌调性指南，使脚本内容符合品牌风格。
+---
+` + prompt;
+
+    return promptWithBrand;
+  }
+
+  return prompt;
 }
