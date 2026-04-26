@@ -24,6 +24,8 @@ type EventName =
   | "content.status_changed"
   | "project.created"
   | "workspace.created"
+  // Performance
+  | "app.timing"
   // Errors
   | "error.api"
   | "error.validation"
@@ -65,7 +67,7 @@ export function track(name: EventName, properties?: Record<string, string | numb
     properties: {
       ...properties,
       enhanced: isEnhancedTracking(),
-      url: typeof window !== "undefined" ? window.location.pathname : undefined,
+      url: typeof window !== "undefined" ? window.location.pathname : "/",
     },
     timestamp: Date.now(),
   };
