@@ -1,7 +1,7 @@
-import type { Brief } from "@/types";
+import type { Brief, BrandVoice } from "@/types";
 
-export function buildWeiboPrompt(brief: Brief): string {
-  return `你是一位专业的微博内容创作者。请根据以下简报，撰写一条微博帖子。
+export function buildWeiboPrompt(brief: Brief, brandVoice?: BrandVoice): string {
+  let prompt = `你是一位专业的微博内容创作者。请根据以下简报，撰写一条微博帖子。
 
 ## 简报信息
 - 主题：${brief.topic}
@@ -17,4 +17,27 @@ export function buildWeiboPrompt(brief: Brief): string {
 6. 可以使用纯文本格式
 
 请直接输出微博内容，不要添加额外说明。`;
+
+  if (brandVoice) {
+    let samples: string[];
+    try {
+      samples = JSON.parse(brandVoice.samples);
+    } catch {
+      samples = [];
+    }
+    const promptWithBrand = `【品牌调性指南】
+${brandVoice.description || ""}
+${brandVoice.guidelines || ""}
+
+【品牌声音示例】
+${samples.map((s: string, i: number) => `示例 ${i + 1}:\n${s}`).join("\n\n")}
+
+请遵循以上品牌调性指南，使微博内容符合品牌风格。
+---
+` + prompt;
+
+    return promptWithBrand;
+  }
+
+  return prompt;
 }

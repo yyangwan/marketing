@@ -1,7 +1,7 @@
-import type { Brief } from "@/types";
+import type { Brief, BrandVoice } from "@/types";
 
-export function buildXiaohongshuPrompt(brief: Brief): string {
-  return `你是一位专业的小红书种草博主。请根据以下简报，撰写一篇高质量的小红书笔记。
+export function buildXiaohongshuPrompt(brief: Brief, brandVoice?: BrandVoice): string {
+  let prompt = `你是一位专业的小红书种草博主。请根据以下简报，撰写一篇高质量的小红书笔记。
 
 ## 简报信息
 - 主题：${brief.topic}
@@ -20,4 +20,27 @@ export function buildXiaohongshuPrompt(brief: Brief): string {
 8. 适当使用小红书常见表达："绝绝子""种草""姐妹们""宝藏""yyds"等
 
 请直接输出笔记内容（第一行为标题，空行后为正文），不要添加额外说明。`;
+
+  if (brandVoice) {
+    let samples: string[];
+    try {
+      samples = JSON.parse(brandVoice.samples);
+    } catch {
+      samples = [];
+    }
+    const promptWithBrand = `【品牌调性指南】
+${brandVoice.description || ""}
+${brandVoice.guidelines || ""}
+
+【品牌声音示例】
+${samples.map((s: string, i: number) => `示例 ${i + 1}:\n${s}`).join("\n\n")}
+
+请遵循以上品牌调性指南，使笔记内容符合品牌风格。
+---
+` + prompt;
+
+    return promptWithBrand;
+  }
+
+  return prompt;
 }

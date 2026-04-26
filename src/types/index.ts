@@ -12,6 +12,49 @@ export interface Brief {
   notes: string;
 }
 
+// Phase 1C: Brand Voice System
+export interface BrandVoice {
+  id: string;
+  name: string;
+  workspaceId: string;
+  description: string | null;
+  guidelines: string | null;  // Dos and don'ts for tone
+  samples: string;  // JSON array of sample content strings
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type TemplateVariableType = "text" | "number" | "textarea";
+
+export interface TemplateVariable {
+  name: string;  // Variable name (alphanumeric + underscore only)
+  type: TemplateVariableType;
+  description: string;
+  required: boolean;
+}
+
+export interface AITemplate {
+  id: string;
+  name: string;
+  workspaceId: string;
+  description: string | null;
+  template: string;  // Template content with {variable} placeholders
+  variables: TemplateVariable[];  // JSON array
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ContentQuality {
+  id: string;
+  contentPieceId: string;
+  quality: number;  // 0-10
+  engagement: number;  // 0-10
+  brandVoice: number;  // 0-10
+  platformFit: number;  // 0-10
+  suggestions: string | null;  // JSON array
+  evaluatedAt: Date;
+}
+
 /* DESIGN.md status colors */
 export const STATUS_COLUMNS: { key: ContentStatus; label: string; color: string }[] = [
   { key: "draft", label: "AI 草稿", color: "bg-blue-100 text-blue-800" },

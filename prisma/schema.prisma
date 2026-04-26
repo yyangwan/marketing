@@ -22,9 +22,11 @@ model Workspace {
   name      String
   createdAt DateTime @default(now())
 
-  members   WorkspaceMember[]
-  projects  Project[]
-  invites   WorkspaceInvite[]
+  members       WorkspaceMember[]
+  projects      Project[]
+  invites       WorkspaceInvite[]
+  brandVoices   BrandVoice[]
+  aiTemplates   AITemplate[]
 }
 
 model WorkspaceMember {
@@ -53,12 +55,14 @@ model WorkspaceInvite {
 }
 
 model Project {
-  id          String   @id @default(cuid())
-  name        String
-  clientName  String   @default("")
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  name         String
+  clientName   String   @default("")
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brandVoiceId String?  // Default brand voice for this project
+  brandVoice   BrandVoice? @relation("ProjectBrandVoice", fields: [brandVoiceId], references: [id], onDelete: Restrict)
+  createdAt    DateTime @default(now())
 
   contentPieces ContentPiece[]
 
@@ -72,11 +76,14 @@ model ContentPiece {
   title            String
   type             String            @default("blog_post")
   brief            String
+  brandVoiceId     String?           // Brand voice used for this content
+  brandVoice       BrandVoice?       @relation("ContentPieceBrandVoice", fields: [brandVoiceId], references: [id], onDelete: Restrict)
   status           String            @default("draft")
-  reviewToken      String?           @unique
+  reviewToken      String?           @unique @map("ContentPiece_reviewToken_key")
   reviewExpiresAt  DateTime?
   platformContents PlatformContent[]
   reviewComments   ReviewComment[]
+  quality          ContentQuality?   // AI evaluation scores
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -103,4 +110,53 @@ model ReviewComment {
   comment        String?
   action         String
   createdAt      DateTime     @default(now())
+}
+
+// Phase 1C: Brand Voice System
+model BrandVoice {
+  id          String    @id @default(cuid())
+  name        String
+  workspaceId String
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  description String?   @default("")
+  guidelines  String?   @default("")  // Dos and don'ts for tone
+  samples     String    // JSON array of sample content strings
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations: can be used as default for projects or selected for content pieces
+  projects       Project[]        @relation("ProjectBrandVoice")
+  contentPieces  ContentPiece[]   @relation("ContentPieceBrandVoice")
+}
+
+// Phase 1C: Custom AI Templates
+model AITemplate {
+  id          String    @id @default(cuid())
+  name        String
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  description String?   @default("")
+  template    String    // Template content with {variable} placeholders
+  variables   String    // JSON array: [{name, type, description, required}]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Phase 1C: Content Quality Metrics
+model ContentQuality {
+  id               String   @id @default(cuid())
+  contentPieceId   String   @unique @map("ContentQuality_contentPieceId_key")
+  contentPiece     ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+
+  // AI scores (0-10)
+  quality      Int      @default(0)      // Overall writing quality
+  engagement   Int      @default(0)      // How engaging it is
+  brandVoice   Int      @default(0)      // How well it matches brand voice
+  platformFit  Int      @default(0)      // How well it fits the platform
+
+  // AI suggestions for improvement
+  suggestions  String?  // JSON array of improvement suggestions
+
+  // Evaluation metadata
+  evaluatedAt  DateTime @default(now())
 }

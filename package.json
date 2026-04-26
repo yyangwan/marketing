@@ -1,12 +1,17 @@
 {
   "name": "marketing",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node node_modules/vitest/vitest.mjs run",
+    "test:run": "node node_modules/vitest/vitest.mjs run",
+    "test:ui": "node node_modules/vitest/vitest.mjs --ui",
+    "test:watch": "node node_modules/vitest/vitest.mjs",
+    "test:coverage": "vitest --coverage",
     "db:setup": "prisma generate && prisma db push",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
@@ -40,13 +45,31 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.2.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/jsdom": "^28.0.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.4.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "happy-dom": "^20.9.0",
+    "jsdom": "^29.0.2",
+    "next-router-mock": "^1.0.5",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.0.9"
+  },
+  "vitest": {
+    "environment": "jsdom",
+    "environmentOptions": {
+      "url": "http://localhost:3000"
+    },
+    "setupFiles": [
+      "./vitest.setup.ts"
+    ]
   }
 }
