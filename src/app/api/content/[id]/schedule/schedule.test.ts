@@ -22,6 +22,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     contentSchedule: {
       findFirst: vi.fn(),
+      upsert: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       deleteMany: vi.fn(),
@@ -136,7 +137,7 @@ describe("/api/content/[id]/schedule", () => {
   });
 
   describe("POST - Create schedule", () => {
-    it("should create a new schedule", async () => {
+    it("should create a new schedule (upsert creates)", async () => {
       const mockSession = { user: { id: "user1" } };
       const mockWs = { workspaceId: "ws1" };
       const mockContent = { id: "content1", title: "Test Content" };
@@ -145,8 +146,7 @@ describe("/api/content/[id]/schedule", () => {
       vi.mocked(auth).mockResolvedValue(mockSession);
       vi.mocked(getCurrentWorkspace).mockReturnValue(mockWs);
       (prisma.contentPiece.findFirst as any).mockResolvedValue(mockContent);
-      (prisma.contentSchedule.findFirst as any).mockResolvedValue(null);
-      (prisma.contentSchedule.create as any).mockResolvedValue(mockSchedule);
+      (prisma.contentSchedule.upsert as any).mockResolvedValue(mockSchedule);
       (prisma.contentPiece.update as any).mockResolvedValue({});
       (prisma.notification.create as any).mockResolvedValue({});
 
@@ -157,27 +157,30 @@ describe("/api/content/[id]/schedule", () => {
       const response = await POST(request, { params: Promise.resolve({ id: "content1" }) });
 
       expect(response.status).toBe(201);
-      expect(prisma.contentSchedule.create).toHaveBeenCalledWith({
-        data: {
+      expect(prisma.contentSchedule.upsert).toHaveBeenCalledWith({
+        where: { contentId: "content1" },
+        create: {
           contentId: "content1",
+          scheduledAt: new Date("2025-01-01T10:00:00Z"),
+          status: "scheduled",
+        },
+        update: {
           scheduledAt: new Date("2025-01-01T10:00:00Z"),
           status: "scheduled",
         },
       });
     });
 
-    it("should update existing schedule", async () => {
+    it("should update existing schedule (upsert updates)", async () => {
       const mockSession = { user: { id: "user1" } };
       const mockWs = { workspaceId: "ws1" };
       const mockContent = { id: "content1", title: "Test Content" };
-      const existingSchedule = { id: "schedule1" };
       const updatedSchedule = { id: "schedule1", scheduledAt: new Date("2025-01-02T10:00:00Z"), status: "scheduled" };
 
       vi.mocked(auth).mockResolvedValue(mockSession);
       vi.mocked(getCurrentWorkspace).mockReturnValue(mockWs);
       (prisma.contentPiece.findFirst as any).mockResolvedValue(mockContent);
-      (prisma.contentSchedule.findFirst as any).mockResolvedValue(existingSchedule);
-      (prisma.contentSchedule.update as any).mockResolvedValue(updatedSchedule);
+      (prisma.contentSchedule.upsert as any).mockResolvedValue(updatedSchedule);
       (prisma.contentPiece.update as any).mockResolvedValue({});
       (prisma.notification.create as any).mockResolvedValue({});
 
@@ -188,9 +191,14 @@ describe("/api/content/[id]/schedule", () => {
       const response = await POST(request, { params: Promise.resolve({ id: "content1" }) });
 
       expect(response.status).toBe(201);
-      expect(prisma.contentSchedule.update).toHaveBeenCalledWith({
-        where: { id: "schedule1" },
-        data: {
+      expect(prisma.contentSchedule.upsert).toHaveBeenCalledWith({
+        where: { contentId: "content1" },
+        create: {
+          contentId: "content1",
+          scheduledAt: new Date("2025-01-02T10:00:00Z"),
+          status: "scheduled",
+        },
+        update: {
           scheduledAt: new Date("2025-01-02T10:00:00Z"),
           status: "scheduled",
         },
@@ -277,7 +285,7 @@ describe("/api/content/[id]/schedule", () => {
       vi.mocked(getCurrentWorkspace).mockReturnValue({ workspaceId: "ws1" });
       const mockContent = { id: "content1", title: "Test Content" };
       (prisma.contentPiece.findFirst as any).mockResolvedValue(mockContent);
-      (prisma.contentSchedule.findFirst as any).mockRejectedValue(new Error("DB error"));
+      (prisma.contentSchedule.upsert as any).mockRejectedValue(new Error("DB error"));
 
       const request = {
         json: async () => ({ scheduledAt: "2025-01-01T10:00:00Z" }),
