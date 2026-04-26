@@ -3,28 +3,44 @@
 All notable changes to ContentOS will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.com/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-04-26
+
 ### Added
-- Interactive tutorial playground at `/playground`
-- Standardized API error format following Stripe conventions
-- Comprehensive API documentation (`docs/api.md`)
-- Architecture documentation with system diagrams
-- Contributing guide for developers
-- Environment variable template (`.env.example`)
+- **Brand Voice System**: Create and manage brand voices with custom samples, guidelines, and descriptions
+  - Brand voice CRUD APIs at `/api/brand-voices`
+  - Settings page for brand voice management at `/settings/brand-voice`
+  - Brand voice injection into all 4 platform prompts (WeChat, Weibo, Xiaohongshu, Douyin)
+  - Per-project and per-content brand voice selection with fallback logic
+- **Template Management**: Create reusable AI content templates with variable placeholders
+  - Template CRUD APIs at `/api/templates`
+  - Template management UI at `/templates`
+  - Auto-detection of `{variable}` placeholders in template content
+  - Variable type validation (text, number, textarea) with format restrictions
+- **Content Quality Evaluation**: AI-powered quality scoring for generated content
+  - Quality evaluation API at `/api/content/[id]/quality` with 4-dimensional scoring
+  - Quality panel component showing overall quality, engagement, brand voice match, and platform fit
+  - Brand voice context injection into quality evaluation prompts
+  - AI-generated improvement suggestions
+- **SEO Analysis**: Built-in SEO scoring for content
+  - SEO scorer component with character count, word count, and keyword density analysis
+  - Real-time keyword tracking and density calculation
+  - Overall SEO score display
+- **Content Editor Integration**: SEO scorer and quality panel embedded in content editor
+- **Data Models**: BrandVoice, AITemplate, and ContentQuality models in Prisma schema
+- **TypeScript Types**: BrandVoice, AITemplate, ContentQuality, and TemplateVariable interfaces
 
 ### Changed
-- README.md: Complete rewrite from generic Next.js template
-- Error handling: Migrated from plain strings to structured error objects
-- Toast notifications: Replaced `alert()` with Sonner toasts
+- AI generation API now supports brand voice context for all platforms
+- Content pieces and projects can have associated brand voices
+- Platform content generation uses brand voice from content piece or falls back to project default
 
 ### Fixed
-- Brief form error handling now shows detailed error messages
-- API errors include doc_url links for self-service debugging
-
-## [0.1.0] - 2024-04-XX
+- Added defensive error handling for JSON parsing in prompt builders (try-catch with fallback)
+- Vitest test infrastructure improvements with jsdom environment and setup file
 
 ### Added
 - Initial release of ContentOS
