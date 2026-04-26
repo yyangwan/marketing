@@ -1,8 +1,8 @@
 # ContentOS TODOs
 
-## Phase 1D — Workflow + Calendar (DEFERRED)
+## Completed
 
-### TODO: Calendar View Implementation
+### ✅ Calendar View Implementation
 **What:** Build monthly/weekly calendar view showing scheduled content as cards with drag-and-drop rescheduling.
 
 **Why:** Turns ContentOS from occasional use into daily operations hub. Users need to see when content is scheduled.
@@ -21,9 +21,11 @@
 
 **Depends on:** Phase 1C complete, ContentSchedule Prisma model
 
+**Completed:** v0.3.0 (2026-04-26)
+
 ---
 
-### TODO: Scheduling System
+### ✅ Scheduling System
 **What:** Background cron job that checks for due content and triggers publishing (mock in 1D, real in 1F).
 
 **Why:** Users want to schedule content in advance and have it publish automatically.
@@ -42,9 +44,11 @@
 
 **Depends on:** Calendar view, ContentSchedule model, cron infrastructure
 
+**Completed:** v0.3.0 (2026-04-26)
+
 ---
 
-### TODO: Notification System
+### ✅ Notification System
 **What:** Real-time notifications for content status changes, schedule reminders, @mentions.
 
 **Why:** Users need to know when content is approved, scheduled, or published. Keeps teams aligned.
@@ -63,7 +67,11 @@
 
 **Depends on:** Phase 1D complete, real-time infrastructure
 
+**Completed:** v0.3.0 (2026-04-26)
+
 ---
+
+## Phase 1E — Genie Auto-Content Factory (DEFERRED)
 
 ## Phase 1E — Genie Auto-Content Factory (DEFERRED)
 

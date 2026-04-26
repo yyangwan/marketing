@@ -78,11 +78,16 @@ export function TemplatesClient({ workspaceId }: { workspaceId: string }) {
     setName(t.name);
     setDescription(t.description || "");
     setTemplate(t.template);
-    try {
-      const parsedVariables = JSON.parse(t.variables);
-      setVariables(parsedVariables);
-    } catch {
-      setVariables([]);
+    // variables is stored as JSON string in DB, parse it
+    if (typeof t.variables === "string") {
+      try {
+        const parsedVariables = JSON.parse(t.variables);
+        setVariables(parsedVariables);
+      } catch {
+        setVariables([]);
+      }
+    } else {
+      setVariables(t.variables || []);
     }
     setEditingId(t.id);
     setDialogOpen(true);
@@ -90,10 +95,9 @@ export function TemplatesClient({ workspaceId }: { workspaceId: string }) {
 
   const addVariable = () => {
     const newVar: TemplateVariable = {
-      id: `var-${Date.now()}`,
       name: "",
       type: "text",
-      label: "",
+      description: "",
       required: false,
     };
     setVariables([...variables, newVar]);
@@ -261,7 +265,10 @@ export function TemplatesClient({ workspaceId }: { workspaceId: string }) {
                 </p>
               )}
               <div className="text-xs text-muted-foreground">
-                {JSON.parse(t.variables).length} 个变量
+                {typeof t.variables === "string"
+                  ? JSON.parse(t.variables).length
+                  : t.variables.length}{" "}
+                个变量
               </div>
               <div className="text-xs text-muted-foreground truncate font-mono bg-secondary/50 p-2 rounded">
                 {t.template.slice(0, 100)}
@@ -369,7 +376,7 @@ export function TemplatesClient({ workspaceId }: { workspaceId: string }) {
                   <div className="space-y-3">
                     {variables.map((v, index) => (
                       <div
-                        key={v.id}
+                        key={index}
                         className="flex gap-2 items-start p-3 border rounded"
                       >
                         <div className="flex-1 space-y-2">
@@ -385,9 +392,9 @@ export function TemplatesClient({ workspaceId }: { workspaceId: string }) {
                             />
                             <Select
                               value={v.type}
-                              onValueChange={(value: TemplateVariableType) =>
-                                updateVariable(index, { type: value })
-                              }
+                              onValueChange={(value) => {
+                                if (value) updateVariable(index, { type: value as TemplateVariableType });
+                              }}
                             >
                               <SelectTrigger className="w-[140px]">
                                 <SelectValue />
@@ -404,11 +411,11 @@ export function TemplatesClient({ workspaceId }: { workspaceId: string }) {
                             </Select>
                           </div>
                           <Input
-                            value={v.label || ""}
+                            value={v.description || ""}
                             onChange={(e) =>
-                              updateVariable(index, { label: e.target.value })
+                              updateVariable(index, { description: e.target.value })
                             }
-                            placeholder="显示标签（可选）"
+                            placeholder="变量描述（可选）"
                             className="text-sm"
                           />
                         </div>

@@ -15,6 +15,7 @@ model User {
   createdAt    DateTime @default(now())
 
   memberships  WorkspaceMember[]
+  notifications Notification[]
 }
 
 model Workspace {
@@ -27,6 +28,7 @@ model Workspace {
   invites       WorkspaceInvite[]
   brandVoices   BrandVoice[]
   aiTemplates   AITemplate[]
+  notifications Notification[]
 }
 
 model WorkspaceMember {
@@ -55,14 +57,15 @@ model WorkspaceInvite {
 }
 
 model Project {
-  id           String   @id @default(cuid())
-  name         String
-  clientName   String   @default("")
-  workspaceId  String
-  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  brandVoiceId String?  // Default brand voice for this project
-  brandVoice   BrandVoice? @relation("ProjectBrandVoice", fields: [brandVoiceId], references: [id], onDelete: Restrict)
-  createdAt    DateTime @default(now())
+  id                String   @id @default(cuid())
+  name              String
+  clientName        String   @default("")
+  workspaceId       String
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brandVoiceId      String?   // Default brand voice for this project
+  brandVoice        BrandVoice? @relation("ProjectBrandVoice", fields: [brandVoiceId], references: [id], onDelete: Restrict)
+  defaultAssigneeId String?   // Default assignee for content in this project
+  createdAt         DateTime @default(now())
 
   contentPieces ContentPiece[]
 
@@ -84,6 +87,7 @@ model ContentPiece {
   platformContents PlatformContent[]
   reviewComments   ReviewComment[]
   quality          ContentQuality?   // AI evaluation scores
+  schedules        ContentSchedule[] // Phase 1D: Scheduling records
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -159,4 +163,42 @@ model ContentQuality {
 
   // Evaluation metadata
   evaluatedAt  DateTime @default(now())
+}
+
+// Phase 1D: Scheduling
+model ContentSchedule {
+  id          String   @id @default(cuid())
+  contentId   String
+  contentPiece ContentPiece @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  scheduledAt DateTime
+  publishedAt DateTime?
+  // Status values must match ScheduleStatus type in src/types/index.ts
+  // Valid values: "scheduled" | "publishing" | "published" | "failed"
+  // Note: SQLite CHECK constraint should be added via migration for production:
+  // ALTER TABLE ContentSchedule ADD COLUMN status TEXT CHECK(status IN ('scheduled', 'publishing', 'published', 'failed'));
+  status      String   @default("scheduled")
+  createdAt   DateTime @default(now())
+
+  @@unique([contentId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+// Phase 1D: Notifications
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type        String   // "content_review" | "content_approved" | "content_published" | "schedule_reminder" | "mention"
+  title       String
+  message     String
+  link        String?  // URL to relevant content
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([workspaceId])
 }

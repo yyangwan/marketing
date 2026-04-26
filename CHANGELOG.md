@@ -5,9 +5,47 @@ All notable changes to ContentOS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.com/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-04-26
+
+### Added
+- **Calendar System**: Full calendar UI for managing content publication schedules
+  - Calendar card component showing scheduled content with color-coded status indicators
+  - Calendar client with month navigation and status filtering
+  - Schedule dialog for creating and modifying publication dates
+  - Date utility functions for calendar operations (getMonthRange, getWeekRange, formatDateString)
+- **Scheduling System**: Content scheduling with automatic cron job publishing
+  - Database model `ContentSchedule` with unique constraint per content piece
+  - Schedule CRUD APIs at `/api/content/[id]/schedule`
+  - Atomic upsert operations to prevent duplicate schedules from race conditions
+  - Status workflow: scheduled → publishing → published/failed
+  - Cron endpoint `/api/cron/publish` for automatic content publishing
+  - Sequential processing with status transitions to prevent concurrent cron job conflicts
+- **Notifications System**: Real-time notifications for content events
+  - Database model `Notification` with user/workspace associations
+  - Notification APIs at `/api/notifications` and `/api/notifications/[id]/read`
+  - Notification bell component with unread count indicator
+  - Notification dropdown with real-time updates (30s polling)
+  - Notification item component with action buttons (mark as read, delete)
+  - Notification trigger functions for common events (content_review, schedule_reminder, content_published)
+  - Notifications integrated with scheduling and publishing workflows
+- **Quality and SEO**: Content quality evaluation and SEO analysis
+  - Quality panel component with 4-dimensional scoring (quality, engagement, brand voice, platform fit)
+  - SEO scorer component with character count, word count, and keyword density analysis
+  - Quality evaluation API at `/api/content/[id]/quality`
+
+### Changed
+- App layout now includes notification bell in header
+- Main content page updated to display scheduled content with calendar integration
+- Status enum expanded to include scheduled/publishing/published/failed states
+
+### Fixed
+- Race condition in schedule creation (TOCTOU) resolved with atomic upsert
+- Concurrent cron job processing prevented with sequential findFirst pattern
+- Missing "publishing" status filter added to calendar UI
+
 ## [Unreleased]
 
-## [0.2.0] - 2025-04-26
+## [0.2.0] - 2026-04-26
 
 ### Added
 - **Brand Voice System**: Create and manage brand voices with custom samples, guidelines, and descriptions
@@ -41,6 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.com/spec/v2.0.0
 ### Fixed
 - Added defensive error handling for JSON parsing in prompt builders (try-catch with fallback)
 - Vitest test infrastructure improvements with jsdom environment and setup file
+
+## [0.1.0] - 2026-04-26
 
 ### Added
 - Initial release of ContentOS

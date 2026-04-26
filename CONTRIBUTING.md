@@ -46,19 +46,42 @@ src/
 │   ├── api/               # API 路由
 │   │   ├── briefs/        # Brief 创建、查询
 │   │   ├── content/        # 内容管理、状态更新
+│   │   │   └── [id]/      # 内容详情
+│   │   │       ├── quality/ # 质量评估 API
+│   │   │       └── schedule/ # 调度 API
 │   │   ├── generate/      # AI 生成接口
 │   │   ├── projects/      # 项目管理
 │   │   ├── workspaces/     # 工作空间
-│   │   └── invites/        # 邀请协作
+│   │   ├── invites/        # 邀请协作
+│   │   ├── brand-voices/  # 品牌调性 CRUD
+│   │   ├── templates/     # 内容模板 CRUD
+│   │   ├── calendar/      # 日历事件
+│   │   ├── notifications/ # 通知系统
+│   │   └── cron/          # 定时任务（发布）
 │   ├── brief/             # Brief 表单
 │   ├── content/           # 内容编辑器
+│   ├── calendar/          # 日历视图
+│   ├── templates/         # 模板管理页面
 │   ├── login/             # 登录页面
 │   ├── playground/        # 交互式教程
 │   └── settings/         # 设置页面
+│       └── brand-voice/  # 品牌调性设置
 ├── components/            # React 组件
+│   ├── brand-voice-client.tsx    # 品牌调性管理
+│   ├── templates-client.tsx       # 模板管理
+│   ├── quality-panel.tsx          # 质量评估面板
+│   ├── seo-scorer.tsx             # SEO 分析
+│   ├── calendar-client.tsx        # 日历视图
+│   ├── schedule-dialog.tsx        # 调度对话框
+│   ├── notification-bell.tsx      # 通知铃铛
+│   ├── notification-item.tsx      # 通知项
+│   └── content-editor.tsx         # 内容编辑器（含质量/SEO）
 ├── lib/                   # 核心逻辑
 │   ├── ai/               # AI 生成、prompts
+│   │   └── prompts/      # 平台 prompts（含品牌调性注入）
 │   ├── auth/             # 认证配置
+│   ├── notifications/    # 通知触发器
+│   ├── dates.ts          # 日期工具
 │   ├── errors.ts         # 标准化错误格式
 │   └── db.ts             # Prisma 客户端
 └── types/                 # TypeScript 类型定义
@@ -116,6 +139,18 @@ return NextResponse.json({ error: "not found" }, { status: 404 });
 ### 3. 测试变更
 
 ```bash
+# 运行测试套件
+npm test
+
+# 监听模式（开发时使用）
+npm run test:watch
+
+# 测试覆盖率
+npm run test:coverage
+
+# UI 模式
+npm run test:ui
+
 # 运行类型检查
 npm run build
 
@@ -126,6 +161,12 @@ npm run lint
 # 访问 http://localhost:3000 测试 UI
 # 使用 Prisma Studio 检查数据
 ```
+
+**测试框架**: Vitest + Testing Library + jsdom
+
+**测试文件命名**: `*.test.ts` 或 `*.test.tsx`
+
+**测试目标**: 项目使用 89+ 测试覆盖核心功能，包括日历、调度、通知、品牌调性、模板等模块。
 
 ### 4. 提交变更
 
@@ -204,6 +245,8 @@ git push origin feature/your-feature-name
 2. **错误处理**: 所有 API 调用有错误处理
 3. **用户体验**: 加载状态、错误提示完整
 4. **代码质量**: 遵循项目规范，无冗余代码
+5. **测试覆盖**: 新功能需要相应的测试用例
+6. **文档更新**: API 变更需更新 `docs/api.md`，新功能需更新 README.md
 
 ### 常见问题
 

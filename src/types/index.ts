@@ -55,6 +55,52 @@ export interface ContentQuality {
   evaluatedAt: Date;
 }
 
+// Phase 1D: Scheduling & Notifications
+export type ScheduleStatus = "scheduled" | "publishing" | "published" | "failed";
+
+export type NotificationType =
+  | "content_review"
+  | "content_approved"
+  | "content_published"
+  | "schedule_reminder"
+  | "mention";
+
+export interface ContentSchedule {
+  id: string;
+  contentId: string;
+  scheduledAt: Date;
+  publishedAt: Date | null;
+  status: ScheduleStatus;
+  createdAt: Date;
+  contentPiece?: {
+    id: string;
+    title: string;
+    platform?: string;
+  };
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  workspaceId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  link: string | null;
+  isRead: boolean;
+  createdAt: Date;
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;  // ISO datetime string
+  end?: string;
+  contentId: string;
+  platform?: string;
+  status: ScheduleStatus;
+}
+
 /* DESIGN.md status colors */
 export const STATUS_COLUMNS: { key: ContentStatus; label: string; color: string }[] = [
   { key: "draft", label: "AI 草稿", color: "bg-blue-100 text-blue-800" },
