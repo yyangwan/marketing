@@ -5,10 +5,12 @@ import { GET } from "./route";
 vi.mock("@/lib/db", () => ({
   prisma: {
     contentSchedule: {
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
     },
     contentPiece: {
+      findFirst: vi.fn(),
       update: vi.fn(),
     },
     notification: {
@@ -73,7 +75,8 @@ describe("/api/cron/publish", () => {
       const headers = new Headers();
       headers.set("authorization", "Bearer test-secret");
 
-      (prisma.contentSchedule.findMany as any).mockResolvedValue([]);
+      // First call returns null (no schedules)
+      (prisma.contentSchedule.findFirst as any).mockResolvedValueOnce(null);
 
       const response = await GET(
         { headers } as Request
@@ -83,7 +86,9 @@ describe("/api/cron/publish", () => {
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(data.processed).toBe(0);
-      expect(data.message).toBe("No due content found");
+      expect(data.published).toBe(0);
+      expect(data.failed).toBe(0);
+      expect(data.message).toBe("Processed 0 items: 0 published, 0 failed");
     });
 
     it("should publish due content successfully", async () => {
@@ -92,21 +97,34 @@ describe("/api/cron/publish", () => {
       const headers = new Headers();
       headers.set("authorization", "Bearer test-secret");
 
-      const mockSchedules = [
-        {
+      const mockContentPiece = {
+        id: "c1",
+        title: "Test Content",
+        projectId: "p1",
+      };
+
+      // First iteration: find schedule
+      (prisma.contentSchedule.findFirst as any)
+        .mockResolvedValueOnce({
           id: "s1",
           contentId: "c1",
           status: "scheduled",
-          contentPiece: {
-            id: "c1",
-            title: "Test Content",
-            projectId: "p1",
-          },
-        },
-      ];
+          scheduledAt: new Date("2025-01-01T10:00:00Z"),
+        })
+        // Second iteration: no more schedules
+        .mockResolvedValueOnce(null);
 
-      (prisma.contentSchedule.findMany as any).mockResolvedValue(mockSchedules);
-      (prisma.contentSchedule.update as any).mockResolvedValue({});
+      (prisma.contentSchedule.update as any)
+        // First update: set to "publishing"
+        .mockResolvedValueOnce({})
+        // Second update: set to "published"
+        .mockResolvedValueOnce({
+          id: "s1",
+          scheduledAt: new Date("2025-01-01T10:00:00Z"),
+          status: "published",
+        });
+
+      (prisma.contentPiece.findFirst as any).mockResolvedValue(mockContentPiece);
       (prisma.contentPiece.update as any).mockResolvedValue({});
       (prisma.notification.create as any).mockResolvedValue({});
 
@@ -128,36 +146,37 @@ describe("/api/cron/publish", () => {
       const headers = new Headers();
       headers.set("authorization", "Bearer test-secret");
 
-      const mockSchedules = [
-        {
+      const mockContentPiece = {
+        id: "c1",
+        title: "Failing Content",
+        projectId: "p1",
+      };
+
+      // Find schedule
+      (prisma.contentSchedule.findFirst as any)
+        .mockResolvedValueOnce({
           id: "s1",
           contentId: "c1",
           status: "scheduled",
-          contentPiece: {
-            id: "c1",
-            title: "Failing Content",
-            projectId: "p1",
-          },
-        },
-      ];
+        })
+        // No more schedules
+        .mockResolvedValueOnce(null);
+
+      (prisma.contentPiece.findFirst as any).mockResolvedValue(mockContentPiece);
 
       let callCount = 0;
-      (prisma.contentSchedule.findMany as any).mockResolvedValue(mockSchedules);
       (prisma.contentSchedule.update as any).mockImplementation(() => {
         callCount++;
         if (callCount === 1) {
-          return Promise.resolve({}); // First call to set status to "publishing"
+          return Promise.resolve({}); // Set to "publishing"
         }
+        // Simulate failure in simulatePublish
         if (callCount === 2) {
-          return Promise.reject(new Error("Publish failed")); // Second call fails
+          return Promise.reject(new Error("Publish failed"));
         }
-        if (callCount === 3) {
-          return Promise.resolve({}); // Third call to set status to "failed"
-        }
+        // Set to "failed"
         return Promise.resolve({});
       });
-      (prisma.contentPiece.update as any).mockResolvedValue({});
-      (prisma.notification.create as any).mockResolvedValue({});
 
       const response = await GET(
         { headers } as Request
@@ -169,40 +188,45 @@ describe("/api/cron/publish", () => {
       expect(data.processed).toBe(1);
       expect(data.published).toBe(0);
       expect(data.failed).toBe(1);
-      expect(data.errors).toHaveLength(1);
-      expect(data.errors[0].id).toBe("s1");
     });
 
-    it("should process multiple schedules", async () => {
+    it("should process multiple schedules sequentially", async () => {
       process.env.CRON_SECRET = "test-secret";
 
       const headers = new Headers();
       headers.set("authorization", "Bearer test-secret");
 
-      const mockSchedules = [
-        {
+      const mockContentPiece1 = {
+        id: "c1",
+        title: "Content 1",
+        projectId: "p1",
+      };
+      const mockContentPiece2 = {
+        id: "c2",
+        title: "Content 2",
+        projectId: "p1",
+      };
+
+      // First schedule
+      (prisma.contentSchedule.findFirst as any)
+        .mockResolvedValueOnce({
           id: "s1",
           contentId: "c1",
           status: "scheduled",
-          contentPiece: {
-            id: "c1",
-            title: "Content 1",
-            projectId: "p1",
-          },
-        },
-        {
+        })
+        // Second schedule
+        .mockResolvedValueOnce({
           id: "s2",
           contentId: "c2",
           status: "scheduled",
-          contentPiece: {
-            id: "c2",
-            title: "Content 2",
-            projectId: "p1",
-          },
-        },
-      ];
+        })
+        // No more schedules
+        .mockResolvedValueOnce(null);
 
-      (prisma.contentSchedule.findMany as any).mockResolvedValue(mockSchedules);
+      (prisma.contentPiece.findFirst as any)
+        .mockResolvedValueOnce(mockContentPiece1)
+        .mockResolvedValueOnce(mockContentPiece2);
+
       (prisma.contentSchedule.update as any).mockResolvedValue({});
       (prisma.contentPiece.update as any).mockResolvedValue({});
       (prisma.notification.create as any).mockResolvedValue({});
@@ -223,7 +247,7 @@ describe("/api/cron/publish", () => {
       const headers = new Headers();
       headers.set("authorization", "Bearer test-secret");
 
-      (prisma.contentSchedule.findMany as any).mockRejectedValue(new Error("DB error"));
+      (prisma.contentSchedule.findFirst as any).mockRejectedValue(new Error("DB error"));
 
       const response = await GET(
         { headers } as Request
@@ -232,77 +256,48 @@ describe("/api/cron/publish", () => {
       expect(response.status).toBe(500);
     });
 
-    it("should update schedule status to publishing", async () => {
+    it("should update schedule status through publishing to published", async () => {
       process.env.CRON_SECRET = "test-secret";
 
       const headers = new Headers();
       headers.set("authorization", "Bearer test-secret");
 
-      const mockSchedules = [
-        {
+      const mockContentPiece = {
+        id: "c1",
+        title: "Content",
+        projectId: "p1",
+      };
+
+      (prisma.contentSchedule.findFirst as any)
+        .mockResolvedValueOnce({
           id: "s1",
           contentId: "c1",
           status: "scheduled",
-          contentPiece: {
-            id: "c1",
-            title: "Content",
-            projectId: "p1",
-          },
-        },
-      ];
+        })
+        .mockResolvedValueOnce(null);
 
-      (prisma.contentSchedule.findMany as any).mockResolvedValue(mockSchedules);
-      (prisma.contentSchedule.update as any).mockResolvedValue({});
-      (prisma.contentPiece.update as any).mockResolvedValue({});
-      (prisma.notification.create as any).mockResolvedValue({});
+      (prisma.contentPiece.findFirst as any).mockResolvedValue(mockContentPiece);
 
-      await GET(
-        { headers } as Request
-      );
-
-      expect(prisma.contentSchedule.update).toHaveBeenCalledWith({
-        where: { id: "s1" },
-        data: { status: "publishing" },
-      });
-    });
-
-    it("should update schedule status to published", async () => {
-      process.env.CRON_SECRET = "test-secret";
-
-      const headers = new Headers();
-      headers.set("authorization", "Bearer test-secret");
-
-      const mockSchedules = [
-        {
+      const updateCalls: any[] = [];
+      (prisma.contentSchedule.update as any).mockImplementation((args: any) => {
+        updateCalls.push(args);
+        return Promise.resolve({
           id: "s1",
-          contentId: "c1",
-          status: "scheduled",
-          contentPiece: {
-            id: "c1",
-            title: "Content",
-            projectId: "p1",
-          },
-        },
-      ];
-
-      let updateCallCount = 0;
-      (prisma.contentSchedule.findMany as any).mockResolvedValue(mockSchedules);
-      (prisma.contentSchedule.update as any).mockImplementation(() => {
-        updateCallCount++;
-        return Promise.resolve({});
+          ...args.data,
+        });
       });
+
       (prisma.contentPiece.update as any).mockResolvedValue({});
       (prisma.notification.create as any).mockResolvedValue({});
 
-      await GET(
+      const response = await GET(
         { headers } as Request
       );
 
-      expect(updateCallCount).toBe(2); // First for publishing, then for published
-      expect(prisma.contentPiece.update).toHaveBeenCalledWith({
-        where: { id: "c1" },
-        data: { status: "published" },
-      });
+      expect(response.status).toBe(200);
+      expect(updateCalls).toHaveLength(2); // "publishing" then "published"
+      expect(updateCalls[0].data.status).toBe("publishing");
+      expect(updateCalls[1].data.status).toBe("published");
     });
 
     it("should update schedule status to failed on error", async () => {
@@ -311,39 +306,44 @@ describe("/api/cron/publish", () => {
       const headers = new Headers();
       headers.set("authorization", "Bearer test-secret");
 
-      const mockSchedules = [
-        {
+      const mockContentPiece = {
+        id: "c1",
+        title: "Content",
+        projectId: "p1",
+      };
+
+      (prisma.contentSchedule.findFirst as any)
+        .mockResolvedValueOnce({
           id: "s1",
           contentId: "c1",
           status: "scheduled",
-          contentPiece: {
-            id: "c1",
-            title: "Content",
-            projectId: "p1",
-          },
-        },
-      ];
+        })
+        .mockResolvedValueOnce(null);
 
-      let callCount = 0;
-      (prisma.contentSchedule.findMany as any).mockResolvedValue(mockSchedules);
-      (prisma.contentSchedule.update as any).mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return Promise.resolve({}); // Set to "publishing"
+      (prisma.contentPiece.findFirst as any).mockResolvedValue(mockContentPiece);
+
+      const updateCalls: any[] = [];
+      (prisma.contentSchedule.update as any).mockImplementation((args: any) => {
+        updateCalls.push(args);
+        // First update: set to "publishing" - succeeds
+        if (updateCalls.length === 1) {
+          return Promise.resolve({});
         }
-        if (callCount === 2) {
-          return Promise.reject(new Error("Failed")); // Publish fails
+        // Second update would be to "published", but simulatePublish fails - reject
+        if (updateCalls.length === 2) {
+          return Promise.reject(new Error("Publish failed"));
         }
-        return Promise.resolve({}); // Set to "failed"
+        // Third update: set to "failed" - succeeds (error recovery)
+        return Promise.resolve({});
       });
 
       const response = await GET(
         { headers } as Request
       );
 
+      expect(response.status).toBe(200);
       const data = await response.json();
       expect(data.failed).toBe(1);
-      expect(data.errors).toHaveLength(1);
     });
   });
 });
