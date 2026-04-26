@@ -80,7 +80,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   try {
     // Use upsert to handle race condition - ensures atomic operation
     // If concurrent requests create a record, one wins via unique constraint
-    schedule = await prisma.contentSchedule.upsert({
+    const schedule = await prisma.contentSchedule.upsert({
       where: { contentId: id },
       create: {
         contentId: id,
