@@ -5,7 +5,30 @@ All notable changes to ContentOS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.com/spec/v2.0.0.html).
 
-## [0.3.0] - 2026-04-26
+## [0.3.1.0] - 2026-04-27
+
+### Changed
+- **Calendar Library Migration**: Replaced Schedule-X with react-big-calendar for improved drag-and-drop and week view performance
+  - Drag-and-drop rescheduling now works smoothly without lag
+  - Week view renders efficiently with realistic content loads
+  - Event cards display with platform-specific color coding
+  - Click-to-edit navigation from calendar events to content editor
+
+### Added
+- **Content API**: New `/api/content` endpoint for fetching content with filters
+  - Filter by workspace, project, status, and scheduling status
+  - Support for unscheduled content queries
+  - Platform and schedule data included in response
+
+### Fixed
+- Removed duplicate interface and constant definitions in calendar component
+- Fixed event revert logic after failed drag-and-drop operations
+- Fixed props shadowing issue in event wrapper component
+- Improved type safety by removing `any` types from API route
+
+### Test
+- Added E2E test suite for calendar interactions (18 test cases)
+- Added unit tests for content API endpoint
 
 ### Added
 - **Calendar System**: Full calendar UI for managing content publication schedules
