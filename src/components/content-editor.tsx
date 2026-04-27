@@ -3,11 +3,11 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extension-placeholder";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Platform } from "@/types";
 import { PLATFORM_CONFIG } from "@/types";
 import { toast } from "sonner";
-import { Link, Copy, Send } from "lucide-react";
+import { Link, Copy, Send, Calendar, X } from "lucide-react";
 import { SEOScorer } from "@/components/seo-scorer";
 import { QualityPanel } from "@/components/quality-panel";
 
@@ -29,6 +29,13 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
   const [reviewUrl, setReviewUrl] = useState<string | null>(initialReviewUrl || null);
   const [generatingLink, setGeneratingLink] = useState(false);
 
+  // Schedule dialog state
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("");
+  const [scheduling, setScheduling] = useState(false);
+  const [currentSchedule, setCurrentSchedule] = useState<any>(null);
+
   const activeContent = platforms.find((p) => p.platform === activeTab);
   const editor = useEditor({
     extensions: [
@@ -38,6 +45,80 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
     content: activeContent?.content || "",
     immediatelyRender: false,
   });
+
+  // Fetch existing schedule on mount
+  useEffect(() => {
+    fetchSchedule();
+  }, [contentPieceId]);
+
+  const fetchSchedule = async () => {
+    try {
+      const res = await fetch(`/api/content/${contentPieceId}/schedule`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          setCurrentSchedule(data);
+          const date = new Date(data.scheduledAt);
+          setScheduleDate(date.toISOString().split('T')[0]);
+          setScheduleTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch schedule:', error);
+    }
+  };
+
+  const handleSchedule = async () => {
+    if (!scheduleDate || !scheduleTime) {
+      toast.error("请选择日期和时间");
+      return;
+    }
+
+    setScheduling(true);
+    try {
+      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+      const res = await fetch(`/api/content/${contentPieceId}/schedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledAt: scheduledAt.toISOString() }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentSchedule(data);
+        setShowScheduleDialog(false);
+        toast.success("日程已安排", {
+          description: `发布时间: ${scheduledAt.toLocaleString('zh-CN')}`,
+        });
+      } else {
+        const err = await res.json();
+        toast.error(`安排失败: ${err.error}`);
+      }
+    } catch (error) {
+      toast.error("安排失败，请重试");
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const handleRemoveSchedule = async () => {
+    if (!confirm("确定要取消日程安排吗？")) return;
+
+    try {
+      const res = await fetch(`/api/content/${contentPieceId}/schedule`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setCurrentSchedule(null);
+        toast.success("日程已取消");
+      } else {
+        toast.error("取消失败");
+      }
+    } catch (error) {
+      toast.error("取消失败，请重试");
+    }
+  };
 
   const handleSave = async () => {
     if (!editor) return;
@@ -163,6 +244,37 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
         >
           重新生成
         </button>
+
+        {/* Schedule button */}
+        {currentSchedule ? (
+          <div className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded-md">
+            <Calendar className="w-3.5 h-3.5" />
+            <span>
+              {new Date(currentSchedule.scheduledAt).toLocaleString('zh-CN', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+            <button
+              onClick={handleRemoveSchedule}
+              className="ml-1 text-blue-900 hover:text-blue-700"
+              title="取消日程"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowScheduleDialog(true)}
+            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-100 flex items-center gap-1.5"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            安排日程
+          </button>
+        )}
+
         {activeContent && (
           <button
             onClick={() => handlePublish(activeContent.id)}
@@ -218,6 +330,66 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
         <SEOScorer content={editor?.getHTML() || ""} />
         <QualityPanel contentPieceId={contentPieceId} />
       </div>
+
+      {/* Schedule Dialog */}
+      {showScheduleDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">安排发布日程</h3>
+              <button
+                onClick={() => setShowScheduleDialog(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  发布日期
+                </label>
+                <input
+                  type="date"
+                  value={scheduleDate}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full border rounded-md px-3 py-2"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  发布时间
+                </label>
+                <input
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(e) => setScheduleTime(e.target.value)}
+                  className="w-full border rounded-md px-3 py-2"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  onClick={() => setShowScheduleDialog(false)}
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSchedule}
+                  disabled={scheduling || !scheduleDate || !scheduleTime}
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {scheduling ? "安排中..." : "确认"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

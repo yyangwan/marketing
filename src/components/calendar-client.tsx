@@ -1,14 +1,107 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { ScheduleXCalendar, useCalendarApp } from "@schedule-x/react";
-import { createCalendar, viewWeek, viewMonthGrid, viewDay } from "@schedule-x/calendar";
-import { formatDate, getMonthRange, getWeekRange } from "@/lib/dates";
+import { useState, useEffect, useCallback } from "react";
+import { Calendar, dateFnsLocalizer, Views, withDragAndDrop } from "react-big-calendar";
+import { format, parse, startOfWeek, getDay } from "date-fns";
+import { zhCN } from "date-fns/locale";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import { getMonthRange, getWeekRange } from "@/lib/dates";
 import type { ContentSchedule } from "@/types";
+import { useRouter } from "next/navigation";
 
 interface CalendarClientProps {
   initialView?: "month" | "week" | "day";
   workspaceId: string;
+}
+
+// Setup the localizer
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales: { "zh-CN": zhCN },
+});
+
+// Drag-and-drop calendar component
+function DnDCalendar(props: any) {
+  const [events, setEvents] = useState<any[]>(props.events);
+  const router = useRouter();
+
+  const onEventDrop = useCallback(async ({ event, start, end }: any) => {
+    const { id, resource } = event;
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    try {
+      // Update the schedule via API
+      const response = await fetch(`/api/content/${resource.contentPiece.id}/schedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduledAt: startDate.toISOString(),
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh events after successful drop
+        props.onNavigate();
+      } else {
+        console.error("Failed to update schedule:", response.status);
+        // Re-fetch events to revert UI
+        props.onNavigate();
+      }
+    } catch (error) {
+      console.error("Error dropping event:", error);
+      // Re-fetch events to revert UI
+      props.onNavigate();
+    }
+  }, [props.onNavigate]);
+
+  const onSelectEvent = useCallback((event: any) => {
+    if (event?.resource?.contentPiece?.id) {
+      // Navigate to content editor
+      router.push(`/content/${event.resource.contentPiece.id}`);
+    }
+  }, [router]);
+
+  return (
+    <Calendar
+      {...props}
+      events={events}
+      localizer={localizer}
+      onEventDrop={onEventDrop}
+      onSelectEvent={onSelectEvent}
+      startAccessor="start"
+      endAccessor="end"
+      resizable
+      selectable
+      components={{
+        eventWrapper: (eventWrapperProps: any) => {
+          return (
+            <div
+              {...eventWrapperProps}
+              style={{
+                background: eventStyle(eventWrapperProps.event.resource?.contentPiece?.platform || "generic"),
+              }}
+            />
+          );
+        },
+      }}
+    />
+  );
+}
+
+// Event style helper
+function eventStyle(platform: string) {
+  const colors: Record<string, string> = {
+    wechat: "#07c160",
+    weibo: "#e6162d",
+    xiaohongshu: "#ff2442",
+    douyin: "#000000",
+    generic: "#6b7280",
+  };
+  return colors[platform] || colors.generic;
 }
 
 export default function CalendarClient({
@@ -16,45 +109,35 @@ export default function CalendarClient({
   workspaceId,
 }: CalendarClientProps) {
   const [currentView, setCurrentView] = useState<"month" | "week" | "day">(initialView);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [events, setEvents] = useState<ContentSchedule[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
   const [filterProject, setFilterProject] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
-  // Map view names to schedule-x view plugins
-  const viewPlugin = useMemo(() => {
-    switch (currentView) {
-      case "week":
-        return viewWeek;
-      case "day":
-        return viewDay;
-      case "month":
-      default:
-        return viewMonthGrid;
+  // Fetch projects for filter dropdown
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        const response = await fetch(`/api/projects?workspaceId=${workspaceId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setProjects(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch projects:", error);
+      }
     }
-  }, [currentView]);
-
-  // Create calendar configuration - pass as individual arguments for useCalendarApp
-  const calendarApp = useCalendarApp({
-    views: [viewWeek, viewMonthGrid, viewDay],
-    selectedDate: selectedDate,
-    events: events.map((e) => ({
-      id: e.id,
-      title: e.contentPiece?.title || "Untitled",
-      start: e.scheduledAt.toISOString(),
-      end: e.publishedAt?.toISOString(),
-    })),
-  });
+    fetchProjects();
+  }, [workspaceId]);
 
   // Fetch scheduled content for visible date range
-  useEffect(() => {
-    fetchScheduledContent();
-  }, [selectedDate, currentView, filterProject, filterStatus]);
-
-  const fetchScheduledContent = async () => {
+  const fetchScheduledContent = useCallback(async () => {
     try {
+      setLoading(true);
+      const today = new Date();
       const range =
-        currentView === "month" ? getMonthRange(selectedDate) : getWeekRange(selectedDate);
+        currentView === "month" ? getMonthRange(today) : getWeekRange(today);
 
       const params = new URLSearchParams({
         start: range.start.toISOString(),
@@ -66,39 +149,67 @@ export default function CalendarClient({
       const response = await fetch(`/api/calendar/events?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setEvents(data);
+
+        // Transform to react-big-calendar event format
+        const calendarEvents = data.map((e: ContentSchedule) => {
+          const startDate = new Date(e.scheduledAt);
+          const endDate = e.publishedAt ? new Date(e.publishedAt) : new Date(startDate.getTime() + 60 * 60 * 1000); // Default 1 hour duration
+
+          return {
+            id: e.id,
+            title: e.contentPiece?.title || "Untitled",
+            start: startDate,
+            end: endDate,
+            resource: e,
+          };
+        });
+
+        setEvents(calendarEvents);
+      } else {
+        console.error('[Calendar] API error:', response.status, response.statusText);
       }
     } catch (error) {
       console.error("Failed to fetch calendar events:", error);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [currentView, filterProject, filterStatus]);
+
+  useEffect(() => {
+    fetchScheduledContent();
+  }, [fetchScheduledContent]);
+
+  const handleNavigate = useCallback(() => {
+    fetchScheduledContent();
+  }, [fetchScheduledContent]);
+
+  // Wrap calendar with drag-and-drop
+  const DnDCalendarWrapper = withDragAndDrop(DnDCalendar);
 
   return (
-    <div className="h-full flex">
-      {/* Filters sidebar */}
-      <div className="w-64 border-r p-4 space-y-4">
-        <h3 className="font-semibold">Filters</h3>
-
-        {/* Project filter */}
-        <div>
+    <div className="h-full flex flex-col">
+      {/* Header with filters */}
+      <div className="border-b bg-white p-4 flex gap-4 flex-wrap">
+        <div className="min-w-[160px]">
           <label className="block text-sm text-gray-600 mb-1">Project</label>
           <select
             value={filterProject}
             onChange={(e) => setFilterProject(e.target.value)}
-            className="w-full border rounded px-2 py-1"
+            className="border rounded px-2 py-1 text-sm w-full"
           >
             <option value="">All Projects</option>
-            {/* Projects would be loaded here */}
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
           </select>
         </div>
 
-        {/* Status filter */}
-        <div>
+        <div className="min-w-[160px]">
           <label className="block text-sm text-gray-600 mb-1">Status</label>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="w-full border rounded px-2 py-1"
+            className="border rounded px-2 py-1 text-sm w-full"
           >
             <option value="">All Statuses</option>
             <option value="scheduled">Scheduled</option>
@@ -108,7 +219,6 @@ export default function CalendarClient({
           </select>
         </div>
 
-        {/* View toggle */}
         <div>
           <label className="block text-sm text-gray-600 mb-1">View</label>
           <div className="flex gap-1">
@@ -116,7 +226,7 @@ export default function CalendarClient({
               <button
                 key={view}
                 onClick={() => setCurrentView(view)}
-                className={`flex-1 px-2 py-1 text-sm rounded ${
+                className={`px-3 py-1 text-sm rounded ${
                   currentView === view
                     ? "bg-blue-500 text-white"
                     : "bg-gray-100"
@@ -127,12 +237,36 @@ export default function CalendarClient({
             ))}
           </div>
         </div>
+
+        <div className="ml-auto text-sm text-gray-500">
+          {events.length} event{events.length !== 1 ? 's' : ''}
+        </div>
       </div>
 
       {/* Calendar */}
-      <div className="flex-1">
-        {calendarApp && (
-          <ScheduleXCalendar calendarApp={calendarApp} />
+      <div className="flex-1 p-2 sm:p-4 bg-gray-50" style={{ minHeight: "500px" }}>
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500">Loading calendar...</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded shadow p-2 sm:p-4" style={{ height: "600px" }}>
+            <DnDCalendarWrapper
+              events={events}
+              view={currentView}
+              onView={setCurrentView}
+              onNavigate={handleNavigate}
+              defaultDate={new Date()}
+              views={["month", "week", "day"]}
+              defaultView={currentView}
+              step={60}
+              timeslots={8}
+              showMultiDayTimes
+              popup
+              onNavigate={() => {}}
+              draggableAccessor={() => true}
+            />
+          </div>
         )}
       </div>
     </div>

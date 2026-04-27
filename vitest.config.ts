@@ -12,6 +12,7 @@ export default defineConfig({
       'build/**',
       '**/*.config.{js,ts}',
       'vitest.setup.ts',
+      'e2e/**',
     ],
     coverage: {
       provider: 'v8',
