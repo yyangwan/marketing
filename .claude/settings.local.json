@@ -103,7 +103,8 @@
       "Bash(ls -la /e/workspace/marketing/prisma/*.db)",
       "Bash(netstat -ano)",
       "Bash(cmd.exe /c \"taskkill /F /IM node.exe 2>nul\")",
-      "Bash(cmd.exe /c \"taskkill /PID 42580 /F\")"
+      "Bash(cmd.exe /c \"taskkill /PID 42580 /F\")",
+      "Bash(powershell.exe -Command \"Stop-Process -Id 42580 -Force -ErrorAction SilentlyContinue\")"
     ]
   }
 }
