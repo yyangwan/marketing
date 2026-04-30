@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit -p tsconfig.production.json",
     "test": "node node_modules/vitest/vitest.mjs run",
     "test:run": "node node_modules/vitest/vitest.mjs run",
     "test:ui": "node node_modules/vitest/vitest.mjs --ui",

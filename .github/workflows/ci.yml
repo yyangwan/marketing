@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['master']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: 验证代码
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 缓存 node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      - name: 运行 ESLint
+        run: bun run lint
+
+      - name: 运行 TypeScript 检查
+        run: bun run typecheck
+        env:
+          MOCK_AI: 'true'
+
+      - name: 运行测试
+        run: bun run test
+        env:
+          MOCK_AI: 'true'
+
+  build:
+    name: 构建
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 缓存 node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      - name: 构建
+        run: bun run build
+        env:
+          MOCK_AI: 'true'
+
+  deploy:
+    name: 部署到阿里云 ECS
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    needs: [validate, build]
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ECS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.ECS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 部署到服务器
+        run: |
+          ssh ${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }} << 'ENDSSH'
+            cd /var/www/contentos
+            git pull origin master
+            bun install --frozen-lockfile
+            bun run build
+            pm2 restart contentos
+          ENDSSH
+
+      - name: 通知部署结果
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "部署成功 ✅"
+          else
+            echo "部署失败 ❌"
+            exit 1
+          fi
