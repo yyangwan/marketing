@@ -24,6 +24,21 @@ export default function UnscheduledPanel({
 
   useEffect(() => {
     fetchUnscheduledContent();
+
+    // Poll every 10 seconds to refresh the list
+    const interval = setInterval(fetchUnscheduledContent, 10000);
+
+    // Listen for custom refresh event from calendar
+    const handleRefreshEvent = () => {
+      fetchUnscheduledContent();
+    };
+
+    window.addEventListener('unscheduled-refresh', handleRefreshEvent);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('unscheduled-refresh', handleRefreshEvent);
+    };
   }, [workspaceId]);
 
   const fetchUnscheduledContent = async () => {
@@ -60,20 +75,18 @@ export default function UnscheduledPanel({
   };
 
   const handleScheduleClick = (contentId: string) => {
-    // TODO: Open schedule dialog for this content
-    console.log("Schedule content:", contentId);
-    // For now, navigate to the content editor
+    // Navigate to the content editor for scheduling
     window.location.href = `/content/${contentId}`;
   };
 
   return (
     <div className="bg-gray-50 p-4 space-y-3 overflow-y-auto">
       <h3 className="font-semibold text-sm text-gray-700">
-        Unscheduled ({unscheduledItems.length})
+        未排期 ({unscheduledItems.length})
       </h3>
 
       {unscheduledItems.length === 0 ? (
-        <p className="text-sm text-gray-500 italic">No unscheduled content</p>
+        <p className="text-sm text-gray-500 italic">暂无未排期内容</p>
       ) : (
         <div className="space-y-2">
           {unscheduledItems.map((item) => (
@@ -93,7 +106,7 @@ export default function UnscheduledPanel({
                   onClick={() => handleScheduleClick(item.id)}
                   className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
                 >
-                  Schedule
+                  排期
                 </button>
               </div>
             </div>

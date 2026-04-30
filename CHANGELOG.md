@@ -68,6 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.com/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Calendar-unscheduled sync**: Added event-driven refresh for immediate UI updates
+  - Unscheduled panel now refreshes immediately when content is scheduled via calendar
+  - Custom event `unscheduled-refresh` dispatched after successful schedule operations
+  - Eliminates 10-second delay from polling-only refresh mechanism
+
 ## [0.2.0] - 2026-04-26
 
 ### Added

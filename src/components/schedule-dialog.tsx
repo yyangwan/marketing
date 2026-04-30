@@ -56,13 +56,13 @@ export default function ScheduleDialog({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-semibold mb-4">Schedule Content</h2>
+        <h2 className="text-xl font-semibold mb-4">排期内容</h2>
 
         <div className="space-y-4">
           {/* Date picker */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date
+              日期
             </label>
             <input
               type="date"
@@ -76,7 +76,7 @@ export default function ScheduleDialog({
           {/* Time picker */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Time
+              时间
             </label>
             <select
               value={selectedTime}
@@ -91,7 +91,7 @@ export default function ScheduleDialog({
             </select>
             {platform && PLATFORM_DEFAULTS[platform] && (
               <p className="text-xs text-gray-500 mt-1">
-                Optimal for {platform}: {PLATFORM_DEFAULTS[platform]}
+                {platform} 最佳发布时间：{PLATFORM_DEFAULTS[platform]}
               </p>
             )}
           </div>
@@ -100,7 +100,7 @@ export default function ScheduleDialog({
           {selectedDate && (
             <div className="bg-gray-50 p-3 rounded">
               <p className="text-sm text-gray-600">
-                Scheduled for:{" "}
+                计划发布时间：{" "}
                 <strong>
                   {new Date(`${selectedDate}T${selectedTime}`).toLocaleString()}
                 </strong>
@@ -114,13 +114,13 @@ export default function ScheduleDialog({
             onClick={onClose}
             className="flex-1 px-4 py-2 border rounded hover:bg-gray-50"
           >
-            Cancel
+            取消
           </button>
           <button
             onClick={handleSubmit}
             className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
-            Schedule
+            确认排期
           </button>
         </div>
       </div>
