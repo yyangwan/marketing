@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
+import { Calendar, dateFnsLocalizer, Views, View } from "react-big-calendar";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { zhCN } from "date-fns/locale";
@@ -120,6 +120,13 @@ export default function CalendarClient({
     fetchScheduledContent();
   }, [fetchScheduledContent]);
 
+  const handleViewChange = useCallback((view: View) => {
+    // Only allow month, week, day views
+    if (view === "month" || view === "week" || view === "day") {
+      setCurrentView(view);
+    }
+  }, []);
+
   const onSelectEvent = useCallback((event: any) => {
     if (event?.resource?.contentPiece?.id) {
       // Navigate to content editor
@@ -196,7 +203,7 @@ export default function CalendarClient({
               localizer={localizer}
               events={events}
               view={currentView}
-              onView={setCurrentView}
+              onView={handleViewChange}
               onNavigate={handleNavigate}
               onSelectEvent={onSelectEvent}
               onEventDrop={async ({ event, start, end }: any) => {
@@ -231,8 +238,6 @@ export default function CalendarClient({
               draggableAccessor={() => true}
               resizable
               selectable
-              startAccessor="start"
-              endAccessor="end"
               style={{ height: 600 }}
               components={{
                 eventWrapper: (eventWrapperProps: any) => {

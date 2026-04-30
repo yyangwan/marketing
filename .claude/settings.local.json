@@ -100,7 +100,8 @@
       "Bash(NO_PROXY=localhost curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:3001/api/content?workspaceId=cmodvdniw0001awtakew03nu7&status=draft&unscheduled=true\")",
       "Bash(bun remove:*)",
       "Bash(NO_PROXY=localhost curl -s \"http://localhost:3001/api/calendar/events?start=2026-04-01T00:00:00.000Z&end=2026-04-30T23:59:59.999Z\")",
-      "Bash(ls -la /e/workspace/marketing/prisma/*.db)"
+      "Bash(ls -la /e/workspace/marketing/prisma/*.db)",
+      "Bash(netstat -ano)"
     ]
   }
 }
