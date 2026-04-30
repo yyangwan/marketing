@@ -1,6 +1,7 @@
 "use client";
 
 import { formatRelativeTime } from "@/lib/dates";
+import { Eye, CheckCircle2, Rocket, Calendar, MessageCircle, Bell } from "lucide-react";
 
 interface Notification {
   id: string;
@@ -22,19 +23,20 @@ export default function NotificationItem({
   onClick,
 }: NotificationItemProps) {
   const getTypeIcon = (type: string) => {
+    const iconProps = { className: "w-4 h-4", strokeWidth: 2 };
     switch (type) {
       case "content_review":
-        return "👀";
+        return <Eye {...iconProps} />;
       case "content_approved":
-        return "✅";
+        return <CheckCircle2 {...iconProps} />;
       case "content_published":
-        return "🚀";
+        return <Rocket {...iconProps} />;
       case "schedule_reminder":
-        return "📅";
+        return <Calendar {...iconProps} />;
       case "mention":
-        return "💬";
+        return <MessageCircle {...iconProps} />;
       default:
-        return "🔔";
+        return <Bell {...iconProps} />;
     }
   };
 
@@ -46,7 +48,7 @@ export default function NotificationItem({
       }`}
     >
       <div className="flex items-start gap-2">
-        <span className="text-lg">{getTypeIcon(notification.type)}</span>
+        <div className="text-gray-600 mt-0.5">{getTypeIcon(notification.type)}</div>
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-medium truncate">{notification.title}</h4>
           <p className="text-xs text-gray-600 line-clamp-2">

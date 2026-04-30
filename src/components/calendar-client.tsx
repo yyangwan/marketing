@@ -95,11 +95,11 @@ function DnDCalendar(props: any) {
 // Event style helper
 function eventStyle(platform: string) {
   const colors: Record<string, string> = {
-    wechat: "#07c160",
-    weibo: "#e6162d",
-    xiaohongshu: "#ff2442",
-    douyin: "#000000",
-    generic: "#6b7280",
+    wechat: "#16a34a",    // green-600
+    weibo: "#dc2626",     // red-600
+    xiaohongshu: "#ec4899", // pink-500
+    douyin: "#000000",    // black
+    generic: "#6b7280",   // gray-500
   };
   return colors[platform] || colors.generic;
 }
@@ -191,13 +191,13 @@ export default function CalendarClient({
       {/* Header with filters */}
       <div className="border-b bg-white p-4 flex gap-4 flex-wrap">
         <div className="min-w-[160px]">
-          <label className="block text-sm text-gray-600 mb-1">Project</label>
+          <label className="block text-sm text-gray-600 mb-1">项目</label>
           <select
             value={filterProject}
             onChange={(e) => setFilterProject(e.target.value)}
             className="border rounded px-2 py-1 text-sm w-full"
           >
-            <option value="">All Projects</option>
+            <option value="">全部项目</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
@@ -205,22 +205,22 @@ export default function CalendarClient({
         </div>
 
         <div className="min-w-[160px]">
-          <label className="block text-sm text-gray-600 mb-1">Status</label>
+          <label className="block text-sm text-gray-600 mb-1">状态</label>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             className="border rounded px-2 py-1 text-sm w-full"
           >
-            <option value="">All Statuses</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="publishing">Publishing</option>
-            <option value="published">Published</option>
-            <option value="failed">Failed</option>
+            <option value="">全部状态</option>
+            <option value="scheduled">已排期</option>
+            <option value="publishing">发布中</option>
+            <option value="published">已发布</option>
+            <option value="failed">失败</option>
           </select>
         </div>
 
         <div>
-          <label className="block text-sm text-gray-600 mb-1">View</label>
+          <label className="block text-sm text-gray-600 mb-1">视图</label>
           <div className="flex gap-1">
             {(["month", "week", "day"] as const).map((view) => (
               <button
@@ -232,14 +232,14 @@ export default function CalendarClient({
                     : "bg-gray-100"
                 }`}
               >
-                {view.charAt(0).toUpperCase() + view.slice(1)}
+                {view === "month" ? "月" : view === "week" ? "周" : "日"}
               </button>
             ))}
           </div>
         </div>
 
         <div className="ml-auto text-sm text-gray-500">
-          {events.length} event{events.length !== 1 ? 's' : ''}
+          {events.length} 个日程
         </div>
       </div>
 
@@ -247,7 +247,7 @@ export default function CalendarClient({
       <div className="flex-1 p-2 sm:p-4 bg-gray-50" style={{ minHeight: "500px" }}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500">Loading calendar...</p>
+            <p className="text-gray-500">加载日历中...</p>
           </div>
         ) : (
           <div className="bg-white rounded shadow p-2 sm:p-4" style={{ height: "600px" }}>

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Bell } from "lucide-react";
 import NotificationItem from "./notification-item";
-import { getUnreadCount, markAllAsRead } from "@/lib/notifications/trigger";
 
 interface Notification {
   id: string;
@@ -25,6 +24,8 @@ export default function NotificationBell({ workspaceId }: NotificationBellProps)
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Fetch notifications on mount and poll every 30s
+  // PERF: Multiple components poll independently (kanban-board also polls every 30s).
+  // Consider consolidating with SWR/React Query or shared state when scaling.
   useEffect(() => {
     fetchNotifications();
 
@@ -48,15 +49,39 @@ export default function NotificationBell({ workspaceId }: NotificationBellProps)
   };
 
   const handleMarkAllAsRead = async () => {
-    // For simplicity, we'll call the mark all as read function
-    // In a real implementation, you'd need the userId
-    setNotifications((prev) =>
-      prev.map((n) => ({ ...n, isRead: true }))
-    );
-    setUnreadCount(0);
+    try {
+      const response = await fetch("/api/notifications/mark-all-read", {
+        method: "POST",
+      });
+      if (response.ok) {
+        setNotifications((prev) =>
+          prev.map((n) => ({ ...n, isRead: true }))
+        );
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+    }
   };
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read when clicked
+    if (!notification.isRead) {
+      try {
+        await fetch(`/api/notifications/${notification.id}/read`, {
+          method: "POST",
+        });
+        // Update local state
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notification.id ? { ...n, isRead: true } : n
+          )
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch (error) {
+        console.error("Failed to mark notification as read:", error);
+      }
+    }
     if (notification.link) {
       window.location.href = notification.link;
     }
@@ -80,13 +105,13 @@ export default function NotificationBell({ workspaceId }: NotificationBellProps)
       {isOpen && (
         <div className="absolute right-0 top-12 w-80 bg-white rounded-lg shadow-lg border overflow-hidden z-50">
           <div className="p-3 border-b flex justify-between items-center">
-            <h3 className="font-semibold">Notifications</h3>
+            <h3 className="font-semibold">通知</h3>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
                 className="text-xs text-blue-500 hover:text-blue-700"
               >
-                Mark all as read
+                全部标为已读
               </button>
             )}
           </div>
@@ -94,7 +119,7 @@ export default function NotificationBell({ workspaceId }: NotificationBellProps)
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
               <p className="p-4 text-center text-gray-500 text-sm">
-                No notifications
+                暂无通知
               </p>
             ) : (
               notifications.map((notification) => (

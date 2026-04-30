@@ -50,10 +50,10 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="zh-CN" className={`${geistSans.variable} h-full antialiased`}>
-      <body className="min-h-full flex bg-background">
+    <html lang="zh-CN" className={`${geistSans.variable} h-screen antialiased`}>
+      <body className="h-full flex bg-background overflow-hidden">
         {session && (
-          <aside className="w-60 bg-sidebar border-r border-sidebar-border flex flex-col shrink-0">
+          <aside className="w-60 h-full bg-sidebar border-r border-sidebar-border flex flex-col shrink-0 sticky top-0 self-start">
             <div className="px-4 py-4 border-b border-sidebar-border">
               <p className="text-xs text-muted-foreground">ContentOS</p>
               <Link href="/" className="text-lg font-semibold text-sidebar-foreground tracking-tight block mt-0.5">
@@ -130,7 +130,7 @@ export default async function RootLayout({
             </div>
           </aside>
         )}
-        <main className="flex-1 overflow-hidden">{children}</main>
+        <main className="flex-1 h-full overflow-y-auto overflow-x-hidden">{children}</main>
         <Toaster position="top-right" richColors closeButton />
         <FeedbackButton />
       </body>
