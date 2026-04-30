@@ -38,16 +38,19 @@ export default async function RootLayout({
   let projects: { id: string; name: string }[] = [];
 
   if (session?.user?.workspaceId) {
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: session.user.workspaceId },
-    });
+    // Run queries in parallel for faster page load
+    const [workspace, projectsData] = await Promise.all([
+      prisma.workspace.findUnique({
+        where: { id: session.user.workspaceId },
+      }),
+      prisma.project.findMany({
+        where: { workspaceId: session.user.workspaceId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, name: true },
+      }),
+    ]);
     workspaceName = workspace?.name ?? null;
-
-    projects = await prisma.project.findMany({
-      where: { workspaceId: session.user.workspaceId },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, name: true },
-    });
+    projects = projectsData;
   }
 
   return (

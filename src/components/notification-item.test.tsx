@@ -32,74 +32,86 @@ describe("NotificationItem", () => {
   });
 
   it("should render correct icon for content_review", () => {
-    render(
+    const { container } = render(
       <NotificationItem
         notification={mockNotification}
         onClick={mockOnClick}
       />
     );
 
-    expect(screen.getByText("👀")).toBeInTheDocument();
+    // Check for lucide-react Eye icon SVG
+    const eyeIcon = container.querySelector('.lucide-eye');
+    expect(eyeIcon).toBeInTheDocument();
   });
 
   it("should render correct icon for content_approved", () => {
     const notification = { ...mockNotification, type: "content_approved" };
-    render(
+    const { container } = render(
       <NotificationItem
         notification={notification}
         onClick={mockOnClick}
       />
     );
 
-    expect(screen.getByText("✅")).toBeInTheDocument();
+    // Check for lucide-react CheckCircle2 icon SVG
+    const checkIcon = container.querySelector('.lucide-check-circle-2');
+    expect(checkIcon).toBeInTheDocument();
   });
 
   it("should render correct icon for content_published", () => {
     const notification = { ...mockNotification, type: "content_published" };
-    render(
+    const { container } = render(
       <NotificationItem
         notification={notification}
         onClick={mockOnClick}
       />
     );
 
-    expect(screen.getByText("🚀")).toBeInTheDocument();
+    // Check for lucide-react Rocket icon SVG
+    const rocketIcon = container.querySelector('.lucide-rocket');
+    expect(rocketIcon).toBeInTheDocument();
   });
 
   it("should render correct icon for schedule_reminder", () => {
     const notification = { ...mockNotification, type: "schedule_reminder" };
-    render(
+    const { container } = render(
       <NotificationItem
         notification={notification}
         onClick={mockOnClick}
       />
     );
 
-    expect(screen.getByText("📅")).toBeInTheDocument();
+    // Check for lucide-react Calendar icon SVG
+    const calendarIcon = container.querySelector('.lucide-calendar');
+    expect(calendarIcon).toBeInTheDocument();
   });
 
   it("should render correct icon for mention", () => {
     const notification = { ...mockNotification, type: "mention" };
-    render(
+    const { container } = render(
       <NotificationItem
         notification={notification}
         onClick={mockOnClick}
       />
     );
 
-    expect(screen.getByText("💬")).toBeInTheDocument();
+    // Check for lucide-react MessageCircle icon SVG
+    const messageIcon = container.querySelector('.lucide-message-circle');
+    expect(messageIcon).toBeInTheDocument();
   });
 
   it("should render default icon for unknown type", () => {
     const notification = { ...mockNotification, type: "unknown" };
-    render(
+    const { container } = render(
       <NotificationItem
         notification={notification}
         onClick={mockOnClick}
       />
     );
 
-    expect(screen.getByText("🔔")).toBeInTheDocument();
+    // Check for lucide-react Bell icon SVG
+    const bellIcon = container.querySelector('.lucide-bell');
+    expect(bellIcon).toBeInTheDocument();
   });
 
   it("should highlight unread notifications", () => {

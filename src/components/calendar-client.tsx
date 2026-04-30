@@ -8,6 +8,7 @@ import { zhCN } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import { getMonthRange, getWeekRange } from "@/lib/dates";
+import { CUSTOM_EVENTS } from "@/lib/events";
 import type { ContentSchedule } from "@/types";
 import { useRouter } from "next/navigation";
 import {
@@ -189,7 +190,7 @@ export default function CalendarClient({
         // Refresh events
         handleNavigate();
         // Trigger immediate refresh of unscheduled panel
-        window.dispatchEvent(new CustomEvent('unscheduled-refresh'));
+        window.dispatchEvent(new CustomEvent(CUSTOM_EVENTS.UNSCHEDULED_REFRESH));
         setIsDialogOpen(false);
         setSelectedEvent(null);
       } else {
@@ -322,7 +323,7 @@ export default function CalendarClient({
                   if (response.ok) {
                     handleNavigate();
                     // Dispatch custom event to refresh unscheduled panel immediately
-                    window.dispatchEvent(new CustomEvent('unscheduled-refresh'));
+                    window.dispatchEvent(new CustomEvent(CUSTOM_EVENTS.UNSCHEDULED_REFRESH));
                   } else {
                     console.error("Failed to schedule content:", response.status);
                   }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { CUSTOM_EVENTS } from "@/lib/events";
 
 interface UnscheduledContent {
   id: string;
@@ -18,6 +20,7 @@ interface UnscheduledPanelProps {
 export default function UnscheduledPanel({
   workspaceId,
 }: UnscheduledPanelProps) {
+  const router = useRouter();
   const [unscheduledItems, setUnscheduledItems] = useState<UnscheduledContent[]>(
     []
   );
@@ -33,11 +36,11 @@ export default function UnscheduledPanel({
       fetchUnscheduledContent();
     };
 
-    window.addEventListener('unscheduled-refresh', handleRefreshEvent);
+    window.addEventListener(CUSTOM_EVENTS.UNSCHEDULED_REFRESH, handleRefreshEvent);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('unscheduled-refresh', handleRefreshEvent);
+      window.removeEventListener(CUSTOM_EVENTS.UNSCHEDULED_REFRESH, handleRefreshEvent);
     };
   }, [workspaceId]);
 
@@ -76,7 +79,7 @@ export default function UnscheduledPanel({
 
   const handleScheduleClick = (contentId: string) => {
     // Navigate to the content editor for scheduling
-    window.location.href = `/content/${contentId}`;
+    router.push(`/content/${contentId}`);
   };
 
   return (

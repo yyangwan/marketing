@@ -72,11 +72,14 @@ export function getMonthRange(date: Date): { start: Date; end: Date } {
  * Week starts on Monday (ISO standard)
  */
 export function getWeekRange(date: Date): { start: Date; end: Date } {
-  const d = new Date(date);
+  const d = new Date(date); // Create a copy to avoid mutating the input
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Monday start
-  const start = new Date(d.setDate(diff));
+
+  // Create start date by computing the Monday directly, without mutation
+  const start = new Date(d.getFullYear(), d.getMonth(), diff);
   start.setHours(0, 0, 0, 0);
+
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
   end.setHours(23, 59, 59, 999);

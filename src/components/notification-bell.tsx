@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import NotificationItem from "./notification-item";
 
@@ -19,6 +20,7 @@ interface NotificationBellProps {
 }
 
 export default function NotificationBell({ workspaceId }: NotificationBellProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -83,7 +85,7 @@ export default function NotificationBell({ workspaceId }: NotificationBellProps)
       }
     }
     if (notification.link) {
-      window.location.href = notification.link;
+      router.push(notification.link);
     }
     setIsOpen(false);
   };
