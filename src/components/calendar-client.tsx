@@ -338,17 +338,19 @@ export default function CalendarClient({
               selectable
               style={{ height: 600 }}
               components={{
-                eventWrapper: (eventWrapperProps: any) => {
+                event: (eventProps: any) => {
                   const handleClick = (e: React.MouseEvent) => {
+                    e.preventDefault();
                     e.stopPropagation();
-                    onSelectEvent(eventWrapperProps.event);
+                    onSelectEvent(eventProps.event);
                   };
 
                   return (
                     <div
                       onClick={handleClick}
+                      title={eventProps.title}
                       style={{
-                        background: eventStyle(eventWrapperProps.event.resource?.contentPiece?.platform || "generic"),
+                        background: eventStyle(eventProps.event.resource?.contentPiece?.platform || "generic"),
                         padding: "2px 4px",
                         borderRadius: "3px",
                         color: "white",
@@ -357,9 +359,10 @@ export default function CalendarClient({
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                         cursor: "pointer",
+                        height: "100%",
                       }}
                     >
-                      {eventWrapperProps.children}
+                      {eventProps.title}
                     </div>
                   );
                 },
