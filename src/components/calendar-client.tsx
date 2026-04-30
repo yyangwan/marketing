@@ -339,8 +339,14 @@ export default function CalendarClient({
               style={{ height: 600 }}
               components={{
                 eventWrapper: (eventWrapperProps: any) => {
+                  const handleClick = (e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    onSelectEvent(eventWrapperProps.event);
+                  };
+
                   return (
                     <div
+                      onClick={handleClick}
                       style={{
                         background: eventStyle(eventWrapperProps.event.resource?.contentPiece?.platform || "generic"),
                         padding: "2px 4px",
@@ -350,6 +356,7 @@ export default function CalendarClient({
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        cursor: "pointer",
                       }}
                     >
                       {eventWrapperProps.children}
