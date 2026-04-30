@@ -103,7 +103,7 @@ export default function NotificationBell({ workspaceId }: NotificationBellProps)
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-12 w-80 bg-white rounded-lg shadow-lg border overflow-hidden z-50">
+        <div className="absolute right-0 bottom-full mb-2 w-80 bg-white rounded-lg shadow-lg border overflow-hidden z-50">
           <div className="p-3 border-b flex justify-between items-center">
             <h3 className="font-semibold">通知</h3>
             {unreadCount > 0 && (
