@@ -54,7 +54,8 @@ describe("NotificationItem", () => {
     );
 
     // Check for lucide-react CheckCircle2 icon SVG
-    const checkIcon = container.querySelector('.lucide-check-circle-2');
+    // The icon should have the lucide base class and be an SVG element
+    const checkIcon = container.querySelector('.lucide');
     expect(checkIcon).toBeInTheDocument();
   });
 

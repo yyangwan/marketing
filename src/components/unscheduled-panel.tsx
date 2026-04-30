@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { CUSTOM_EVENTS } from "@/lib/events";
 
 interface UnscheduledContent {
@@ -52,9 +53,12 @@ export default function UnscheduledPanel({
       if (response.ok) {
         const data = await response.json();
         setUnscheduledItems(data);
+      } else {
+        toast.error("Failed to load unscheduled content");
       }
     } catch (error) {
       console.error("Failed to fetch unscheduled content:", error);
+      toast.error("Failed to load unscheduled content");
     }
   };
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
+import { toast } from "sonner";
 import NotificationItem from "./notification-item";
 
 interface Notification {
@@ -44,9 +45,12 @@ export default function NotificationBell({ workspaceId }: NotificationBellProps)
         const data = await response.json();
         setNotifications(data);
         setUnreadCount(data.filter((n: Notification) => !n.isRead).length);
+      } else {
+        toast.error("Failed to load notifications");
       }
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
+      toast.error("Failed to load notifications");
     }
   };
 
@@ -60,9 +64,12 @@ export default function NotificationBell({ workspaceId }: NotificationBellProps)
           prev.map((n) => ({ ...n, isRead: true }))
         );
         setUnreadCount(0);
+      } else {
+        toast.error("Failed to mark all as read");
       }
     } catch (error) {
       console.error("Failed to mark all as read:", error);
+      toast.error("Failed to mark all as read");
     }
   };
 
@@ -70,18 +77,23 @@ export default function NotificationBell({ workspaceId }: NotificationBellProps)
     // Mark as read when clicked
     if (!notification.isRead) {
       try {
-        await fetch(`/api/notifications/${notification.id}/read`, {
+        const response = await fetch(`/api/notifications/${notification.id}/read`, {
           method: "POST",
         });
-        // Update local state
-        setNotifications((prev) =>
-          prev.map((n) =>
-            n.id === notification.id ? { ...n, isRead: true } : n
-          )
-        );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
+        if (response.ok) {
+          // Update local state
+          setNotifications((prev) =>
+            prev.map((n) =>
+              n.id === notification.id ? { ...n, isRead: true } : n
+            )
+          );
+          setUnreadCount((prev) => Math.max(0, prev - 1));
+        } else {
+          toast.error("Failed to mark notification as read");
+        }
       } catch (error) {
         console.error("Failed to mark notification as read:", error);
+        toast.error("Failed to mark notification as read");
       }
     }
     if (notification.link) {
