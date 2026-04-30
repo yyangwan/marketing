@@ -66,15 +66,38 @@ and this project adheres to [Semantic Versioning](https://semver.com/spec/v2.0.0
 - Concurrent cron job processing prevented with sequential findFirst pattern
 - Missing "publishing" status filter added to calendar UI
 
-## [Unreleased]
+## [0.3.2.0] - 2026-04-30
+
+### Added
+- **Navigation Component**: New navigation sidebar with active state highlighting
+  - Main navigation items (calendar, scheduled, unscheduled, templates)
+  - Project list with direct access to each project
+  - Visual indicator for currently active page
+  - Empty state handling when no projects exist
+- **Test Coverage**: Comprehensive unit tests for Navigation and notification-bell components
+  - Navigation tests (150+ lines) covering main nav, projects, empty states
+  - Notification-bell tests (280+ lines) covering fetching, polling, dropdown, mark-as-read
 
 ### Fixed
-- **Calendar-unscheduled sync**: Added event-driven refresh for immediate UI updates
-  - Unscheduled panel now refreshes immediately when content is scheduled via calendar
-  - Custom event `unscheduled-refresh` dispatched after successful schedule operations
-  - Eliminates 10-second delay from polling-only refresh mechanism
+- **User-Facing Error Messages**: Added toast notifications for all API error scenarios
+  - Calendar operations (fetch, unschedule, drop) now show clear error messages on failure
+  - Notification operations (fetch, mark-as-read) provide user feedback
+  - Unscheduled panel shows error messages on failed operations
+- **Test Regression**: Updated calendar events tests to match new query structure
+- **Notification Dropdown**: Improved positioning to center above bell icon
 
-## [0.2.0] - 2026-04-26
+### Changed
+- **Calendar API Optimization**: Moved filtering from JavaScript to database level
+  - Project and status filters now applied at database level for better performance
+  - Reduced data transfer and client-side processing
+- **Layout Performance**: Parallelized workspace and project queries in root layout
+  - Page load time improved with concurrent database queries
+  - Uses Promise.all for independent data fetching
+- **Event-Driven Refresh**: Added custom event system for cross-component communication
+  - Unscheduled panel refreshes immediately when content is scheduled via calendar
+  - CUSTOM_EVENTS constant for standardized event names
+
+## [0.3.1.0] - 2026-04-27
 
 ### Added
 - **Brand Voice System**: Create and manage brand voices with custom samples, guidelines, and descriptions
