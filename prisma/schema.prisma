@@ -29,6 +29,7 @@ model Workspace {
   brandVoices   BrandVoice[]
   aiTemplates   AITemplate[]
   notifications Notification[]
+  genieSources  GenieSource[]
 }
 
 model WorkspaceMember {
@@ -87,6 +88,7 @@ model ContentPiece {
   platformContents PlatformContent[]
   reviewComments   ReviewComment[]
   quality          ContentQuality?   // AI evaluation scores
+  qualityHistory   QualityHistory[]  // Historical evaluation records
   schedules        ContentSchedule[] // Phase 1D: Scheduling records
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -158,11 +160,48 @@ model ContentQuality {
   brandVoice   Int      @default(0)      // How well it matches brand voice
   platformFit  Int      @default(0)      // How well it fits the platform
 
+  // Extended AI scores (0-10)
+  sentiment        Int      @default(0)   // Sentiment analysis (-10 to 10 converted to 0-10)
+  topicConsistency Int      @default(0)   // Topic consistency score
+  originality      Int      @default(0)   // Originality score
+
+  // Local metrics (computed instantly)
+  localMetrics     String?  // JSON: {readabilityScore, vocabularyDiversity, sentenceComplexity, consistencyScore}
+
   // AI suggestions for improvement
   suggestions  String?  // JSON array of improvement suggestions
 
+  // Historical tracking
+  previousScores   String?  // JSON: store previous evaluation for comparison
+  evaluationCount  Int      @default(1)   // Track how many times evaluated
+
   // Evaluation metadata
   evaluatedAt  DateTime @default(now())
+
+  @@index([evaluatedAt])
+}
+
+// Phase 1C+: Quality History (tracks evaluation changes over time)
+model QualityHistory {
+  id               String   @id @default(cuid())
+  contentPieceId   String
+  contentPiece     ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+
+  // AI scores snapshot
+  quality          Int
+  engagement       Int
+  brandVoice       Int
+  platformFit      Int
+  sentiment        Int      @default(0)
+  topicConsistency Int      @default(0)
+  originality      Int      @default(0)
+
+  // Content hash to detect actual changes
+  contentHash      String
+
+  evaluatedAt      DateTime @default(now())
+
+  @@index([contentPieceId, evaluatedAt])
 }
 
 // Phase 1D: Scheduling
@@ -201,4 +240,28 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@index([workspaceId])
+}
+
+// Phase 1E: Genie Auto-Content Factory - URL Sources
+model GenieSource {
+  id               String   @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  url               String   @unique
+
+  // Extracted metadata from URL analysis
+  businessType      String?  // "电商", "SaaS", "本地服务", "内容创作"
+  keyProducts       String?  // JSON array: ["产品A", "产品B"]
+  brandTone         String?  // "专业", "亲切", "幽默", "高端"
+  targetAudience    String?  // "Z世代", "职场人士", "宝妈", etc.
+  recurringTopics   String?  // JSON array: ["话题1", "话题2"]
+
+  // Analysis tracking
+  lastAnalyzedAt    DateTime?
+  enabled           Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([workspaceId, enabled])
+  @@index([lastAnalyzedAt])
 }
