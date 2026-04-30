@@ -298,11 +298,19 @@ export default function CalendarClient({
                 eventWrapper: (eventWrapperProps: any) => {
                   return (
                     <div
-                      {...eventWrapperProps}
                       style={{
                         background: eventStyle(eventWrapperProps.event.resource?.contentPiece?.platform || "generic"),
+                        padding: "2px 4px",
+                        borderRadius: "3px",
+                        color: "white",
+                        fontSize: "12px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
-                    />
+                    >
+                      {eventWrapperProps.children}
+                    </div>
                   );
                 },
               }}
