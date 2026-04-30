@@ -3,7 +3,17 @@
 All notable changes to ContentOS will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.com/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.3.3.0] - 2026-04-30
+
+### Fixed
+- **Chinese Sentiment Analysis**: Fixed tokenization to properly extract emotion words using n-gram approach instead of greedy regex
+  - Extracts emotion words, negation words, and intensifiers for accurate sentiment detection
+  - Fixed normalization to use emotion word count instead of total token count
+  - 11 previously failing sentiment tests now pass
+- **Mock Detection**: Fixed fragile mock detection for quality evaluation to use environment variable instead of string matching
+  - More reliable detection that won't break when prompt templates change
 
 ## [0.3.1.0] - 2026-04-27
 
