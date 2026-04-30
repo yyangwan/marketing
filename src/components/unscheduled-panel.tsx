@@ -27,7 +27,18 @@ export default function UnscheduledPanel({
 
     // Poll every 10 seconds to refresh the list
     const interval = setInterval(fetchUnscheduledContent, 10000);
-    return () => clearInterval(interval);
+
+    // Listen for custom refresh event from calendar
+    const handleRefreshEvent = () => {
+      fetchUnscheduledContent();
+    };
+
+    window.addEventListener('unscheduled-refresh', handleRefreshEvent);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('unscheduled-refresh', handleRefreshEvent);
+    };
   }, [workspaceId]);
 
   const fetchUnscheduledContent = async () => {

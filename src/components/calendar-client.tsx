@@ -188,6 +188,8 @@ export default function CalendarClient({
       if (response.ok) {
         // Refresh events
         handleNavigate();
+        // Trigger immediate refresh of unscheduled panel
+        window.dispatchEvent(new CustomEvent('unscheduled-refresh'));
         setIsDialogOpen(false);
         setSelectedEvent(null);
       } else {
@@ -319,6 +321,8 @@ export default function CalendarClient({
 
                   if (response.ok) {
                     handleNavigate();
+                    // Dispatch custom event to refresh unscheduled panel immediately
+                    window.dispatchEvent(new CustomEvent('unscheduled-refresh'));
                   } else {
                     console.error("Failed to schedule content:", response.status);
                   }
