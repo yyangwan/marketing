@@ -50,6 +50,7 @@ export default function CalendarClient({
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [draggedContentId, setDraggedContentId] = useState<string | null>(null);
   const router = useRouter();
 
   // Fetch projects for filter dropdown
@@ -67,6 +68,34 @@ export default function CalendarClient({
     }
     fetchProjects();
   }, [workspaceId]);
+
+  // Listen for drag events from unscheduled panel
+  useEffect(() => {
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      const contentId = e.dataTransfer?.getData("contentId");
+      if (contentId) {
+        setDraggedContentId(contentId);
+      }
+    };
+
+    const handleDragEnd = () => {
+      setDraggedContentId(null);
+    };
+
+    document.addEventListener("dragover", handleDragOver);
+    document.addEventListener("drop", handleDrop);
+    document.addEventListener("dragend", handleDragEnd);
+
+    return () => {
+      document.removeEventListener("dragover", handleDragOver);
+      document.removeEventListener("drop", handleDrop);
+      document.removeEventListener("dragend", handleDragEnd);
+    };
+  }, []);
 
   // Fetch scheduled content for visible date range
   const fetchScheduledContent = useCallback(async () => {
@@ -226,6 +255,32 @@ export default function CalendarClient({
                   }
                 } catch (error) {
                   console.error("Error dropping event:", error);
+                }
+              }}
+              onDropFromOutside={async ({ start, end, allDay }: any) => {
+                if (!draggedContentId) {
+                  console.warn("No contentId found - drag may not have started from unscheduled panel");
+                  return;
+                }
+
+                const startDate = new Date(start);
+
+                try {
+                  const response = await fetch(`/api/content/${draggedContentId}/schedule`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      scheduledAt: startDate.toISOString(),
+                    }),
+                  });
+
+                  if (response.ok) {
+                    handleNavigate();
+                  } else {
+                    console.error("Failed to schedule content:", response.status);
+                  }
+                } catch (error) {
+                  console.error("Error scheduling content:", error);
                 }
               }}
               defaultDate={new Date()}
