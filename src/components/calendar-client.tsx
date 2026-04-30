@@ -10,6 +10,15 @@ import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import { getMonthRange, getWeekRange } from "@/lib/dates";
 import type { ContentSchedule } from "@/types";
 import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface CalendarClientProps {
   initialView?: "month" | "week" | "day";
@@ -51,6 +60,8 @@ export default function CalendarClient({
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [draggedContentId, setDraggedContentId] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const router = useRouter();
 
   // Fetch projects for filter dropdown
@@ -158,10 +169,42 @@ export default function CalendarClient({
 
   const onSelectEvent = useCallback((event: any) => {
     if (event?.resource?.contentPiece?.id) {
-      // Navigate to content editor
-      router.push(`/content/${event.resource.contentPiece.id}`);
+      // Show dialog instead of directly navigating
+      setSelectedEvent(event);
+      setIsDialogOpen(true);
     }
-  }, [router]);
+  }, []);
+
+  const handleUnschedule = async () => {
+    if (!selectedEvent?.resource?.contentPiece?.id) return;
+
+    const contentId = selectedEvent.resource.contentPiece.id;
+
+    try {
+      const response = await fetch(`/api/content/${contentId}/schedule`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        // Refresh events
+        handleNavigate();
+        setIsDialogOpen(false);
+        setSelectedEvent(null);
+      } else {
+        console.error("Failed to unschedule:", response.status);
+      }
+    } catch (error) {
+      console.error("Error unscheduling:", error);
+    }
+  };
+
+  const handleOpenDetails = () => {
+    if (selectedEvent?.resource?.contentPiece?.id) {
+      router.push(`/content/${selectedEvent.resource.contentPiece.id}`);
+    }
+    setIsDialogOpen(false);
+    setSelectedEvent(null);
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -318,6 +361,41 @@ export default function CalendarClient({
           </div>
         )}
       </div>
+
+      {/* Event action dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>日程操作</DialogTitle>
+            <DialogDescription>
+              选择要对此日程执行的操作
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedEvent && (
+            <div className="py-4">
+              <p className="text-sm text-gray-600">
+                <strong>{selectedEvent.title}</strong>
+              </p>
+              <p className="text-xs text-gray-500">
+                {new Date(selectedEvent.start).toLocaleString("zh-CN")}
+              </p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              取消
+            </Button>
+            <Button variant="default" onClick={handleUnschedule} className="bg-red-500 hover:bg-red-600">
+              取消排期
+            </Button>
+            <Button variant="default" onClick={handleOpenDetails}>
+              查看详情
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
