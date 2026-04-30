@@ -103,6 +103,7 @@ src/
 ├── lib/                   # 核心逻辑
 │   ├── ai/               # AI 生成、prompts
 │   │   └── prompts/      # 平台特定 prompt（含品牌调性注入）
+│   ├── analysis/         # 内容分析（情感分析等）
 │   ├── auth/             # 认证配置
 │   ├── notifications/    # 通知触发器
 │   ├── dates.ts          # 日期工具函数
@@ -219,7 +220,7 @@ npm run db:setup
 
 查看 [CHANGELOG.md](CHANGELOG.md) 了解版本历史和迁移指南。
 
-当前版本: `v0.3.2.0`
+当前版本: `v0.3.3.0`
 
 ## 隐私与分析
 
