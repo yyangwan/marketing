@@ -24,6 +24,10 @@ export default function UnscheduledPanel({
 
   useEffect(() => {
     fetchUnscheduledContent();
+
+    // Poll every 10 seconds to refresh the list
+    const interval = setInterval(fetchUnscheduledContent, 10000);
+    return () => clearInterval(interval);
   }, [workspaceId]);
 
   const fetchUnscheduledContent = async () => {
