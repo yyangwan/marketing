@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Calendar, dateFnsLocalizer, Views, withDragAndDrop } from "react-big-calendar";
+import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -22,75 +22,6 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales: { "zh-CN": zhCN },
 });
-
-// Drag-and-drop calendar component
-function DnDCalendar(props: any) {
-  const [events, setEvents] = useState<any[]>(props.events);
-  const router = useRouter();
-
-  const onEventDrop = useCallback(async ({ event, start, end }: any) => {
-    const { id, resource } = event;
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-
-    try {
-      // Update the schedule via API
-      const response = await fetch(`/api/content/${resource.contentPiece.id}/schedule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scheduledAt: startDate.toISOString(),
-        }),
-      });
-
-      if (response.ok) {
-        // Refresh events after successful drop
-        props.onNavigate();
-      } else {
-        console.error("Failed to update schedule:", response.status);
-        // Re-fetch events to revert UI
-        props.onNavigate();
-      }
-    } catch (error) {
-      console.error("Error dropping event:", error);
-      // Re-fetch events to revert UI
-      props.onNavigate();
-    }
-  }, [props.onNavigate]);
-
-  const onSelectEvent = useCallback((event: any) => {
-    if (event?.resource?.contentPiece?.id) {
-      // Navigate to content editor
-      router.push(`/content/${event.resource.contentPiece.id}`);
-    }
-  }, [router]);
-
-  return (
-    <Calendar
-      {...props}
-      events={events}
-      localizer={localizer}
-      onEventDrop={onEventDrop}
-      onSelectEvent={onSelectEvent}
-      startAccessor="start"
-      endAccessor="end"
-      resizable
-      selectable
-      components={{
-        eventWrapper: (eventWrapperProps: any) => {
-          return (
-            <div
-              {...eventWrapperProps}
-              style={{
-                background: eventStyle(eventWrapperProps.event.resource?.contentPiece?.platform || "generic"),
-              }}
-            />
-          );
-        },
-      }}
-    />
-  );
-}
 
 // Event style helper
 function eventStyle(platform: string) {
@@ -114,6 +45,7 @@ export default function CalendarClient({
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const router = useRouter();
 
   // Fetch projects for filter dropdown
   useEffect(() => {
@@ -183,8 +115,12 @@ export default function CalendarClient({
     fetchScheduledContent();
   }, [fetchScheduledContent]);
 
-  // Wrap calendar with drag-and-drop
-  const DnDCalendarWrapper = withDragAndDrop(DnDCalendar);
+  const onSelectEvent = useCallback((event: any) => {
+    if (event?.resource?.contentPiece?.id) {
+      // Navigate to content editor
+      router.push(`/content/${event.resource.contentPiece.id}`);
+    }
+  }, [router]);
 
   return (
     <div className="h-full flex flex-col">
@@ -251,11 +187,13 @@ export default function CalendarClient({
           </div>
         ) : (
           <div className="bg-white rounded shadow p-2 sm:p-4" style={{ height: "600px" }}>
-            <DnDCalendarWrapper
+            <Calendar
               events={events}
+              localizer={localizer}
               view={currentView}
               onView={setCurrentView}
               onNavigate={handleNavigate}
+              onSelectEvent={onSelectEvent}
               defaultDate={new Date()}
               views={["month", "week", "day"]}
               defaultView={currentView}
@@ -263,8 +201,21 @@ export default function CalendarClient({
               timeslots={8}
               showMultiDayTimes
               popup
-              onNavigate={() => {}}
-              draggableAccessor={() => true}
+              startAccessor="start"
+              endAccessor="end"
+              style={{ height: 600 }}
+              components={{
+                eventWrapper: (eventWrapperProps: any) => {
+                  return (
+                    <div
+                      {...eventWrapperProps}
+                      style={{
+                        background: eventStyle(eventWrapperProps.event.resource?.contentPiece?.platform || "generic"),
+                      }}
+                    />
+                  );
+                },
+              }}
             />
           </div>
         )}
