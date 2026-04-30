@@ -25,73 +25,6 @@ const localizer = dateFnsLocalizer({
   locales: { "zh-CN": zhCN },
 });
 
-// Drag-and-drop calendar component
-function DnDCalendar(props: any) {
-  const [events, setEvents] = useState<any[]>(props.events);
-  const router = useRouter();
-
-  const onEventDrop = useCallback(async ({ event, start, end }: any) => {
-    const { id, resource } = event;
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-
-    try {
-      // Update the schedule via API
-      const response = await fetch(`/api/content/${resource.contentPiece.id}/schedule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scheduledAt: startDate.toISOString(),
-        }),
-      });
-
-      if (response.ok) {
-        // Refresh events after successful drop
-        props.onNavigate();
-      } else {
-        console.error("Failed to update schedule:", response.status);
-        props.onNavigate();
-      }
-    } catch (error) {
-      console.error("Error dropping event:", error);
-      props.onNavigate();
-    }
-  }, [props.onNavigate]);
-
-  const onSelectEvent = useCallback((event: any) => {
-    if (event?.resource?.contentPiece?.id) {
-      // Navigate to content editor
-      router.push(`/content/${event.resource.contentPiece.id}`);
-    }
-  }, [router]);
-
-  return (
-    <Calendar
-      {...props}
-      events={events}
-      localizer={localizer}
-      onEventDrop={onEventDrop}
-      onSelectEvent={onSelectEvent}
-      startAccessor="start"
-      endAccessor="end"
-      resizable
-      selectable
-      components={{
-        eventWrapper: (eventWrapperProps: any) => {
-          return (
-            <div
-              {...eventWrapperProps}
-              style={{
-                background: eventStyle(eventWrapperProps.event.resource?.contentPiece?.platform || "generic"),
-              }}
-            />
-          );
-        },
-      }}
-    />
-  );
-}
-
 // Event style helper
 function eventStyle(platform: string) {
   const colors: Record<string, string> = {
@@ -104,7 +37,8 @@ function eventStyle(platform: string) {
   return colors[platform] || colors.generic;
 }
 
-const DnDCalendarWrapper = withDragAndDrop(DnDCalendar);
+// Create drag-and-drop calendar wrapper
+const DnDCalendar = withDragAndDrop(Calendar);
 
 export default function CalendarClient({
   initialView = "month",
@@ -258,12 +192,35 @@ export default function CalendarClient({
           </div>
         ) : (
           <div className="bg-white rounded shadow p-2 sm:p-4" style={{ height: "600px" }}>
-            <DnDCalendarWrapper
+            <DnDCalendar
+              localizer={localizer}
               events={events}
               view={currentView}
               onView={setCurrentView}
               onNavigate={handleNavigate}
               onSelectEvent={onSelectEvent}
+              onEventDrop={async ({ event, start, end }: any) => {
+                const { resource } = event;
+                const startDate = new Date(start);
+
+                try {
+                  const response = await fetch(`/api/content/${resource.contentPiece.id}/schedule`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      scheduledAt: startDate.toISOString(),
+                    }),
+                  });
+
+                  if (response.ok) {
+                    handleNavigate();
+                  } else {
+                    console.error("Failed to update schedule:", response.status);
+                  }
+                } catch (error) {
+                  console.error("Error dropping event:", error);
+                }
+              }}
               defaultDate={new Date()}
               views={["month", "week", "day"]}
               defaultView={currentView}
