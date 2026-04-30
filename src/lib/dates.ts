@@ -35,34 +35,14 @@ export function isSameDay(date1: Date, date2: Date): boolean {
 
 /**
  * Get the first and last day of the month for a given date
- * Includes extra days before and after to account for calendar grid display
  */
 export function getMonthRange(date: Date): { start: Date; end: Date } {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-
-  // First day of the month
-  const firstDay = new Date(year, month, 1);
-
-  // Get the day of week for the first day (0 = Sunday)
-  const firstDayOfWeek = firstDay.getDay();
-
-  // Calculate start date (include days from previous month to fill the first week)
-  // For Monday start: if first day is Sunday (0), we need 6 days before; if Monday (1), 0 days before
-  const start = new Date(year, month, 1 - firstDayOfWeek);
+  // Create a copy to avoid mutating the input
+  const d = new Date(date);
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
   start.setHours(0, 0, 0, 0);
 
-  // Last day of the month
-  const lastDay = new Date(year, month + 1, 0);
-
-  // Get the day of week for the last day
-  const lastDayOfWeek = lastDay.getDay();
-
-  // Calculate end date (include days from next month to fill the last week)
-  // For Monday start: if last day is Sunday (0), we need 0 days after; if Saturday (6), we need 6 days after
-  const daysToAdd = lastDayOfWeek === 0 ? 0 : 6 - lastDayOfWeek + 1;
-  const end = new Date(year, month + 1, daysToAdd);
-  end.setHours(23, 59, 59, 999);
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
 
   return { start, end };
 }
@@ -72,11 +52,14 @@ export function getMonthRange(date: Date): { start: Date; end: Date } {
  * Week starts on Monday (ISO standard)
  */
 export function getWeekRange(date: Date): { start: Date; end: Date } {
-  const d = new Date(date);
+  const d = new Date(date); // Create a copy to avoid mutating the input
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Monday start
-  const start = new Date(d.setDate(diff));
+
+  // Create start date by computing the Monday directly, without mutation
+  const start = new Date(d.getFullYear(), d.getMonth(), diff);
   start.setHours(0, 0, 0, 0);
+
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
   end.setHours(23, 59, 59, 999);

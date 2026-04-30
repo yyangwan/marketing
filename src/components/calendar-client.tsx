@@ -5,9 +5,11 @@ import { Calendar, dateFnsLocalizer, Views, View } from "react-big-calendar";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { toast } from "sonner";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import { getMonthRange, getWeekRange } from "@/lib/dates";
+import { CUSTOM_EVENTS } from "@/lib/events";
 import type { ContentSchedule } from "@/types";
 import { useRouter } from "next/navigation";
 import {
@@ -144,9 +146,11 @@ export default function CalendarClient({
         setEvents(calendarEvents);
       } else {
         console.error('[Calendar] API error:', response.status, response.statusText);
+        toast.error("Failed to load calendar events");
       }
     } catch (error) {
       console.error("Failed to fetch calendar events:", error);
+      toast.error("Failed to load calendar events");
     } finally {
       setLoading(false);
     }
@@ -189,14 +193,16 @@ export default function CalendarClient({
         // Refresh events
         handleNavigate();
         // Trigger immediate refresh of unscheduled panel
-        window.dispatchEvent(new CustomEvent('unscheduled-refresh'));
+        window.dispatchEvent(new CustomEvent(CUSTOM_EVENTS.UNSCHEDULED_REFRESH));
         setIsDialogOpen(false);
         setSelectedEvent(null);
       } else {
         console.error("Failed to unschedule:", response.status);
+        toast.error("Failed to unschedule event");
       }
     } catch (error) {
       console.error("Error unscheduling:", error);
+      toast.error("Failed to unschedule event");
     }
   };
 
@@ -297,9 +303,11 @@ export default function CalendarClient({
                     handleNavigate();
                   } else {
                     console.error("Failed to update schedule:", response.status);
+                    toast.error("Failed to update schedule");
                   }
                 } catch (error) {
                   console.error("Error dropping event:", error);
+                  toast.error("Failed to update schedule");
                 }
               }}
               onDropFromOutside={async ({ start, end, allDay }: any) => {
@@ -322,12 +330,14 @@ export default function CalendarClient({
                   if (response.ok) {
                     handleNavigate();
                     // Dispatch custom event to refresh unscheduled panel immediately
-                    window.dispatchEvent(new CustomEvent('unscheduled-refresh'));
+                    window.dispatchEvent(new CustomEvent(CUSTOM_EVENTS.UNSCHEDULED_REFRESH));
                   } else {
                     console.error("Failed to schedule content:", response.status);
+                    toast.error("Failed to schedule content");
                   }
                 } catch (error) {
                   console.error("Error scheduling content:", error);
+                  toast.error("Failed to schedule content");
                 }
               }}
               defaultDate={new Date()}

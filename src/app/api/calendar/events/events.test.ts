@@ -35,7 +35,6 @@ describe("/api/calendar/events", () => {
         {
           id: "s1",
           scheduledAt: new Date("2025-01-01T10:00:00Z"),
-          status: "scheduled",
           contentPiece: {
             id: "c1",
             title: "Content 1",
@@ -56,6 +55,31 @@ describe("/api/calendar/events", () => {
       );
 
       expect(response.status).toBe(200);
+      // Verify workspace filter is applied
+      expect(prisma.contentSchedule.findMany).toHaveBeenCalledWith({
+        where: {
+          scheduledAt: {
+            gte: new Date("2025-01-01"),
+            lte: new Date("2025-01-31"),
+          },
+          AND: [
+            {
+              project: {
+                workspaceId: "ws1",
+              },
+            },
+          ],
+        },
+        include: {
+          contentPiece: {
+            include: {
+              project: true,
+            },
+          },
+        },
+        orderBy: { scheduledAt: "asc" },
+      });
+
       const data = await response.json();
       expect(data).toHaveLength(1);
       expect(data[0].id).toBe("s1");
@@ -65,23 +89,16 @@ describe("/api/calendar/events", () => {
     it("should filter by project when projectId is provided", async () => {
       const mockSession = { user: { id: "user1" } };
       const mockWs = { workspaceId: "ws1" };
+      // Database filtering: only return data for p1
       const mockSchedules = [
         {
           id: "s1",
+          scheduledAt: new Date("2025-01-01T10:00:00Z"),
           contentPiece: {
             id: "c1",
+            title: "Content 1",
             project: {
               id: "p1",
-              workspaceId: "ws1",
-            },
-          },
-        },
-        {
-          id: "s2",
-          contentPiece: {
-            id: "c2",
-            project: {
-              id: "p2",
               workspaceId: "ws1",
             },
           },
@@ -97,6 +114,32 @@ describe("/api/calendar/events", () => {
       );
 
       expect(response.status).toBe(200);
+      // Verify query includes both workspaceId and projectId in the AND clause
+      expect(prisma.contentSchedule.findMany).toHaveBeenCalledWith({
+        where: {
+          scheduledAt: {
+            gte: new Date("2025-01-01"),
+            lte: new Date("2025-01-31"),
+          },
+          AND: [
+            {
+              project: {
+                workspaceId: "ws1",
+                id: "p1",
+              },
+            },
+          ],
+        },
+        include: {
+          contentPiece: {
+            include: {
+              project: true,
+            },
+          },
+        },
+        orderBy: { scheduledAt: "asc" },
+      });
+
       const data = await response.json();
       expect(data.length).toBe(1);
       expect(data[0].contentPiece.project.id).toBe("p1");
@@ -108,8 +151,10 @@ describe("/api/calendar/events", () => {
       const mockSchedules = [
         {
           id: "s1",
-          status: "published",
+          scheduledAt: new Date("2025-01-01T10:00:00Z"),
           contentPiece: {
+            id: "c1",
+            title: "Content 1",
             project: { workspaceId: "ws1" },
           },
         },
@@ -124,13 +169,23 @@ describe("/api/calendar/events", () => {
       );
 
       expect(response.status).toBe(200);
+      // Verify the query includes both workspace filter and status filter in AND clause
       expect(prisma.contentSchedule.findMany).toHaveBeenCalledWith({
         where: {
           scheduledAt: {
             gte: new Date("2025-01-01"),
             lte: new Date("2025-01-31"),
           },
-          status: "published",
+          AND: [
+            {
+              project: {
+                workspaceId: "ws1",
+              },
+              contentPiece: {
+                status: "published",
+              },
+            },
+          ],
         },
         include: {
           contentPiece: {
@@ -196,18 +251,14 @@ describe("/api/calendar/events", () => {
     it("should filter out events from other workspaces", async () => {
       const mockSession = { user: { id: "user1" } };
       const mockWs = { workspaceId: "ws1" };
+      // Database filtering: only return data for ws1
       const mockSchedules = [
         {
-          id: "s1",
-          contentPiece: {
-            project: {
-              workspaceId: "ws2", // Different workspace
-            },
-          },
-        },
-        {
           id: "s2",
+          scheduledAt: new Date("2025-01-01T10:00:00Z"),
           contentPiece: {
+            id: "c2",
+            title: "Content 2",
             project: {
               workspaceId: "ws1", // Same workspace
             },
@@ -224,6 +275,31 @@ describe("/api/calendar/events", () => {
       );
 
       expect(response.status).toBe(200);
+      // Verify workspace filter is in the AND clause
+      expect(prisma.contentSchedule.findMany).toHaveBeenCalledWith({
+        where: {
+          scheduledAt: {
+            gte: new Date("2025-01-01"),
+            lte: new Date("2025-01-31"),
+          },
+          AND: [
+            {
+              project: {
+                workspaceId: "ws1",
+              },
+            },
+          ],
+        },
+        include: {
+          contentPiece: {
+            include: {
+              project: true,
+            },
+          },
+        },
+        orderBy: { scheduledAt: "asc" },
+      });
+
       const data = await response.json();
       expect(data.length).toBe(1);
       expect(data[0].contentPiece.project.workspaceId).toBe("ws1");

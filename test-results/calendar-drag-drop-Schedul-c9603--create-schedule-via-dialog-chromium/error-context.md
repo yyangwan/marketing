@@ -7,7 +7,7 @@
 # Test info
 
 - Name: calendar-drag-drop.spec.ts >> Schedule dialog >> should create schedule via dialog
-- Location: e2e\calendar-drag-drop.spec.ts:214:7
+- Location: e2e\calendar-drag-drop.spec.ts:174:7
 
 # Error details
 

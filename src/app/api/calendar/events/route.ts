@@ -39,9 +39,25 @@ export async function GET(req: Request) {
       },
     };
 
-    if (status) {
-      where.status = status;
+    // Build workspace filter
+    const projectFilter: any = {
+      project: {
+        workspaceId: ws.workspaceId,
+      },
+    };
+
+    // Add projectId filter if provided
+    if (projectId) {
+      projectFilter.project.id = projectId;
     }
+
+    // Add status filter if provided
+    if (status) {
+      projectFilter.contentPiece = { status };
+    }
+
+    // Combine with date filter using AND
+    where.AND = [projectFilter];
 
     const schedules = await prisma.contentSchedule.findMany({
       where,
@@ -55,18 +71,7 @@ export async function GET(req: Request) {
       orderBy: { scheduledAt: "asc" },
     });
 
-    // Filter by workspace and optionally by project
-    const filtered = schedules.filter((s) => {
-      if (s.contentPiece.project.workspaceId !== ws.workspaceId) {
-        return false;
-      }
-      if (projectId && s.contentPiece.project.id !== projectId) {
-        return false;
-      }
-      return true;
-    });
-
-    return NextResponse.json(filtered);
+    return NextResponse.json(schedules);
   } catch (error) {
     console.error("Failed to fetch calendar events:", error);
     return NextResponse.json(

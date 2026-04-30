@@ -7,7 +7,7 @@
 # Test info
 
 - Name: calendar-drag-drop.spec.ts >> Schedule dialog >> should remove existing schedule
-- Location: e2e\calendar-drag-drop.spec.ts:241:7
+- Location: e2e\calendar-drag-drop.spec.ts:201:7
 
 # Error details
 

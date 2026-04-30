@@ -406,9 +406,15 @@ layout.tsx (根布局)
 - `Toaster` (Sonner) — 通知提示
 
 **自定义组件**:
+- `Navigation` — 导航侧边栏（含项目列表、活跃状态）
 - `BriefForm` — Brief 创建表单
 - `KanbanColumn` — 看板列
 - `PlatformSelector` — 平台选择器
+- `NotificationBell` — 通知铃铛（含下拉列表）
+- `CalendarClient` — 日历视图（月/周切换、拖拽调度）
+- `QualityPanel` — 质量评估面板
+- `SEOScorer` — SEO 分析组件
+- `ScheduleDialog` — 调度对话框
 
 ## 安全考虑
 
