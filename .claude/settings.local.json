@@ -107,7 +107,8 @@
       "Bash(powershell.exe -Command \"Stop-Process -Id 42580 -Force -ErrorAction SilentlyContinue\")",
       "Bash(npm test:*)",
       "Bash(grep -o CheckCircle[^,]* E:/workspace/marketing/node_modules/lucide-react/dist/lucide-react.d.ts)",
-      "Bash(npm exec:*)"
+      "Bash(npm exec:*)",
+      "Bash(git pull:*)"
     ]
   }
 }

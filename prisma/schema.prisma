@@ -23,13 +23,14 @@ model Workspace {
   name      String
   createdAt DateTime @default(now())
 
-  members       WorkspaceMember[]
-  projects      Project[]
-  invites       WorkspaceInvite[]
-  brandVoices   BrandVoice[]
-  aiTemplates   AITemplate[]
-  notifications Notification[]
-  genieSources  GenieSource[]
+  members           WorkspaceMember[]
+  projects          Project[]
+  invites           WorkspaceInvite[]
+  brandVoices       BrandVoice[]
+  aiTemplates       AITemplate[]
+  notifications     Notification[]
+  genieSources      GenieSource[]
+  platformApiConfigs PlatformApiConfig[]
 }
 
 model WorkspaceMember {
@@ -264,4 +265,62 @@ model GenieSource {
 
   @@index([workspaceId, enabled])
   @@index([lastAnalyzedAt])
+}
+
+// Phase 1F: Platform API Configuration
+model PlatformApiConfig {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  platform    String   // "wechat" | "weibo" | "xiaohongshu" | "douyin"
+
+  // Platform-specific credentials (stored encrypted in production)
+  appId      String?  @map("app_id")       // WeChat AppID, Weibo App Key, etc.
+  appSecret  String?  @map("app_secret")   // WeChat AppSecret, Weibo App Secret, etc.
+  accessToken String? @map("access_token") // OAuth access token
+  refreshTokn String?  @map("refresh_token") // OAuth refresh token
+
+  // Token management
+  tokenExpiresAt DateTime? // When access token expires
+  lastRefreshedAt DateTime? // When we last refreshed the token
+
+  // Additional platform-specific config (JSON)
+  extraConfig String? // Platform-specific settings
+
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([workspaceId, platform])
+  @@index([workspaceId, enabled])
+}
+
+// Phase 1F: Publish History
+model PublishHistory {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  platform        String   // "wechat" | "weibo" | "xiaohongshu" | "douyin"
+  platformContentId String  // References PlatformContent.id
+
+  // Content data
+  title           String
+  content         String   // The published content
+
+  // Result
+  status          String   // "success" | "failed" | "pending"
+  publishedUrl    String?  // URL of published content
+  platformPostId  String?  @map("platform_post_id") // ID returned by platform
+  errorMessage    String?  @map("error_message") // Error message if failed
+
+  // Retry tracking
+  attemptCount    Int      @default(0)
+  lastAttemptAt   DateTime @default(now())
+  completedAt     DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@index([workspaceId, platform])
+  @@index([platformContentId])
+  @@index([status])
+  @@index([createdAt])
 }

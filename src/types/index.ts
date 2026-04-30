@@ -237,3 +237,68 @@ export const PLATFORM_CONFIG: Record<Platform, { label: string; badgeColor: stri
   xiaohongshu: { label: "小红书", badgeColor: "bg-pink-500/10 text-pink-500" },
   douyin: { label: "抖音", badgeColor: "bg-black/6 text-black" },
 };
+
+// Phase 1F: Platform API Configuration
+export interface PlatformApiConfig {
+  id: string;
+  workspaceId: string;
+  platform: Platform;
+  appId: string | null;
+  appSecret: string | null;
+  accessToken: string | null;
+  refreshTokn: string | null;
+  tokenExpiresAt: Date | null;
+  lastRefreshedAt: Date | null;
+  extraConfig: string | null;
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PublishHistory {
+  id: string;
+  workspaceId: string;
+  platform: Platform;
+  platformContentId: string;
+  title: string;
+  content: string;
+  status: "success" | "failed" | "pending";
+  publishedUrl: string | null;
+  platformPostId: string | null;
+  errorMessage: string | null;
+  attemptCount: number;
+  lastAttemptAt: Date;
+  completedAt: Date | null;
+  createdAt: Date;
+}
+
+// Platform-specific publish request/response types
+export interface PublishRequest {
+  platformContentId: string;
+  platform: Platform;
+  title: string;
+  content: string;
+  images?: string[];  // URLs to images
+  scheduledAt?: Date;  // For scheduled publishing
+}
+
+export interface PublishResult {
+  success: boolean;
+  publishedUrl?: string;
+  platformPostId?: string;
+  errorMessage?: string;
+  needsAuth?: boolean;  // True if authentication is required
+}
+
+// Platform OAuth callback types
+export interface OAuthCallbackRequest {
+  platform: Platform;
+  code: string;
+  state?: string;
+}
+
+export interface OAuthTokenResponse {
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn?: number;
+}
