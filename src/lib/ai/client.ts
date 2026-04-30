@@ -51,6 +51,27 @@ function mockResponse(prompt: string): Promise<string> {
   const wechatMatch = prompt.match(/微信公众号/);
   const weiboMatch = prompt.match(/微博/);
 
+  // Check if this is a quality evaluation request (via environment variable)
+  const isQualityEvaluation = process.env.MOCK_QUALITY_EVALUATION === "true";
+
+  if (isQualityEvaluation) {
+    // Return mock quality evaluation JSON
+    return Promise.resolve(JSON.stringify({
+      quality: 7,
+      engagement: 6,
+      brandVoice: 7,
+      platformFit: 8,
+      sentiment: 7,
+      topicConsistency: 7,
+      originality: 6,
+      suggestions: [
+        "可以增加更多具体案例来增强说服力",
+        "建议使用更生动的语言提升吸引力",
+        "可以适当加入互动元素增加参与度"
+      ]
+    }));
+  }
+
   if (wechatMatch) {
     return Promise.resolve(
       `<h2>引言</h2><p>在当今数字化快速发展的时代，企业面临的竞争日益激烈。如何在这个充满挑战的环境中脱颖而出，成为每个企业管理者需要思考的核心问题。</p><h2>核心观点</h2><p>首先，我们需要认识到创新不仅仅是技术层面的突破，更是思维方式的革新。企业需要建立鼓励创新的内部机制，让每一位员工都能成为创新的参与者。</p><p>其次，客户体验的提升是推动业务增长的关键因素。通过深入了解客户需求，提供个性化的服务和产品，可以有效提升客户满意度和忠诚度。</p><h2>实践建议</h2><ul><li>建立跨部门协作机制，打破信息孤岛</li><li>定期开展客户满意度调研，及时调整策略</li><li>投资员工培训，提升团队整体能力</li></ul><h2>总结</h2><p>企业的发展需要系统性的思考和持续的努力。通过创新驱动、客户导向和团队建设三大支柱，企业可以在竞争中保持领先优势，实现可持续发展。</p>`
