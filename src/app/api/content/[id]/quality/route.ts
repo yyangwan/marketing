@@ -60,12 +60,18 @@ export async function POST(
 
   const { id } = await params;
 
+  // Get platform from request body
+  const body = await req.json().catch(() => ({}));
+  const { platform } = body as { platform?: string };
+
   // Find content piece and verify workspace access
   const piece = await prisma.contentPiece.findUnique({
     where: { id },
     include: {
       project: { include: { brandVoice: true } },
-      platformContents: true,
+      platformContents: {
+        where: platform ? { platform } : undefined,
+      },
     },
   });
 
@@ -73,8 +79,15 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Get the first platform content for evaluation
-  const platformContent = piece.platformContents[0];
+  // Get the platform content for evaluation
+  // If platform specified, use that; otherwise use first available
+  let platformContent;
+  if (platform) {
+    platformContent = piece.platformContents.find((pc) => pc.platform === platform);
+  } else {
+    platformContent = piece.platformContents[0];
+  }
+
   if (!platformContent || !platformContent.content) {
     return NextResponse.json(
       { error: "No content to evaluate" },

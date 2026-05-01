@@ -147,15 +147,35 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
           }),
         });
         if (res.ok) {
-          toast.success("优化内容已应用并保存");
+          return true;
         } else {
           toast.error("保存失败，请手动保存");
+          return false;
         }
       } catch {
         toast.error("保存失败，请手动保存");
+        return false;
       } finally {
         setSaving(false);
       }
+    }
+    return false;
+  };
+
+  const handleQualityUpdate = () => {
+    // Refresh quality panel by re-fetching
+    fetchQuality();
+  };
+
+  const fetchQuality = async () => {
+    try {
+      const res = await fetch(`/api/content/${contentPieceId}/quality`);
+      if (res.ok) {
+        // Quality panel will fetch on its own when opened
+        // This is just a trigger for potential other updates
+      }
+    } catch {
+      // Ignore
     }
   };
 
@@ -370,7 +390,9 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
         <QualityPanel
           contentPieceId={contentPieceId}
           content={editor?.getHTML() || ""}
+          platform={activeTab}
           onContentUpdate={handleContentUpdate}
+          onQualityUpdate={handleQualityUpdate}
         />
       </div>
 

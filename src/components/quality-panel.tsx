@@ -9,7 +9,9 @@ import type { ContentQuality } from "@/types";
 interface QualityPanelProps {
   contentPieceId: string;
   content: string;
+  platform?: string;
   onContentUpdate?: (newContent: string) => void;
+  onQualityUpdate?: () => void;
 }
 
 interface OptimizationResult {
@@ -19,7 +21,13 @@ interface OptimizationResult {
   applied: boolean;
 }
 
-export function QualityPanel({ contentPieceId, content, onContentUpdate }: QualityPanelProps) {
+export function QualityPanel({
+  contentPieceId,
+  content,
+  platform = "wechat",
+  onContentUpdate,
+  onQualityUpdate
+}: QualityPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [quality, setQuality] = useState<ContentQuality | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,6 +67,8 @@ export function QualityPanel({ contentPieceId, content, onContentUpdate }: Quali
     try {
       const res = await fetch(`/api/content/${contentPieceId}/quality`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform }),
       });
 
       if (res.ok) {
@@ -92,13 +102,11 @@ export function QualityPanel({ contentPieceId, content, onContentUpdate }: Quali
   const handleOptimize = async () => {
     setOptimizing(true);
     try {
-      // Determine platform from current content piece
-      // For now, use a default platform - in real implementation, this should come from props
       const res = await fetch(`/api/content/${contentPieceId}/optimize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          platform: "wechat", // Default platform - should be passed as prop
+          platform: platform,
           content: content,
         }),
       });
@@ -118,11 +126,34 @@ export function QualityPanel({ contentPieceId, content, onContentUpdate }: Quali
     }
   };
 
-  const handleApplyOptimization = () => {
+  const handleApplyOptimization = async () => {
     if (optimization && onContentUpdate) {
-      onContentUpdate(optimization.optimized);
+      await onContentUpdate(optimization.optimized);
       setOptimization({ ...optimization, applied: true });
-      toast.success("优化内容已应用");
+
+      // Trigger re-evaluation after applying optimization
+      setEvaluating(true);
+      try {
+        const res = await fetch(`/api/content/${contentPieceId}/quality`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ platform }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setQuality(data);
+          if (onQualityUpdate) {
+            onQualityUpdate();
+          }
+          toast.success("优化内容已应用，质量评估已更新");
+        } else {
+          toast.warning("优化内容已应用，但质量评估更新失败");
+        }
+      } catch {
+        toast.warning("优化内容已应用，但质量评估更新失败");
+      } finally {
+        setEvaluating(false);
+      }
     }
   };
 
