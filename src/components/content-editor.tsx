@@ -48,7 +48,7 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
   // Update editor content when switching platforms
   useEffect(() => {
     if (editor && activeContent?.content !== undefined) {
-      editor.commands.setContent(activeContent.content, false);
+      editor.commands.setContent(activeContent.content, { emitUpdate: false });
     }
   }, [activeTab, activeContent, editor]);
 
@@ -129,7 +129,7 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
   const handleContentUpdate = async (newContent: string) => {
     if (editor) {
       // Update editor content
-      editor.commands.setContent(newContent, false);
+      editor.commands.setContent(newContent, { emitUpdate: false });
       editor.view.focus();
 
       // Auto-save after applying optimization

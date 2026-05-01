@@ -120,8 +120,9 @@ export function analyzeImages(content: string): ImageAnalysis {
   let imagesWithoutAlt = 0;
 
   for (const img of images) {
-    const altMatch = /alt=["']([^"']*)["']/i.exec(img);
-    const srcMatch = /src=["']([^"']*)["']/i.exec(img);
+    const imgStr = img[0]; // Get the matched string
+    const altMatch = /alt=["']([^"']*)["']/i.exec(imgStr);
+    const srcMatch = /src=["']([^"']*)["']/i.exec(imgStr);
 
     // Only count images with src (not spacer/loading images)
     if (srcMatch && srcMatch[1] && !srcMatch[1].match(/\b(spacer|loading|placeholder)\b/i)) {

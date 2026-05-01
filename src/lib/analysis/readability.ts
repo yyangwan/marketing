@@ -35,6 +35,7 @@ export interface ReadabilityResult {
   sentenceCount: number;
   wordCount: number;
   syllableCount: number;
+  longSentences: number;  // Number of sentences with >30 words
 }
 
 /**
@@ -75,6 +76,12 @@ export function calculateFleschReadingEase(text: string): ReadabilityResult {
   const averageSentenceLength = wordCount / sentenceCount;
   const averageSyllablesPerWord = syllableCount / wordCount;
 
+  // Count long sentences (>30 words)
+  const longSentences = sentences.filter(s => {
+    const wordsInSentence = s.split(/\s+/).filter(w => w.length > 0 && w.match(/^[a-zA-Z]+$/));
+    return wordsInSentence.length > 30;
+  }).length;
+
   // Flesch Reading Ease formula
   let score = 206.835 - 1.015 * averageSentenceLength - 84.6 * averageSyllablesPerWord;
   score = Math.max(0, Math.min(100, score));
@@ -94,6 +101,7 @@ export function calculateFleschReadingEase(text: string): ReadabilityResult {
     sentenceCount,
     wordCount,
     syllableCount,
+    longSentences,
   };
 }
 

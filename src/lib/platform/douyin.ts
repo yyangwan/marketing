@@ -208,7 +208,7 @@ export async function getDouyinAccessToken(
   appSecret: string,
   code: string
 ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number; openId: string } | null> {
-  const url = `${this.getApiBaseUrl()}/api/apps/v2/token`;
+  const url = `https://developer.toutiao.com/api/apps/v2/token`;
 
   try {
     const response = await fetch(url, {

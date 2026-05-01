@@ -23,13 +23,13 @@ export { BasePlatformPublisher, type PlatformCredentials, type PublishOptions, t
 export function getPlatformPublisher(platform: Platform, credentials: PlatformCredentials) {
   switch (platform) {
     case "wechat":
-      return new WeChatPublisher(credentials);
+      return new WeChatPublisher(credentials as any);
     case "weibo":
-      return new WeiboPublisher(credentials);
+      return new WeiboPublisher(credentials as any);
     case "xiaohongshu":
-      return new XiaohongshuPublisher(credentials);
+      return new XiaohongshuPublisher(credentials as any);
     case "douyin":
-      return new DouyinPublisher(credentials);
+      return new DouyinPublisher(credentials as any);
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }

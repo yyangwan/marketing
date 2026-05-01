@@ -9,6 +9,7 @@ import type { Platform } from "@/types";
 import {
   getPlatformRules,
   type PlatformAnalysisResult,
+  type PlatformRules,
   type RuleCheck,
 } from "./platform-rules/base";
 
@@ -35,7 +36,7 @@ function countChars(text: string): number {
  */
 function checkContentLength(
   html: string,
-  rules: typeof import("./platform-rules/base").PlatformRules
+  rules: PlatformRules
 ): RuleCheck {
   const plainText = extractPlainText(html);
   const charCount = countChars(plainText);
@@ -70,7 +71,7 @@ function checkContentLength(
  */
 function checkTitle(
   html: string,
-  rules: typeof import("./platform-rules/base").PlatformRules
+  rules: PlatformRules
 ): RuleCheck {
   const { content, seo } = rules;
   const issues: string[] = [];
@@ -116,7 +117,7 @@ function checkTitle(
  */
 function checkSEO(
   html: string,
-  rules: typeof import("./platform-rules/base").PlatformRules
+  rules: PlatformRules
 ): RuleCheck {
   const { seo } = rules;
   const issues: string[] = [];
@@ -152,7 +153,7 @@ function checkSEO(
  */
 function checkFormat(
   html: string,
-  rules: typeof import("./platform-rules/base").PlatformRules
+  rules: PlatformRules
 ): RuleCheck {
   const { format } = rules;
   const issues: string[] = [];

@@ -10,9 +10,9 @@ import { optimizeForPlatform } from "@/lib/analysis/optimizer";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const contentId = params.id;
+  const { id: contentId } = await params;
 
   try {
     const body = await req.json();

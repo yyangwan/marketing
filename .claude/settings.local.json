@@ -108,7 +108,14 @@
       "Bash(npm test:*)",
       "Bash(grep -o CheckCircle[^,]* E:/workspace/marketing/node_modules/lucide-react/dist/lucide-react.d.ts)",
       "Bash(npm exec:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(findstr :3000)",
+      "Bash(tskill:*)",
+      "Bash(git stash:*)",
+      "Bash(bun dev:*)",
+      "Bash(cmd //c \"taskkill /PID 75412 /F\")",
+      "Bash(cat src/app/api/content/[id]/optimize-seo/route.ts)",
+      "Bash(bun prisma:*)"
     ]
   }
 }

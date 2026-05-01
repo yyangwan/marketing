@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/generated/prisma";
+import { prisma } from "@/lib/db";
 import { fetchURL, isContentSubstantial } from "@/lib/genie/url-fetcher";
 import { analyzeContent } from "@/lib/genie/analyzer";
 

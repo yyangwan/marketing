@@ -24,12 +24,18 @@ export function extractHeadings(content: string): HeadingInfo[] {
   const headingRegex = /<h([1-6])[^>]*>(.*?)<\/h\1>/gi;
   const headings: HeadingInfo[] = [];
   let position = 0;
+  const hierarchy: string[] = [];
 
   let match: RegExpExecArray | null;
   while ((match = headingRegex.exec(content)) !== null) {
     const level = parseInt(match[1], 10);
     const text = match[2].replace(/<[^>]*>/g, "").trim();
-    headings.push({ level, text, position });
+
+    // Update hierarchy
+    const hTag = `H${level}`;
+    hierarchy.push(hTag);
+
+    headings.push({ level, text, position, hierarchy: [...hierarchy] });
     position++;
   }
 

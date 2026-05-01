@@ -10,9 +10,9 @@ import { analyzeForPlatform } from "@/lib/analysis/platform-analyzer";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const contentId = params.id;
+  const { id: contentId } = await params;
   const { searchParams } = new URL(req.url);
   const platform = searchParams.get("platform") as "wechat" | "weibo" | "xiaohongshu" | "douyin" | null;
 
