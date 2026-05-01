@@ -3,6 +3,30 @@
  * Phase 1F: Real Publishing Integration
  */
 
+/**
+ * Error types for publish failures
+ */
+export enum PublishErrorType {
+  AUTHENTICATION = "authentication",
+  RATE_LIMIT = "rate_limit",
+  NETWORK = "network",
+  CONTENT = "content",
+  UNKNOWN = "unknown",
+}
+
+/**
+ * Categorized error information
+ */
+export interface PublishError {
+  type: PublishErrorType;
+  message: string;
+  retryable: boolean;
+  retryAfter?: number; // seconds
+}
+
+/**
+ * Platform credentials configuration
+ */
 export interface PlatformCredentials {
   appId?: string;
   appSecret?: string;
@@ -90,4 +114,81 @@ export abstract class BasePlatformPublisher {
    * Get platform-specific API base URL
    */
   protected abstract getApiBaseUrl(): string;
+}
+
+/**
+ * Categorize an error to determine retry strategy
+ */
+export function categorizeError(error: string | Error): PublishError {
+  const errorMessage = typeof error === "string" ? error : error.message;
+
+  // Authentication errors
+  if (
+    errorMessage.includes("access token") ||
+    errorMessage.includes("unauthorized") ||
+    errorMessage.includes("authentication") ||
+    errorMessage.includes("401") ||
+    errorMessage.includes("invalid credential") ||
+    errorMessage.includes("40001") // WeChat invalid credential
+  ) {
+    return {
+      type: PublishErrorType.AUTHENTICATION,
+      message: errorMessage,
+      retryable: false,
+    };
+  }
+
+  // Rate limit errors
+  if (
+    errorMessage.includes("rate limit") ||
+    errorMessage.includes("429") ||
+    errorMessage.includes("too many requests") ||
+    errorMessage.includes("api freq out of limit") ||
+    errorMessage.includes("45009") // WeChat rate limit
+  ) {
+    return {
+      type: PublishErrorType.RATE_LIMIT,
+      message: errorMessage,
+      retryable: true,
+      retryAfter: 60, // Default 60 seconds
+    };
+  }
+
+  // Network errors
+  if (
+    errorMessage.includes("network") ||
+    errorMessage.includes("timeout") ||
+    errorMessage.includes("ECONNREFUSED") ||
+    errorMessage.includes("ETIMEDOUT") ||
+    errorMessage.includes("ENOTFOUND") ||
+    errorMessage.includes("fetch failed")
+  ) {
+    return {
+      type: PublishErrorType.NETWORK,
+      message: errorMessage,
+      retryable: true,
+    };
+  }
+
+  // Content validation errors
+  if (
+    errorMessage.includes("invalid content") ||
+    errorMessage.includes("content too long") ||
+    errorMessage.includes("validation") ||
+    errorMessage.includes("content required") ||
+    errorMessage.includes("40015") // WeChat invalid content length
+  ) {
+    return {
+      type: PublishErrorType.CONTENT,
+      message: errorMessage,
+      retryable: false,
+    };
+  }
+
+  // Unknown errors - assume retryable
+  return {
+    type: PublishErrorType.UNKNOWN,
+    message: errorMessage,
+    retryable: true,
+  };
 }
