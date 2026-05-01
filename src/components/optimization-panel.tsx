@@ -386,42 +386,91 @@ export function OptimizationPanel({
 
                 {/* SEO Metrics */}
                 {seoAnalysis && (
-                  <div className="grid grid-cols-3 gap-4">
-                    <MetricCard
-                      label="字符数"
-                      value={seoAnalysis.characterCount}
-                      target="300-2000"
-                      isGood={seoAnalysis.characterCount >= 300 && seoAnalysis.characterCount <= 2000}
-                    />
-                    <MetricCard
-                      label="词数"
-                      value={seoAnalysis.wordCount}
-                      target="≥50"
-                      isGood={seoAnalysis.wordCount >= 50}
-                    />
-                    {seoAnalysis.keywordDensity.length > 0 && (
-                      <div className="bg-secondary/30 rounded-lg p-3">
-                        <div className="text-xs text-muted-foreground mb-1">关键词密度</div>
-                        <div className="flex items-end justify-between">
-                          <span className={`text-2xl font-bold ${
-                            seoAnalysis.keywordDensity[0].rating === "good" ? "text-green-600" :
-                            seoAnalysis.keywordDensity[0].rating === "low" ? "text-amber-600" :
-                            "text-red-600"
-                          }`}>
-                            {seoAnalysis.keywordDensity[0].density.toFixed(1)}%
-                          </span>
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            seoAnalysis.keywordDensity[0].rating === "good" ? "bg-green-100 text-green-700" :
-                            seoAnalysis.keywordDensity[0].rating === "low" ? "bg-amber-100 text-amber-700" :
-                            "bg-red-100 text-red-700"
-                          }`}>
-                            {seoAnalysis.keywordDensity[0].rating === "good" ? "合适" :
-                             seoAnalysis.keywordDensity[0].rating === "low" ? "偏低" : "过高"}
-                          </span>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-3">
+                      <MetricCard
+                        label="字符数"
+                        value={seoAnalysis.characterCount}
+                        target="300-2000"
+                        isGood={seoAnalysis.characterCount >= 300 && seoAnalysis.characterCount <= 2000}
+                      />
+                      <MetricCard
+                        label="词数"
+                        value={seoAnalysis.wordCount}
+                        target="≥50"
+                        isGood={seoAnalysis.wordCount >= 50}
+                      />
+                      {seoAnalysis.keywordDensity.length > 0 && (
+                        <div className="bg-secondary/30 rounded-lg p-3">
+                          <div className="text-xs text-muted-foreground mb-1">关键词密度</div>
+                          <div className="flex items-end justify-between">
+                            <span className={`text-2xl font-bold ${
+                              seoAnalysis.keywordDensity[0].rating === "good" ? "text-green-600" :
+                              seoAnalysis.keywordDensity[0].rating === "low" ? "text-amber-600" :
+                              "text-red-600"
+                            }`}>
+                              {seoAnalysis.keywordDensity[0].density.toFixed(1)}%
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              seoAnalysis.keywordDensity[0].rating === "good" ? "bg-green-100 text-green-700" :
+                              seoAnalysis.keywordDensity[0].rating === "low" ? "bg-amber-100 text-amber-700" :
+                              "bg-red-100 text-red-700"
+                            }`}>
+                              {seoAnalysis.keywordDensity[0].rating === "good" ? "合适" :
+                               seoAnalysis.keywordDensity[0].rating === "low" ? "偏低" : "过高"}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            出现 {seoAnalysis.keywordDensity[0].count} 次 · 建议 2-5%
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          出现 {seoAnalysis.keywordDensity[0].count} 次 · 建议 2-5%
-                        </div>
+                      )}
+                    </div>
+
+                    {/* SEO Issues - Show what needs to be fixed */}
+                    {seoAnalysis && (
+                      <div className="bg-secondary/50 rounded-lg p-3">
+                        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                          <span>🔍</span> 检测到的问题
+                        </h4>
+                        <ul className="space-y-1 text-xs text-muted-foreground">
+                          {seoAnalysis.characterCount < 300 && (
+                            <li className="flex items-start gap-2">
+                              <span className="text-amber-600">⚠</span>
+                              <span>内容过短 ({seoAnalysis.characterCount}/300)，需要扩展内容</span>
+                            </li>
+                          )}
+                          {seoAnalysis.characterCount > 2000 && (
+                            <li className="flex items-start gap-2">
+                              <span className="text-amber-600">⚠</span>
+                              <span>内容过长 ({seoAnalysis.characterCount}/2000)，需要精简</span>
+                            </li>
+                          )}
+                          {seoAnalysis.wordCount < 50 && (
+                            <li className="flex items-start gap-2">
+                              <span className="text-amber-600">⚠</span>
+                              <span>词数过少 ({seoAnalysis.wordCount}/50)，内容深度不足</span>
+                            </li>
+                          )}
+                          {seoAnalysis.keywordDensity.length > 0 && seoAnalysis.keywordDensity[0].rating === "low" && (
+                            <li className="flex items-start gap-2">
+                              <span className="text-amber-600">⚠</span>
+                              <span>关键词密度偏低 ({seoAnalysis.keywordDensity[0].density.toFixed(1)}%/2%)，需要增加关键词出现</span>
+                            </li>
+                          )}
+                          {seoAnalysis.keywordDensity.length > 0 && seoAnalysis.keywordDensity[0].rating === "stuffed" && (
+                            <li className="flex items-start gap-2">
+                              <span className="text-red-600">⛔</span>
+                              <span>关键词密度过高 ({seoAnalysis.keywordDensity[0].density.toFixed(1)}%/5%)，存在关键词堆砌</span>
+                            </li>
+                          )}
+                          {seoAnalysis.keywordDensity.length > 0 && seoAnalysis.keywordDensity[0].rating === "good" && seoAnalysis.characterCount >= 300 && seoAnalysis.characterCount <= 2000 && seoAnalysis.wordCount >= 50 && (
+                            <li className="flex items-start gap-2">
+                              <span className="text-green-600">✓</span>
+                              <span>SEO 指标良好，可以进行微调优化</span>
+                            </li>
+                          )}
+                        </ul>
                       </div>
                     )}
                   </div>
