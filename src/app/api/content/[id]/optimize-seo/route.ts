@@ -26,9 +26,9 @@ function generateSEODiff(original: string, optimized: string): string {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const contentId = params.id;
+  const { id: contentId } = await params;
 
   try {
     const body = await req.json() as SEOOptimizeRequest;
@@ -55,7 +55,7 @@ export async function POST(
 
     // Calculate current keyword density
     const keywordLower = keyword.toLowerCase();
-    const regex = new RegExp(keywordLower, "gi");
+    const regex = new RegExp(keywordLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "gi");
     const currentCount = (textContent.match(regex) || []).length;
     const currentDensity = wordCount > 0 ? (currentCount / wordCount) * 100 : 0;
 
@@ -83,7 +83,7 @@ export async function POST(
 
     // Check if keyword appears in beginning (first 200 chars)
     const beginning = textContent.slice(0, 200);
-    if (!keywordLower.test(beginning)) {
+    if (!regex.test(beginning)) {
       issues.push("关键词未在内容开头出现，建议在第一段自然地包含关键词");
     }
 
@@ -134,7 +134,7 @@ ${issues.length > 0 ? issues.map((issue, i) => `${i + 1}. ${issue}`).join('\n') 
 - 目标长度: 300-2000 字符`;
     }
 
-    if (!keywordLower.test(beginning)) {
+    if (!regex.test(beginning)) {
       prompt += `
 - 在内容开头（第一段）自然地包含关键词 "${keyword}"
 - 可以通过添加引言、背景介绍或问题陈述的方式融入`;
