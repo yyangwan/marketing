@@ -284,11 +284,19 @@ export function getOptimizationPrompt(
     prompt += "\n";
   }
 
-  prompt += `请根据以上${getPlatformName(platform)}平台规则，优化以下内容：
+  prompt += `请根据以上${getPlatformName(platform)}平台规则，优化以下内容。
 
+原始内容（HTML格式）：
 ${contentHtml}
 
-请直接输出优化后的内容，不要解释。`;
+【重要】请遵循以下格式要求：
+1. 必须返回 HTML 格式的内容
+2. 保留段落结构，使用 <p> 标签
+3. 保留文本格式，如 <strong> 加粗</strong>、<em> 斜体</em> 等
+4. 不要使用 Markdown 格式（如 # 标题、**加粗**）
+5. 直接输出优化后的 HTML，不要包含任何解释
+
+优化后的内容：`;
 
   return prompt;
 }

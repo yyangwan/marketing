@@ -64,6 +64,26 @@ function generateDiff(original: string, optimized: string): string {
 }
 
 /**
+ * Ensure content is wrapped in HTML tags
+ * If content is plain text, wrap in <p> tags
+ */
+function ensureHtmlFormat(content: string): string {
+  const trimmed = content.trim();
+
+  // Check if content already has HTML tags
+  if (trimmed.includes('<') && trimmed.includes('>')) {
+    return trimmed;
+  }
+
+  // Plain text - wrap in paragraph tags
+  // Split by double newlines to preserve paragraphs
+  const paragraphs = trimmed.split(/\n\n+/);
+  return paragraphs
+    .map(p => p.trim() ? `<p>${p.replace(/\n/g, '<br>')}</p>` : '')
+    .join('');
+}
+
+/**
  * Optimize content for a specific platform using AI
  */
 export async function optimizeForPlatform(
@@ -77,12 +97,15 @@ export async function optimizeForPlatform(
     // Call AI for optimization
     const optimized = await callLLM(prompt);
 
+    // Ensure the result is in HTML format
+    const safeOptimized = ensureHtmlFormat(optimized);
+
     // Generate diff
-    const diff = generateDiff(contentHtml, optimized);
+    const diff = generateDiff(contentHtml, safeOptimized);
 
     return {
       original: contentHtml,
-      optimized,
+      optimized: safeOptimized,
       diff,
       applied: false,
     };
