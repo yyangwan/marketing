@@ -32,32 +32,28 @@ export async function GET(req: Request) {
   const endDate = new Date(end);
 
   try {
+    // Build where clause
     const where: any = {
       scheduledAt: {
         gte: startDate,
         lte: endDate,
       },
-    };
-
-    // Build workspace filter
-    const projectFilter: any = {
-      project: {
-        workspaceId: ws.workspaceId,
+      contentPiece: {
+        project: {
+          workspaceId: ws.workspaceId,
+        },
       },
     };
 
     // Add projectId filter if provided
     if (projectId) {
-      projectFilter.project.id = projectId;
+      where.contentPiece.project.id = projectId;
     }
 
     // Add status filter if provided
     if (status) {
-      projectFilter.contentPiece = { status };
+      where.contentPiece.status = status;
     }
-
-    // Combine with date filter using AND
-    where.AND = [projectFilter];
 
     const schedules = await prisma.contentSchedule.findMany({
       where,
