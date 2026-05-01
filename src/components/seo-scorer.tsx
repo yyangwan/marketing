@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 interface SEOProps {
   content: string;
+  onContentUpdate?: (newContent: string) => void;
 }
 
 interface SEOAnalysis {
@@ -22,10 +24,19 @@ interface SEOAnalysis {
   overallScore: number;
 }
 
-export function SEOScorer({ content }: SEOProps) {
+interface SEOOptimizationResult {
+  original: string;
+  optimized: string;
+  diff: string;
+  applied: boolean;
+}
+
+export function SEOScorer({ content, onContentUpdate }: SEOProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [debouncedContent, setDebouncedContent] = useState(content);
+  const [optimizing, setOptimizing] = useState(false);
+  const [optimization, setOptimization] = useState<SEOOptimizationResult | null>(null);
 
   // Debounced content update (300ms delay)
   useEffect(() => {

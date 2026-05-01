@@ -8,8 +8,7 @@ import type { Platform } from "@/types";
 import { PLATFORM_CONFIG } from "@/types";
 import { toast } from "sonner";
 import { Link, Copy, Send, Calendar, X } from "lucide-react";
-import { SEOScorer } from "@/components/seo-scorer";
-import { QualityPanel } from "@/components/quality-panel";
+import { OptimizationPanel } from "@/components/optimization-panel";
 
 interface EditorProps {
   platforms: { platform: string; content: string; id: string; status: string }[];
@@ -384,15 +383,13 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
         </div>
       </div>
 
-      {/* SEO Scoring and Quality Panels */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <SEOScorer content={editor?.getHTML() || ""} />
-        <QualityPanel
+      {/* Optimization Panel */}
+      <div className="mt-4">
+        <OptimizationPanel
           contentPieceId={contentPieceId}
           content={editor?.getHTML() || ""}
           platform={activeTab}
           onContentUpdate={handleContentUpdate}
-          onQualityUpdate={handleQualityUpdate}
         />
       </div>
 
