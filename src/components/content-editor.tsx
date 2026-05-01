@@ -120,6 +120,12 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
     }
   };
 
+  const handleContentUpdate = (newContent: string) => {
+    if (editor) {
+      editor.commands.setContent(newContent);
+    }
+  };
+
   const handleSave = async () => {
     if (!editor) return;
     setSaving(true);
@@ -328,7 +334,11 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
       {/* SEO Scoring and Quality Panels */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <SEOScorer content={editor?.getHTML() || ""} />
-        <QualityPanel contentPieceId={contentPieceId} />
+        <QualityPanel
+          contentPieceId={contentPieceId}
+          content={editor?.getHTML() || ""}
+          onContentUpdate={handleContentUpdate}
+        />
       </div>
 
       {/* Schedule Dialog */}

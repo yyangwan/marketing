@@ -1,20 +1,31 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { ContentQuality } from "@/types";
 
 interface QualityPanelProps {
   contentPieceId: string;
+  content: string;
+  onContentUpdate?: (newContent: string) => void;
 }
 
-export function QualityPanel({ contentPieceId }: QualityPanelProps) {
+interface OptimizationResult {
+  original: string;
+  optimized: string;
+  diff: string;
+  applied: boolean;
+}
+
+export function QualityPanel({ contentPieceId, content, onContentUpdate }: QualityPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [quality, setQuality] = useState<ContentQuality | null>(null);
   const [loading, setLoading] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
+  const [optimization, setOptimization] = useState<OptimizationResult | null>(null);
 
   useEffect(() => {
     if (isOpen && !quality) {
@@ -76,6 +87,47 @@ export function QualityPanel({ contentPieceId }: QualityPanelProps) {
     if (score >= 7) return "良好";
     if (score >= 5) return "一般";
     return "需改进";
+  };
+
+  const handleOptimize = async () => {
+    setOptimizing(true);
+    try {
+      // Determine platform from current content piece
+      // For now, use a default platform - in real implementation, this should come from props
+      const res = await fetch(`/api/content/${contentPieceId}/optimize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: "wechat", // Default platform - should be passed as prop
+          content: content,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setOptimization(data);
+        toast.success("AI 优化已完成");
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "优化失败");
+      }
+    } catch {
+      toast.error("网络错误，请重试");
+    } finally {
+      setOptimizing(false);
+    }
+  };
+
+  const handleApplyOptimization = () => {
+    if (optimization && onContentUpdate) {
+      onContentUpdate(optimization.optimized);
+      setOptimization({ ...optimization, applied: true });
+      toast.success("优化内容已应用");
+    }
+  };
+
+  const handleDiscardOptimization = () => {
+    setOptimization(null);
   };
 
   const averageScore =
@@ -170,7 +222,16 @@ export function QualityPanel({ contentPieceId }: QualityPanelProps) {
               )}
 
               {/* Re-evaluate button */}
-              <div className="flex justify-end pt-2 border-t border-border">
+              <div className="flex justify-between items-center pt-2 border-t border-border">
+                <Button
+                  onClick={handleOptimize}
+                  disabled={optimizing || !content}
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Wand2 className="w-4 h-4" />
+                  {optimizing ? "优化中..." : "AI 一键优化"}
+                </Button>
                 <Button
                   onClick={handleEvaluate}
                   disabled={evaluating}
@@ -181,6 +242,50 @@ export function QualityPanel({ contentPieceId }: QualityPanelProps) {
                 </Button>
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {/* Optimization Result */}
+      {optimization && (
+        <div className="px-4 py-3 border-t border-border bg-secondary/30">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-medium text-sm flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-purple-600" />
+              优化结果
+            </h4>
+            {!optimization.applied && (
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleApplyOptimization}
+                  size="sm"
+                >
+                  应用优化
+                </Button>
+                <Button
+                  onClick={handleDiscardOptimization}
+                  size="sm"
+                  variant="outline"
+                >
+                  放弃
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {optimization.applied && (
+            <div className="text-sm text-green-600 flex items-center gap-2">
+              ✓ 优化已应用到编辑器
+            </div>
+          )}
+
+          {/* Diff Display */}
+          {optimization.diff && (
+            <div className="mt-3">
+              <pre className="text-xs bg-background border border-border rounded p-3 overflow-auto max-h-48 whitespace-pre-wrap font-mono">
+                {optimization.diff}
+              </pre>
+            </div>
           )}
         </div>
       )}
