@@ -117,7 +117,45 @@
 
 ---
 
-## Phase 1F — Real Publishing Integration (DEFERRED)
+## Phase 1F — Real Publishing Integration
+
+### ✅ WeChat Official Account API Integration
+**What:** OAuth flow + draft API + publish API + media upload for WeChat Official Accounts.
+
+**Why:** One-click publish to WeChat. No more copy-paste.
+
+**Completed:** v0.3.4 (2026-05-01)
+
+---
+
+### ✅ Weibo Publishing Integration
+**What:** OAuth + post API for Weibo. Text + images. Character limits: 2000 (normal) / 140 (classic).
+
+**Why:** Complete the publishing loop for Weibo content.
+
+**Completed:** v0.3.4 (2026-05-01)
+
+---
+
+### ✅ Xiaohongshu (XHS) Publishing Integration
+**What:** Note creation API for XHS. Title + body + images + tags. Content review before publishing.
+
+**Why:** Complete the publishing loop for XHS content.
+
+**Completed:** v0.3.4 (2026-05-01)
+
+---
+
+### ✅ Publishing Dashboard UI
+**What:** Platform connection management, publishing status indicators, history log, failed publish retry.
+
+**Why:** Users need to see what's connected, what's publishing, and what failed.
+
+**Completed:** v0.3.4 (2026-05-01)
+
+---
+
+## Phase 1G — Future Enhancements (DEFERRED)
 
 ### TODO: WeChat Official Account API Integration
 **What:** OAuth flow + draft API + publish API + media upload for WeChat Official Accounts.
@@ -137,69 +175,6 @@
 **Context:** WeChat requires verified service account. Draft API: create → submit → publish. Media upload for images. Error handling for rate limits and API failures.
 
 **Depends on:** Phase 1D scheduling, PlatformConnection Prisma model, WeChat developer account
-
----
-
-### TODO: Weibo Publishing Integration
-**What:** OAuth + post API for Weibo. Text + images. Character limits: 2000 (normal) / 140 (classic).
-
-**Why:** Complete the publishing loop for Weibo content.
-
-**Pros:**
-- Native Weibo publishing
-- Hashtag and @mention support
-- Image upload support
-
-**Cons:**
-- OAuth complexity
-- Character limit handling (2 modes)
-- Rate limits per account type
-
-**Context:** Weibo Open Platform API. Post API supports text + images. Hashtag format: #话题#. @mention format: @用户名.
-
-**Depends on:** PlatformConnection model, Weibo developer account
-
----
-
-### TODO: Xiaohongshu (XHS) Publishing Integration
-**What:** Note creation API for XHS. Title + body + images + tags. Content review before publishing.
-
-**Why:** Complete the publishing loop for XHS content.
-
-**Pros:**
-- Native XHS publishing
-- Format-optimized content
-- Captures growing XHS audience
-
-**Cons:**
-- API access may require partnership
-- Fallback to browser automation (Playwright) if API blocked
-- Content review adds friction
-
-**Context:** XHS Creator API has limited access. Alternative: XHS Business Platform API. Risk mitigation: if API unavailable, use Playwright browser automation or one-click "copy formatted" button.
-
-**Depends on:** PlatformConnection model, XHS API availability verification
-
----
-
-### TODO: Publishing Dashboard UI
-**What:** Platform connection management, publishing status indicators, history log, failed publish retry.
-
-**Why:** Users need to see what's connected, what's publishing, and what failed.
-
-**Pros:**
-- Publishing status transparency
-- Easy retry for failed publishes
-- Connection health monitoring
-
-**Cons:**
-- Settings page complexity (/settings/publishing)
-- Real-time status updates needed
-- Error message display for failures
-
-**Context:** Status states: "Not connected" / "Connected" / "Publishing..." / "Published". Failed publishes show error message + retry button.
-
-**Depends on:** Individual platform integrations (WeChat/Weibo/XHS)
 
 ---
 
