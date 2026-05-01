@@ -46,6 +46,13 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
     immediatelyRender: false,
   });
 
+  // Update editor content when switching platforms
+  useEffect(() => {
+    if (editor && activeContent?.content !== undefined) {
+      editor.commands.setContent(activeContent.content, false);
+    }
+  }, [activeTab, activeContent, editor]);
+
   // Fetch existing schedule on mount
   useEffect(() => {
     fetchSchedule();
@@ -120,9 +127,35 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
     }
   };
 
-  const handleContentUpdate = (newContent: string) => {
+  const handleContentUpdate = async (newContent: string) => {
     if (editor) {
-      editor.commands.setContent(newContent);
+      // Update editor content
+      editor.commands.setContent(newContent, false);
+      editor.view.focus();
+
+      // Auto-save after applying optimization
+      setSaving(true);
+      try {
+        const res = await fetch(`/api/content/${contentPieceId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            platformContent: {
+              platform: activeTab,
+              content: newContent,
+            },
+          }),
+        });
+        if (res.ok) {
+          toast.success("优化内容已应用并保存");
+        } else {
+          toast.error("保存失败，请手动保存");
+        }
+      } catch {
+        toast.error("保存失败，请手动保存");
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
