@@ -25,6 +25,7 @@ describe("Navigation", () => {
 
     expect(screen.getByText("看板")).toBeInTheDocument();
     expect(screen.getByText("日历")).toBeInTheDocument();
+    expect(screen.getByText("数据统计")).toBeInTheDocument();
     expect(screen.getByText("新建 Brief")).toBeInTheDocument();
   });
 

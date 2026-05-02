@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Calendar, FileText, FolderOpen } from "lucide-react";
+import { LayoutDashboard, Calendar, FileText, FolderOpen, BarChart3 } from "lucide-react";
 
 interface NavItem {
   href: string;
@@ -13,6 +13,7 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { href: "/", icon: LayoutDashboard, label: "看板" },
   { href: "/calendar", icon: Calendar, label: "日历" },
+  { href: "/analytics", icon: BarChart3, label: "数据统计" },
   { href: "/brief/new", icon: FileText, label: "新建 Brief" },
 ];
 
