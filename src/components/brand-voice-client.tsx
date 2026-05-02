@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,8 @@ interface BrandVoiceFormData {
 
 export function BrandVoiceClient({ workspaceId }: { workspaceId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromOnboarding = searchParams?.get("onboarding") === "true";
   const [brandVoices, setBrandVoices] = useState<BrandVoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -124,6 +126,17 @@ export function BrandVoiceClient({ workspaceId }: { workspaceId: string }) {
         } else {
           setBrandVoices((prev) => [result, ...prev]);
           toast.success("品牌调性已创建");
+
+          // Save onboarding progress if coming from onboarding
+          if (fromOnboarding) {
+            await fetch("/api/user/onboarding", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ step: "brand-voice" }),
+            });
+            router.push("/onboarding");
+            return;
+          }
         }
         setDialogOpen(false);
         resetForm();

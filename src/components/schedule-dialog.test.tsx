@@ -20,7 +20,7 @@ describe("ScheduleDialog", () => {
       />
     );
 
-    expect(screen.queryByText("Schedule Content")).not.toBeInTheDocument();
+    expect(screen.queryByText("排期内容")).not.toBeInTheDocument();
   });
 
   it("should render when isOpen is true", () => {
@@ -32,9 +32,9 @@ describe("ScheduleDialog", () => {
       />
     );
 
-    expect(screen.getByText("Schedule Content")).toBeInTheDocument();
-    expect(screen.getByText("Date")).toBeInTheDocument();
-    expect(screen.getByText("Time")).toBeInTheDocument();
+    expect(screen.getByText("排期内容")).toBeInTheDocument();
+    expect(screen.getByText("日期")).toBeInTheDocument();
+    expect(screen.getByText("时间")).toBeInTheDocument();
   });
 
   it("should render platform-specific optimal time", () => {
@@ -47,7 +47,7 @@ describe("ScheduleDialog", () => {
       />
     );
 
-    expect(screen.getByText(/Optimal for wechat/)).toBeInTheDocument();
+    expect(screen.getByText(/wechat 最佳发布时间/)).toBeInTheDocument();
     expect(screen.getByText("08:00")).toBeInTheDocument();
   });
 
@@ -61,7 +61,7 @@ describe("ScheduleDialog", () => {
       />
     );
 
-    expect(screen.queryByText(/Optimal for/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/最佳发布时间/)).not.toBeInTheDocument();
   });
 
   it("should call onSchedule when form is submitted", () => {
@@ -78,7 +78,7 @@ describe("ScheduleDialog", () => {
       fireEvent.change(dateInput, { target: { value: "2025-01-15" } });
     }
 
-    const scheduleButton = screen.getByText("Schedule");
+    const scheduleButton = screen.getByText("确认排期");
     fireEvent.click(scheduleButton);
 
     expect(mockOnSchedule).toHaveBeenCalled();
@@ -94,7 +94,7 @@ describe("ScheduleDialog", () => {
       />
     );
 
-    const cancelButton = screen.getByText("Cancel");
+    const cancelButton = screen.getByText("取消");
     fireEvent.click(cancelButton);
 
     expect(mockOnClose).toHaveBeenCalled();
@@ -115,7 +115,7 @@ describe("ScheduleDialog", () => {
       fireEvent.change(dateInput, { target: { value: "2025-01-15" } });
     }
 
-    expect(screen.getByText(/Scheduled for:/)).toBeInTheDocument();
+    expect(screen.getByText(/计划发布时间/)).toBeInTheDocument();
   });
 
   it("should use platform default time", () => {

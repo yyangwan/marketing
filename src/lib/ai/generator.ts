@@ -3,7 +3,7 @@ import { buildWeChatPrompt } from "./prompts/wechat";
 import { buildWeiboPrompt } from "./prompts/weibo";
 import { buildXiaohongshuPrompt } from "./prompts/xiaohongshu";
 import { buildDouyinPrompt } from "./prompts/douyin";
-import type { Brief, Platform } from "@/types";
+import type { Brief, BrandVoice, Platform } from "@/types";
 
 interface GenerateResult {
   platform: Platform;
@@ -11,8 +11,11 @@ interface GenerateResult {
   error?: string;
 }
 
-export async function generateForAllPlatforms(brief: Brief): Promise<GenerateResult[]> {
-  const platformPrompts: Record<Platform, (brief: Brief) => string> = {
+export async function generateForAllPlatforms(
+  brief: Brief,
+  brandVoice?: BrandVoice
+): Promise<GenerateResult[]> {
+  const platformPrompts: Record<Platform, (brief: Brief, brandVoice?: BrandVoice) => string> = {
     wechat: buildWeChatPrompt,
     weibo: buildWeiboPrompt,
     xiaohongshu: buildXiaohongshuPrompt,
@@ -26,7 +29,7 @@ export async function generateForAllPlatforms(brief: Brief): Promise<GenerateRes
         return { platform, content: "", error: `No prompt template for ${platform}` };
       }
 
-      const prompt = buildPrompt(brief);
+      const prompt = buildPrompt(brief, brandVoice);
       if (!prompt) {
         return { platform, content: `[${platform} 内容将在后续版本支持]`, error: "Not yet supported" };
       }

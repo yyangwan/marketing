@@ -59,7 +59,7 @@ describe("/api/notifications/mark-all-read", () => {
 
       expect(response.status).toBe(401);
       const data = await response.json();
-      expect(data).toEqual({ error: "unauthorized" });
+      expect(data.error.code).toBe("missing_session");
     });
 
     it("should return 403 when workspace is not found", async () => {
@@ -71,7 +71,7 @@ describe("/api/notifications/mark-all-read", () => {
 
       expect(response.status).toBe(403);
       const data = await response.json();
-      expect(data).toEqual({ error: "no_workspace" });
+      expect(data.error.code).toBe("no_workspace");
     });
 
     it("should handle zero notifications gracefully", async () => {
@@ -102,7 +102,7 @@ describe("/api/notifications/mark-all-read", () => {
 
       expect(response.status).toBe(500);
       const data = await response.json();
-      expect(data).toEqual({ error: "Failed to mark all notifications as read" });
+      expect(data.error.code).toBe("database_error");
     });
   });
 });

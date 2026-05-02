@@ -1,6 +1,16 @@
 export type Platform = "wechat" | "weibo" | "xiaohongshu" | "douyin";
 
-export type ContentStatus = "draft" | "genie_draft" | "editing" | "review" | "approved" | "published";
+export type ContentStatus =
+  | "draft"
+  | "genie_draft"
+  | "editing"
+  | "review"
+  | "revision_requested"
+  | "approved"
+  | "scheduled"
+  | "publishing"
+  | "failed"
+  | "published";
 
 export type ContentType = "blog_post" | "social_post" | "video_script";
 
@@ -226,7 +236,11 @@ export const STATUS_COLUMNS: { key: ContentStatus; label: string; color: string 
   { key: "genie_draft", label: "Genie 生成", color: "bg-purple-100 text-purple-800" },
   { key: "editing", label: "人工编辑", color: "bg-amber-100 text-amber-800" },
   { key: "review", label: "客户审核", color: "bg-violet-100 text-violet-800" },
+  { key: "revision_requested", label: "需修改", color: "bg-orange-100 text-orange-800" },
   { key: "approved", label: "已批准", color: "bg-green-100 text-green-800" },
+  { key: "scheduled", label: "已排期", color: "bg-sky-100 text-sky-800" },
+  { key: "publishing", label: "发布中", color: "bg-yellow-100 text-yellow-800" },
+  { key: "failed", label: "发布失败", color: "bg-red-100 text-red-800" },
   { key: "published", label: "已发布", color: "bg-gray-100 text-gray-800" },
 ];
 

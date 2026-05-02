@@ -6,7 +6,7 @@ import { callLLM } from "@/lib/ai/client";
 
 // GET /api/content/[id]/quality - Get existing quality evaluation
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
@@ -21,7 +21,6 @@ export async function GET(
 
   const { id } = await params;
 
-  // Find content piece and verify workspace access
   const piece = await prisma.contentPiece.findUnique({
     where: { id },
     include: { project: true },
@@ -31,7 +30,6 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Return existing quality evaluation if any
   const quality = await prisma.contentQuality.findUnique({
     where: { contentPieceId: id },
   });
@@ -59,16 +57,14 @@ export async function POST(
   }
 
   const { id } = await params;
-
-  // Get platform from request body
   const body = await req.json().catch(() => ({}));
   const { platform } = body as { platform?: string };
 
-  // Find content piece and verify workspace access
   const piece = await prisma.contentPiece.findUnique({
     where: { id },
     include: {
       project: { include: { brandVoice: true } },
+      brandVoice: true,
       platformContents: {
         where: platform ? { platform } : undefined,
       },
@@ -79,87 +75,54 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Get the platform content for evaluation
-  // If platform specified, use that; otherwise use first available
-  let platformContent;
-  if (platform) {
-    platformContent = piece.platformContents.find((pc) => pc.platform === platform);
-  } else {
-    platformContent = piece.platformContents[0];
-  }
+  const platformContent = platform
+    ? piece.platformContents.find((pc) => pc.platform === platform)
+    : piece.platformContents[0];
 
   if (!platformContent || !platformContent.content) {
-    return NextResponse.json(
-      { error: "No content to evaluate" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "No content to evaluate" }, { status: 400 });
   }
 
-  // Build evaluation prompt
   const brief = JSON.parse(piece.brief);
-  const brandVoice = piece.project.brandVoice;
+  const brandVoice = piece.brandVoice || piece.project.brandVoice;
+  const plainContent = platformContent.content.replace(/<[^>]*>/g, "");
 
-  const prompt = `你是一位专业的内容质量评估专家。请对以下内容进行多维度评估。
-
-【内容信息】
-主题：${brief.topic}
-核心要点：${brief.keyPoints?.join("、")}
-
-【品牌调性】
-${brandVoice ? `
-品牌名称：${brandVoice.name}
-品牌描述：${brandVoice.description || ""}
-调性指南：${brandVoice.guidelines || ""}
-` : "无品牌调性"}
-
-【待评估内容】
-${platformContent.content.replace(/<[^>]*>/g, "")}
-
-请从以下4个维度打分（0-10分，整数）：
-1. quality - 内容质量（逻辑、结构、表达）
-2. engagement - 吸引力（有趣性、互动性）
-3. brandVoice - 品牌调性符合度（${brandVoice ? "有品牌参考" : "无品牌参考，评分基于一致性"}）
-4. platformFit - 平台适配度（适合社交媒体风格）
-
-输出格式（仅JSON，无其他文字）：
-{
-  "quality": 8,
-  "engagement": 7,
-  "brandVoice": 6,
-  "platformFit": 7,
-  "suggestions": ["建议1", "建议2"]
-}`;
+  const prompt = [
+    "You are a content quality reviewer.",
+    "Score the content as integers from 0 to 10.",
+    `Topic: ${brief.topic}`,
+    `Key points: ${(brief.keyPoints || []).join(", ")}`,
+    brandVoice
+      ? `Brand voice: ${brandVoice.name}. ${brandVoice.description || ""} ${brandVoice.guidelines || ""}`
+      : "Brand voice: none provided.",
+    `Platform: ${platformContent.platform}`,
+    `Content: ${plainContent}`,
+    "Return JSON only with this shape:",
+    '{"quality":8,"engagement":7,"brandVoice":6,"platformFit":7,"suggestions":["Suggestion 1","Suggestion 2"]}',
+  ].join("\n");
 
   try {
     const response = await callLLM(prompt);
 
-    // Try to parse JSON response
     let evaluation;
     try {
-      // Find JSON in response (handle potential markdown code blocks)
       const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        evaluation = JSON.parse(jsonMatch[0]);
-      } else {
-        evaluation = JSON.parse(response);
-      }
+      evaluation = JSON.parse(jsonMatch ? jsonMatch[0] : response);
     } catch {
-      // Fallback parsing if response isn't valid JSON
-      const qualityMatch = response.match(/quality[：:]\s*(\d+)/i);
-      const engagementMatch = response.match(/engagement[：:]\s*(\d+)/i);
-      const brandVoiceMatch = response.match(/brand[ -_]?voice[：:]\s*(\d+)/i);
-      const platformFitMatch = response.match(/platform[ -_]?fit[：:]\s*(\d+)/i);
+      const qualityMatch = response.match(/quality[:：]?\s*(\d+)/i);
+      const engagementMatch = response.match(/engagement[:：]?\s*(\d+)/i);
+      const brandVoiceMatch = response.match(/brand[ -_]?voice[:：]?\s*(\d+)/i);
+      const platformFitMatch = response.match(/platform[ -_]?fit[:：]?\s*(\d+)/i);
 
       evaluation = {
-        quality: qualityMatch ? parseInt(qualityMatch[1]) : 5,
-        engagement: engagementMatch ? parseInt(engagementMatch[1]) : 5,
-        brandVoice: brandVoiceMatch ? parseInt(brandVoiceMatch[1]) : 5,
-        platformFit: platformFitMatch ? parseInt(platformFitMatch[1]) : 5,
+        quality: qualityMatch ? parseInt(qualityMatch[1], 10) : 5,
+        engagement: engagementMatch ? parseInt(engagementMatch[1], 10) : 5,
+        brandVoice: brandVoiceMatch ? parseInt(brandVoiceMatch[1], 10) : 5,
+        platformFit: platformFitMatch ? parseInt(platformFitMatch[1], 10) : 5,
         suggestions: [],
       };
     }
 
-    // Validate scores are 0-10
     const scores = ["quality", "engagement", "brandVoice", "platformFit"] as const;
     for (const score of scores) {
       if (typeof evaluation[score] !== "number" || evaluation[score] < 0) {
@@ -169,7 +132,6 @@ ${platformContent.content.replace(/<[^>]*>/g, "")}
       }
     }
 
-    // Upsert quality evaluation
     const quality = await prisma.contentQuality.upsert({
       where: { contentPieceId: id },
       create: {

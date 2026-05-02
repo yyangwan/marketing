@@ -1,12 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GET } from "./route";
 
-// Mock dependencies
 vi.mock("@/lib/db", () => ({
   prisma: {
-    project: {
-      findMany: vi.fn(),
-    },
     contentPiece: {
       findMany: vi.fn(),
     },
@@ -17,8 +13,13 @@ vi.mock("@/lib/auth/config", () => ({
   auth: vi.fn(),
 }));
 
+vi.mock("@/lib/auth/workspace", () => ({
+  getCurrentWorkspace: vi.fn(),
+}));
+
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
+import { getCurrentWorkspace } from "@/lib/auth/workspace";
 
 describe("/api/content", () => {
   beforeEach(() => {
@@ -26,9 +27,7 @@ describe("/api/content", () => {
   });
 
   describe("GET - Fetch content", () => {
-    it("should return content for workspace", async () => {
-      const mockSession = { user: { id: "user1" } };
-      const mockProjects = [{ id: "p1" }, { id: "p2" }];
+    it("should return content for the current workspace", async () => {
       const mockContent = [
         {
           id: "c1",
@@ -41,49 +40,54 @@ describe("/api/content", () => {
         },
       ];
 
-      vi.mocked(auth).mockResolvedValue(mockSession);
-      (prisma.project.findMany as any).mockResolvedValue(mockProjects);
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+      vi.mocked(getCurrentWorkspace).mockReturnValue({ workspaceId: "ws1", role: "member" });
       (prisma.contentPiece.findMany as any).mockResolvedValue(mockContent);
 
       const response = await GET(
-        { url: "http://localhost:3000/api/content?workspaceId=ws1" } as Request
+        { nextUrl: new URL("http://localhost:3000/api/content?workspaceId=ws1") } as any
       );
 
       expect(response.status).toBe(200);
       const data = await response.json();
       expect(data).toHaveLength(1);
-      expect(data[0].id).toBe("c1");
-      expect(data[0].title).toBe("Content 1");
-      expect(data[0].platform).toBe("wechat");
+      expect(data[0]).toMatchObject({
+        id: "c1",
+        title: "Content 1",
+        platform: "wechat",
+      });
+      expect(prisma.contentPiece.findMany).toHaveBeenCalledWith({
+        where: {
+          project: { workspaceId: "ws1" },
+        },
+        include: {
+          project: { select: { name: true } },
+          platformContents: {
+            select: { platform: true },
+            take: 1,
+          },
+          schedules: {
+            orderBy: { scheduledAt: "desc" },
+            take: 1,
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
     });
 
     it("should filter by unscheduled=true", async () => {
-      const mockSession = { user: { id: "user1" } };
-      const mockProjects = [{ id: "p1" }];
-      const mockContent = [
-        {
-          id: "c1",
-          title: "Unscheduled Content",
-          type: "post",
-          platformContents: [{ platform: "weibo" }],
-          status: "draft",
-          createdAt: new Date("2025-01-01T10:00:00Z"),
-          project: { name: "Project 1" },
-        },
-      ];
-
-      vi.mocked(auth).mockResolvedValue(mockSession);
-      (prisma.project.findMany as any).mockResolvedValue(mockProjects);
-      (prisma.contentPiece.findMany as any).mockResolvedValue(mockContent);
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+      vi.mocked(getCurrentWorkspace).mockReturnValue({ workspaceId: "ws1", role: "member" });
+      (prisma.contentPiece.findMany as any).mockResolvedValue([]);
 
       const response = await GET(
-        { url: "http://localhost:3000/api/content?workspaceId=ws1&unscheduled=true" } as Request
+        { nextUrl: new URL("http://localhost:3000/api/content?unscheduled=true") } as any
       );
 
       expect(response.status).toBe(200);
       expect(prisma.contentPiece.findMany).toHaveBeenCalledWith({
         where: {
-          projectId: { in: ["p1"] },
+          project: { workspaceId: "ws1" },
           schedules: { none: {} },
         },
         include: {
@@ -98,32 +102,18 @@ describe("/api/content", () => {
     });
 
     it("should filter by status", async () => {
-      const mockSession = { user: { id: "user1" } };
-      const mockProjects = [{ id: "p1" }];
-      const mockContent = [
-        {
-          id: "c1",
-          title: "Published Content",
-          type: "post",
-          platformContents: [{ platform: "xiaohongshu" }],
-          status: "published",
-          createdAt: new Date("2025-01-01T10:00:00Z"),
-          project: { name: "Project 1" },
-        },
-      ];
-
-      vi.mocked(auth).mockResolvedValue(mockSession);
-      (prisma.project.findMany as any).mockResolvedValue(mockProjects);
-      (prisma.contentPiece.findMany as any).mockResolvedValue(mockContent);
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+      vi.mocked(getCurrentWorkspace).mockReturnValue({ workspaceId: "ws1", role: "member" });
+      (prisma.contentPiece.findMany as any).mockResolvedValue([]);
 
       const response = await GET(
-        { url: "http://localhost:3000/api/content?workspaceId=ws1&status=published" } as Request
+        { nextUrl: new URL("http://localhost:3000/api/content?status=published") } as any
       );
 
       expect(response.status).toBe(200);
       expect(prisma.contentPiece.findMany).toHaveBeenCalledWith({
         where: {
-          projectId: { in: ["p1"] },
+          project: { workspaceId: "ws1" },
           status: "published",
         },
         include: {
@@ -141,27 +131,23 @@ describe("/api/content", () => {
       });
     });
 
-    it("should fallback to 'generic' platform when platformContents is empty", async () => {
-      const mockSession = { user: { id: "user1" } };
-      const mockProjects = [{ id: "p1" }];
-      const mockContent = [
+    it("should fallback to 'generic' platform when platform contents are empty", async () => {
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+      vi.mocked(getCurrentWorkspace).mockReturnValue({ workspaceId: "ws1", role: "member" });
+      (prisma.contentPiece.findMany as any).mockResolvedValue([
         {
           id: "c1",
           title: "Content No Platform",
           type: "post",
-          platformContents: [], // Empty array
+          platformContents: [],
           status: "draft",
           createdAt: new Date("2025-01-01T10:00:00Z"),
           project: { name: "Project 1" },
         },
-      ];
-
-      vi.mocked(auth).mockResolvedValue(mockSession);
-      (prisma.project.findMany as any).mockResolvedValue(mockProjects);
-      (prisma.contentPiece.findMany as any).mockResolvedValue(mockContent);
+      ]);
 
       const response = await GET(
-        { url: "http://localhost:3000/api/content?workspaceId=ws1" } as Request
+        { nextUrl: new URL("http://localhost:3000/api/content") } as any
       );
 
       expect(response.status).toBe(200);
@@ -173,82 +159,52 @@ describe("/api/content", () => {
       vi.mocked(auth).mockResolvedValue(null);
 
       const response = await GET(
-        { url: "http://localhost:3000/api/content?workspaceId=ws1" } as Request
+        { nextUrl: new URL("http://localhost:3000/api/content") } as any
       );
 
       expect(response.status).toBe(401);
       const data = await response.json();
-      expect(data.error).toBe("Unauthorized");
+      expect(data.error.code).toBe("missing_session");
     });
 
-    it("should return 400 when workspaceId is missing", async () => {
-      const mockSession = { user: { id: "user1" } };
-      vi.mocked(auth).mockResolvedValue(mockSession);
+    it("should return 403 when workspace is missing", async () => {
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+      vi.mocked(getCurrentWorkspace).mockReturnValue(null);
 
       const response = await GET(
-        { url: "http://localhost:3000/api/content" } as Request
+        { nextUrl: new URL("http://localhost:3000/api/content") } as any
       );
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(403);
       const data = await response.json();
-      expect(data.error).toBe("workspaceId is required");
+      expect(data.error.code).toBe("no_workspace");
+    });
+
+    it("should reject mismatched workspace ids from the query string", async () => {
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+      vi.mocked(getCurrentWorkspace).mockReturnValue({ workspaceId: "ws1", role: "member" });
+
+      const response = await GET(
+        { nextUrl: new URL("http://localhost:3000/api/content?workspaceId=ws2") } as any
+      );
+
+      expect(response.status).toBe(403);
+      const data = await response.json();
+      expect(data.error.code).toBe("insufficient_permissions");
     });
 
     it("should return 500 on database error", async () => {
-      const mockSession = { user: { id: "user1" } };
-      vi.mocked(auth).mockResolvedValue(mockSession);
-      (prisma.project.findMany as any).mockRejectedValue(new Error("DB error"));
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+      vi.mocked(getCurrentWorkspace).mockReturnValue({ workspaceId: "ws1", role: "member" });
+      (prisma.contentPiece.findMany as any).mockRejectedValue(new Error("DB error"));
 
       const response = await GET(
-        { url: "http://localhost:3000/api/content?workspaceId=ws1" } as Request
+        { nextUrl: new URL("http://localhost:3000/api/content") } as any
       );
 
       expect(response.status).toBe(500);
       const data = await response.json();
-      expect(data.error).toBe("Failed to fetch content");
-    });
-
-    it("should include schedules when unscheduled is false", async () => {
-      const mockSession = { user: { id: "user1" } };
-      const mockProjects = [{ id: "p1" }];
-      const mockContent = [
-        {
-          id: "c1",
-          title: "Scheduled Content",
-          type: "post",
-          platformContents: [{ platform: "douyin" }],
-          status: "scheduled",
-          createdAt: new Date("2025-01-01T10:00:00Z"),
-          project: { name: "Project 1" },
-        },
-      ];
-
-      vi.mocked(auth).mockResolvedValue(mockSession);
-      (prisma.project.findMany as any).mockResolvedValue(mockProjects);
-      (prisma.contentPiece.findMany as any).mockResolvedValue(mockContent);
-
-      const response = await GET(
-        { url: "http://localhost:3000/api/content?workspaceId=ws1&unscheduled=false" } as Request
-      );
-
-      expect(response.status).toBe(200);
-      expect(prisma.contentPiece.findMany).toHaveBeenCalledWith({
-        where: {
-          projectId: { in: ["p1"] },
-        },
-        include: {
-          project: { select: { name: true } },
-          platformContents: {
-            select: { platform: true },
-            take: 1,
-          },
-          schedules: {
-            orderBy: { scheduledAt: "desc" },
-            take: 1,
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      });
+      expect(data.error.code).toBe("database_error");
     });
   });
 });

@@ -1,12 +1,19 @@
 import { prisma } from "@/lib/db";
 
+type NotificationType =
+  | "content_review"
+  | "content_approved"
+  | "content_published"
+  | "schedule_reminder"
+  | "mention";
+
 /**
  * Create a notification for a user
  */
 export async function createNotification(params: {
   userId: string;
   workspaceId: string;
-  type: "content_review" | "content_approved" | "content_published" | "schedule_reminder" | "mention";
+  type: NotificationType;
   title: string;
   message: string;
   link?: string;
@@ -29,6 +36,38 @@ export async function createNotification(params: {
   }
 }
 
+function getNotificationPayload(newStatus: string, contentTitle: string) {
+  switch (newStatus) {
+    case "review":
+    case "in_review":
+      return {
+        type: "content_review" as const,
+        title: "Content ready for review",
+        message: `"${contentTitle}" is ready for review`,
+      };
+    case "approved":
+      return {
+        type: "content_approved" as const,
+        title: "Content approved",
+        message: `"${contentTitle}" has been approved`,
+      };
+    case "scheduled":
+      return {
+        type: "schedule_reminder" as const,
+        title: "Content scheduled",
+        message: `"${contentTitle}" has been scheduled for publishing`,
+      };
+    case "published":
+      return {
+        type: "content_published" as const,
+        title: "Content published",
+        message: `"${contentTitle}" has been published successfully`,
+      };
+    default:
+      return null;
+  }
+}
+
 /**
  * Notify users when content status changes
  */
@@ -37,57 +76,32 @@ export async function notifyContentStatus(
   newStatus: string,
   workspaceId: string
 ) {
-  // Get content piece details
   const contentPiece = await prisma.contentPiece.findUnique({
     where: { id: contentPieceId },
     include: { project: true },
   });
 
-  if (!contentPiece) return;
-
-  // Get workspace members to notify
-  const members = await prisma.workspaceMember.findMany({
-    where: { workspaceId },
-    include: { user: true },
-  });
-
-  let title = "";
-  let message = "";
-  let type = "";
-
-  switch (newStatus) {
-    case "review":
-      title = "Content ready for review";
-      message = `"${contentPiece.title}" is ready for review`;
-      type = "content_review";
-      break;
-    case "approved":
-      title = "Content approved";
-      message = `"${contentPiece.title}" has been approved`;
-      type = "content_approved";
-      break;
-    case "scheduled":
-      title = "Content scheduled";
-      message = `"${contentPiece.title}" has been scheduled for publishing`;
-      type = "schedule_reminder";
-      break;
-    case "published":
-      title = "Content published";
-      message = `"${contentPiece.title}" has been published successfully`;
-      type = "content_published";
-      break;
-    default:
-      return;
+  if (!contentPiece) {
+    return;
   }
 
-  // Create notifications for all project members
+  const payload = getNotificationPayload(newStatus, contentPiece.title);
+  if (!payload) {
+    return;
+  }
+
+  const members = await prisma.workspaceMember.findMany({
+    where: { workspaceId },
+    select: { userId: true },
+  });
+
   for (const member of members) {
     await createNotification({
       userId: member.userId,
       workspaceId,
-      type: type as any,
-      title,
-      message,
+      type: payload.type,
+      title: payload.title,
+      message: payload.message,
       link: `/content/${contentPieceId}`,
     });
   }

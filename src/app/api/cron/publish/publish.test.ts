@@ -1,349 +1,294 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-// Mock dependencies
 vi.mock("@/lib/db", () => ({
   prisma: {
     contentSchedule: {
       findFirst: vi.fn(),
-      findMany: vi.fn(),
+      updateMany: vi.fn(),
       update: vi.fn(),
     },
     contentPiece: {
-      findFirst: vi.fn(),
+      findUnique: vi.fn(),
       update: vi.fn(),
     },
-    notification: {
+    platformContent: {
+      findMany: vi.fn(),
+      update: vi.fn(),
+    },
+    platformApiConfig: {
+      findUnique: vi.fn(),
+    },
+    publishHistory: {
       create: vi.fn(),
+      update: vi.fn(),
+      findUnique: vi.fn(),
     },
   },
 }));
 
+vi.mock("@/lib/platform", () => ({
+  getPlatformPublisher: vi.fn(),
+}));
+
+vi.mock("@/lib/notifications/trigger", () => ({
+  notifyContentStatus: vi.fn(),
+}));
+
 import { prisma } from "@/lib/db";
+import { getPlatformPublisher } from "@/lib/platform";
+import { notifyContentStatus } from "@/lib/notifications/trigger";
+
+function authorizedRequest(secret = "test-secret") {
+  const headers = new Headers();
+  headers.set("authorization", `Bearer ${secret}`);
+  return new Request("http://localhost/api/cron/publish", { headers });
+}
 
 describe("/api/cron/publish", () => {
-  const originalEnv = process.env;
+  const originalCronSecret = process.env.CRON_SECRET;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env = { ...originalEnv };
+    process.env.CRON_SECRET = "test-secret";
   });
 
   afterEach(() => {
-    process.env = originalEnv;
+    if (originalCronSecret === undefined) {
+      delete process.env.CRON_SECRET;
+    } else {
+      process.env.CRON_SECRET = originalCronSecret;
+    }
   });
 
-  describe("GET - Cron job for publishing content", () => {
-    it("should return 500 when CRON_SECRET is not configured", async () => {
-      delete process.env.CRON_SECRET;
+  it("returns 500 when CRON_SECRET is not configured", async () => {
+    delete process.env.CRON_SECRET;
 
-      const response = await GET(
-        { headers: new Headers() } as Request
-      );
+    const response = await GET(new Request("http://localhost/api/cron/publish"));
 
-      expect(response.status).toBe(500);
-      const data = await response.json();
-      expect(data.error).toBe("cron_not_configured");
+    expect(response.status).toBe(500);
+    const data = await response.json();
+    expect(data.error).toBe("cron_not_configured");
+  });
+
+  it("returns 401 when the authorization header is invalid", async () => {
+    const response = await GET(authorizedRequest("wrong-secret"));
+
+    expect(response.status).toBe(401);
+    const data = await response.json();
+    expect(data.error).toBe("unauthorized");
+  });
+
+  it("returns success when there are no due schedules", async () => {
+    (prisma.contentSchedule.findFirst as any).mockResolvedValue(null);
+
+    const response = await GET(authorizedRequest());
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data).toMatchObject({
+      success: true,
+      processed: 0,
+      published: 0,
+      failed: 0,
     });
+    expect(prisma.contentSchedule.updateMany).not.toHaveBeenCalled();
+  });
 
-    it("should return 401 when authorization header is missing", async () => {
-      process.env.CRON_SECRET = "test-secret";
+  it("publishes claimed content and records publish history", async () => {
+    const publisher = {
+      publish: vi.fn().mockResolvedValue({
+        success: true,
+        publishedUrl: "https://example.com/post/1",
+        platformPostId: "post-1",
+      }),
+    };
 
-      const response = await GET(
-        { headers: new Headers() } as Request
-      );
-
-      expect(response.status).toBe(401);
+    (prisma.contentSchedule.findFirst as any)
+      .mockResolvedValueOnce({
+        id: "schedule1",
+        contentId: "content1",
+        status: "scheduled",
+        scheduledAt: new Date("2026-05-02T08:00:00Z"),
+      })
+      .mockResolvedValueOnce(null);
+    (prisma.contentSchedule.updateMany as any).mockResolvedValue({ count: 1 });
+    (prisma.contentSchedule.update as any).mockResolvedValue({});
+    (prisma.contentPiece.findUnique as any).mockResolvedValue({
+      id: "content1",
+      title: "Launch update",
+      project: { workspaceId: "ws1" },
     });
-
-    it("should return 401 when authorization header is invalid", async () => {
-      process.env.CRON_SECRET = "test-secret";
-
-      const headers = new Headers();
-      headers.set("authorization", "Bearer wrong-secret");
-
-      const response = await GET(
-        { headers } as Request
-      );
-
-      expect(response.status).toBe(401);
+    (prisma.contentPiece.update as any).mockResolvedValue({});
+    (prisma.platformContent.findMany as any).mockResolvedValue([
+      {
+        id: "pc1",
+        platform: "wechat",
+        content: "Hello world",
+      },
+    ]);
+    (prisma.platformApiConfig.findUnique as any).mockResolvedValue({
+      enabled: true,
+      accessToken: "token-1",
+      appId: null,
+      appSecret: null,
+      refreshTokn: null,
+      tokenExpiresAt: null,
     });
-
-    it("should return success when no due content is found", async () => {
-      process.env.CRON_SECRET = "test-secret";
-
-      const headers = new Headers();
-      headers.set("authorization", "Bearer test-secret");
-
-      // First call returns null (no schedules)
-      (prisma.contentSchedule.findFirst as any).mockResolvedValueOnce(null);
-
-      const response = await GET(
-        { headers } as Request
-      );
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.success).toBe(true);
-      expect(data.processed).toBe(0);
-      expect(data.published).toBe(0);
-      expect(data.failed).toBe(0);
-      expect(data.message).toBe("Processed 0 items: 0 published, 0 failed");
+    (prisma.publishHistory.create as any).mockResolvedValue({
+      id: "history1",
+      platformContentId: "pc1",
     });
-
-    it("should publish due content successfully", async () => {
-      process.env.CRON_SECRET = "test-secret";
-
-      const headers = new Headers();
-      headers.set("authorization", "Bearer test-secret");
-
-      const mockContentPiece = {
-        id: "c1",
-        title: "Test Content",
-        projectId: "p1",
-      };
-
-      // First iteration: find schedule
-      (prisma.contentSchedule.findFirst as any)
-        .mockResolvedValueOnce({
-          id: "s1",
-          contentId: "c1",
-          status: "scheduled",
-          scheduledAt: new Date("2025-01-01T10:00:00Z"),
-        })
-        // Second iteration: no more schedules
-        .mockResolvedValueOnce(null);
-
-      (prisma.contentSchedule.update as any)
-        // First update: set to "publishing"
-        .mockResolvedValueOnce({})
-        // Second update: set to "published"
-        .mockResolvedValueOnce({
-          id: "s1",
-          scheduledAt: new Date("2025-01-01T10:00:00Z"),
-          status: "published",
-        });
-
-      (prisma.contentPiece.findFirst as any).mockResolvedValue(mockContentPiece);
-      (prisma.contentPiece.update as any).mockResolvedValue({});
-      (prisma.notification.create as any).mockResolvedValue({});
-
-      const response = await GET(
-        { headers } as Request
-      );
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.success).toBe(true);
-      expect(data.processed).toBe(1);
-      expect(data.published).toBe(1);
-      expect(data.failed).toBe(0);
+    (prisma.publishHistory.update as any).mockResolvedValue({});
+    (prisma.publishHistory.findUnique as any).mockResolvedValue({
+      id: "history1",
+      platformContentId: "pc1",
     });
+    (prisma.platformContent.update as any).mockResolvedValue({});
+    vi.mocked(getPlatformPublisher).mockReturnValue(publisher as any);
+    vi.mocked(notifyContentStatus).mockResolvedValue(undefined);
 
-    it("should handle publishing errors gracefully", async () => {
-      process.env.CRON_SECRET = "test-secret";
+    const response = await GET(authorizedRequest());
 
-      const headers = new Headers();
-      headers.set("authorization", "Bearer test-secret");
-
-      const mockContentPiece = {
-        id: "c1",
-        title: "Failing Content",
-        projectId: "p1",
-      };
-
-      // Find schedule
-      (prisma.contentSchedule.findFirst as any)
-        .mockResolvedValueOnce({
-          id: "s1",
-          contentId: "c1",
-          status: "scheduled",
-        })
-        // No more schedules
-        .mockResolvedValueOnce(null);
-
-      (prisma.contentPiece.findFirst as any).mockResolvedValue(mockContentPiece);
-
-      let callCount = 0;
-      (prisma.contentSchedule.update as any).mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return Promise.resolve({}); // Set to "publishing"
-        }
-        // Simulate failure in simulatePublish
-        if (callCount === 2) {
-          return Promise.reject(new Error("Publish failed"));
-        }
-        // Set to "failed"
-        return Promise.resolve({});
-      });
-
-      const response = await GET(
-        { headers } as Request
-      );
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.success).toBe(true);
-      expect(data.processed).toBe(1);
-      expect(data.published).toBe(0);
-      expect(data.failed).toBe(1);
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data).toMatchObject({
+      success: true,
+      processed: 1,
+      published: 1,
+      failed: 0,
     });
-
-    it("should process multiple schedules sequentially", async () => {
-      process.env.CRON_SECRET = "test-secret";
-
-      const headers = new Headers();
-      headers.set("authorization", "Bearer test-secret");
-
-      const mockContentPiece1 = {
-        id: "c1",
-        title: "Content 1",
-        projectId: "p1",
-      };
-      const mockContentPiece2 = {
-        id: "c2",
-        title: "Content 2",
-        projectId: "p1",
-      };
-
-      // First schedule
-      (prisma.contentSchedule.findFirst as any)
-        .mockResolvedValueOnce({
-          id: "s1",
-          contentId: "c1",
-          status: "scheduled",
-        })
-        // Second schedule
-        .mockResolvedValueOnce({
-          id: "s2",
-          contentId: "c2",
-          status: "scheduled",
-        })
-        // No more schedules
-        .mockResolvedValueOnce(null);
-
-      (prisma.contentPiece.findFirst as any)
-        .mockResolvedValueOnce(mockContentPiece1)
-        .mockResolvedValueOnce(mockContentPiece2);
-
-      (prisma.contentSchedule.update as any).mockResolvedValue({});
-      (prisma.contentPiece.update as any).mockResolvedValue({});
-      (prisma.notification.create as any).mockResolvedValue({});
-
-      const response = await GET(
-        { headers } as Request
-      );
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.processed).toBe(2);
-      expect(data.published).toBe(2);
+    expect(prisma.contentSchedule.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "schedule1",
+        status: "scheduled",
+      },
+      data: { status: "publishing" },
     });
-
-    it("should return 500 on database error", async () => {
-      process.env.CRON_SECRET = "test-secret";
-
-      const headers = new Headers();
-      headers.set("authorization", "Bearer test-secret");
-
-      (prisma.contentSchedule.findFirst as any).mockRejectedValue(new Error("DB error"));
-
-      const response = await GET(
-        { headers } as Request
-      );
-
-      expect(response.status).toBe(500);
+    expect(prisma.contentPiece.update).toHaveBeenNthCalledWith(1, {
+      where: { id: "content1" },
+      data: { status: "publishing" },
     });
-
-    it("should update schedule status through publishing to published", async () => {
-      process.env.CRON_SECRET = "test-secret";
-
-      const headers = new Headers();
-      headers.set("authorization", "Bearer test-secret");
-
-      const mockContentPiece = {
-        id: "c1",
-        title: "Content",
-        projectId: "p1",
-      };
-
-      (prisma.contentSchedule.findFirst as any)
-        .mockResolvedValueOnce({
-          id: "s1",
-          contentId: "c1",
-          status: "scheduled",
-        })
-        .mockResolvedValueOnce(null);
-
-      (prisma.contentPiece.findFirst as any).mockResolvedValue(mockContentPiece);
-
-      const updateCalls: any[] = [];
-      (prisma.contentSchedule.update as any).mockImplementation((args: any) => {
-        updateCalls.push(args);
-        return Promise.resolve({
-          id: "s1",
-          ...args.data,
-        });
-      });
-
-      (prisma.contentPiece.update as any).mockResolvedValue({});
-      (prisma.notification.create as any).mockResolvedValue({});
-
-      const response = await GET(
-        { headers } as Request
-      );
-
-      expect(response.status).toBe(200);
-      expect(updateCalls).toHaveLength(2); // "publishing" then "published"
-      expect(updateCalls[0].data.status).toBe("publishing");
-      expect(updateCalls[1].data.status).toBe("published");
+    expect(prisma.contentPiece.update).toHaveBeenNthCalledWith(2, {
+      where: { id: "content1" },
+      data: { status: "published" },
     });
-
-    it("should update schedule status to failed on error", async () => {
-      process.env.CRON_SECRET = "test-secret";
-
-      const headers = new Headers();
-      headers.set("authorization", "Bearer test-secret");
-
-      const mockContentPiece = {
-        id: "c1",
-        title: "Content",
-        projectId: "p1",
-      };
-
-      (prisma.contentSchedule.findFirst as any)
-        .mockResolvedValueOnce({
-          id: "s1",
-          contentId: "c1",
-          status: "scheduled",
-        })
-        .mockResolvedValueOnce(null);
-
-      (prisma.contentPiece.findFirst as any).mockResolvedValue(mockContentPiece);
-
-      const updateCalls: any[] = [];
-      (prisma.contentSchedule.update as any).mockImplementation((args: any) => {
-        updateCalls.push(args);
-        // First update: set to "publishing" - succeeds
-        if (updateCalls.length === 1) {
-          return Promise.resolve({});
-        }
-        // Second update would be to "published", but simulatePublish fails - reject
-        if (updateCalls.length === 2) {
-          return Promise.reject(new Error("Publish failed"));
-        }
-        // Third update: set to "failed" - succeeds (error recovery)
-        return Promise.resolve({});
-      });
-
-      const response = await GET(
-        { headers } as Request
-      );
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.failed).toBe(1);
+    expect(getPlatformPublisher).toHaveBeenCalledWith(
+      "wechat",
+      expect.objectContaining({ accessToken: "token-1" })
+    );
+    expect(publisher.publish).toHaveBeenCalledWith({
+      title: "Launch update",
+      content: "Hello world",
+      images: [],
     });
+    expect(prisma.publishHistory.update).toHaveBeenCalledWith({
+      where: { id: "history1" },
+      data: expect.objectContaining({
+        status: "success",
+        publishedUrl: "https://example.com/post/1",
+        platformPostId: "post-1",
+        attemptCount: 1,
+      }),
+    });
+    expect(prisma.platformContent.update).toHaveBeenCalledWith({
+      where: { id: "pc1" },
+      data: {
+        status: "published",
+        publishedUrl: "https://example.com/post/1",
+      },
+    });
+    expect(notifyContentStatus).toHaveBeenCalledWith(
+      "content1",
+      "published",
+      "ws1"
+    );
+  });
+
+  it("does not mark a successful publish as failed when notifications fail", async () => {
+    (prisma.contentSchedule.findFirst as any)
+      .mockResolvedValueOnce({
+        id: "schedule1",
+        contentId: "content1",
+        status: "scheduled",
+        scheduledAt: new Date("2026-05-02T08:00:00Z"),
+      })
+      .mockResolvedValueOnce(null);
+    (prisma.contentSchedule.updateMany as any).mockResolvedValue({ count: 1 });
+    (prisma.contentSchedule.update as any).mockResolvedValue({});
+    (prisma.contentPiece.findUnique as any).mockResolvedValue({
+      id: "content1",
+      title: "Launch update",
+      project: { workspaceId: "ws1" },
+    });
+    (prisma.contentPiece.update as any).mockResolvedValue({});
+    (prisma.platformContent.findMany as any).mockResolvedValue([]);
+    vi.mocked(notifyContentStatus).mockRejectedValue(new Error("notify failed"));
+
+    const response = await GET(authorizedRequest());
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data).toMatchObject({
+      success: true,
+      processed: 1,
+      published: 1,
+      failed: 0,
+    });
+    expect(prisma.contentSchedule.update).toHaveBeenCalledTimes(1);
+    expect(prisma.contentSchedule.update).toHaveBeenCalledWith({
+      where: { id: "schedule1" },
+      data: expect.objectContaining({ status: "published" }),
+    });
+    expect(prisma.contentPiece.update).toHaveBeenNthCalledWith(1, {
+      where: { id: "content1" },
+      data: { status: "publishing" },
+    });
+    expect(prisma.contentPiece.update).toHaveBeenNthCalledWith(2, {
+      where: { id: "content1" },
+      data: { status: "published" },
+    });
+  });
+
+  it("marks the schedule as failed when the content record is missing", async () => {
+    (prisma.contentSchedule.findFirst as any)
+      .mockResolvedValueOnce({
+        id: "schedule1",
+        contentId: "content1",
+        status: "scheduled",
+        scheduledAt: new Date("2026-05-02T08:00:00Z"),
+      })
+      .mockResolvedValueOnce(null);
+    (prisma.contentSchedule.updateMany as any).mockResolvedValue({ count: 1 });
+    (prisma.contentSchedule.update as any).mockResolvedValue({});
+    (prisma.contentPiece.findUnique as any).mockResolvedValue(null);
+    (prisma.contentPiece.update as any).mockResolvedValue({});
+
+    const response = await GET(authorizedRequest());
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data).toMatchObject({
+      success: true,
+      processed: 1,
+      published: 0,
+      failed: 1,
+    });
+    expect(data.errors).toEqual([
+      {
+        id: "content1",
+        title: "content1",
+        error: "Content piece not found",
+      },
+    ]);
+    expect(prisma.contentSchedule.update).toHaveBeenCalledWith({
+      where: { id: "schedule1" },
+      data: { status: "failed" },
+    });
+    expect(prisma.contentPiece.update).toHaveBeenCalledWith({
+      where: { id: "content1" },
+      data: { status: "failed" },
+    });
+    expect(notifyContentStatus).not.toHaveBeenCalled();
   });
 });

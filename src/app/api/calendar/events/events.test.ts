@@ -62,13 +62,11 @@ describe("/api/calendar/events", () => {
             gte: new Date("2025-01-01"),
             lte: new Date("2025-01-31"),
           },
-          AND: [
-            {
-              project: {
-                workspaceId: "ws1",
-              },
+          contentPiece: {
+            project: {
+              workspaceId: "ws1",
             },
-          ],
+          },
         },
         include: {
           contentPiece: {
@@ -114,21 +112,19 @@ describe("/api/calendar/events", () => {
       );
 
       expect(response.status).toBe(200);
-      // Verify query includes both workspaceId and projectId in the AND clause
+      // Verify query includes both workspaceId and projectId
       expect(prisma.contentSchedule.findMany).toHaveBeenCalledWith({
         where: {
           scheduledAt: {
             gte: new Date("2025-01-01"),
             lte: new Date("2025-01-31"),
           },
-          AND: [
-            {
-              project: {
-                workspaceId: "ws1",
-                id: "p1",
-              },
+          contentPiece: {
+            project: {
+              workspaceId: "ws1",
+              id: "p1",
             },
-          ],
+          },
         },
         include: {
           contentPiece: {
@@ -169,23 +165,19 @@ describe("/api/calendar/events", () => {
       );
 
       expect(response.status).toBe(200);
-      // Verify the query includes both workspace filter and status filter in AND clause
+      // Verify the query includes both workspace filter and status filter
       expect(prisma.contentSchedule.findMany).toHaveBeenCalledWith({
         where: {
           scheduledAt: {
             gte: new Date("2025-01-01"),
             lte: new Date("2025-01-31"),
           },
-          AND: [
-            {
-              project: {
-                workspaceId: "ws1",
-              },
-              contentPiece: {
-                status: "published",
-              },
+          contentPiece: {
+            project: {
+              workspaceId: "ws1",
             },
-          ],
+            status: "published",
+          },
         },
         include: {
           contentPiece: {
@@ -275,20 +267,18 @@ describe("/api/calendar/events", () => {
       );
 
       expect(response.status).toBe(200);
-      // Verify workspace filter is in the AND clause
+      // Verify workspace filter using nested contentPiece structure
       expect(prisma.contentSchedule.findMany).toHaveBeenCalledWith({
         where: {
           scheduledAt: {
             gte: new Date("2025-01-01"),
             lte: new Date("2025-01-31"),
           },
-          AND: [
-            {
-              project: {
-                workspaceId: "ws1",
-              },
+          contentPiece: {
+            project: {
+              workspaceId: "ws1",
             },
-          ],
+          },
         },
         include: {
           contentPiece: {

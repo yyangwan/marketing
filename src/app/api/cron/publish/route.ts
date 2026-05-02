@@ -2,11 +2,40 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getPlatformPublisher } from "@/lib/platform";
 import type { PlatformCredentials, PublishOptions } from "@/lib/platform/base";
+import { notifyContentStatus } from "@/lib/notifications/trigger";
+import type { Platform } from "@/types";
+
+async function claimNextSchedule(now: Date) {
+  while (true) {
+    const candidate = await prisma.contentSchedule.findFirst({
+      where: {
+        scheduledAt: { lte: now },
+        status: "scheduled",
+      },
+      orderBy: { scheduledAt: "asc" },
+    });
+
+    if (!candidate) {
+      return null;
+    }
+
+    const claim = await prisma.contentSchedule.updateMany({
+      where: {
+        id: candidate.id,
+        status: "scheduled",
+      },
+      data: { status: "publishing" },
+    });
+
+    if (claim.count === 1) {
+      return candidate;
+    }
+  }
+}
 
 // GET /api/cron/publish - Cron endpoint for real publishing
 // Protected by CRON_SECRET environment variable
 export async function GET(req: Request) {
-  // Verify cron secret
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
@@ -32,34 +61,16 @@ export async function GET(req: Request) {
       errors: [] as Array<{ id: string; title: string; error: string }>,
     };
 
-    // Process schedules one at a time atomically to prevent concurrent cron runs
-    // from processing the same schedule twice
     while (true) {
-      // Atomically claim one scheduled item by updating its status to "publishing"
-      // The WHERE clause ensures we only claim items that are still "scheduled"
-      const claimed = await prisma.contentSchedule.findFirst({
-        where: {
-          scheduledAt: { lte: now },
-          status: "scheduled",
-        },
-        orderBy: { scheduledAt: "asc" },
-      });
-
+      const claimed = await claimNextSchedule(now);
       if (!claimed) {
-        // No more scheduled items to process
         break;
       }
 
       results.processed++;
+      let contentTitle = claimed.contentId;
 
       try {
-        // Update status to publishing (this acts as our lock - other cron runs will skip this)
-        await prisma.contentSchedule.update({
-          where: { id: claimed.id },
-          data: { status: "publishing" },
-        });
-
-        // Fetch the content piece with project for this schedule
         const contentPiece = await prisma.contentPiece.findUnique({
           where: { id: claimed.contentId },
           include: { project: true },
@@ -69,19 +80,23 @@ export async function GET(req: Request) {
           throw new Error("Content piece not found");
         }
 
+        contentTitle = contentPiece.title;
+
+        await prisma.contentPiece.update({
+          where: { id: claimed.contentId },
+          data: { status: "publishing" },
+        });
+
         const workspaceId = contentPiece.project.workspaceId;
 
-        // Fetch all platform contents for this content piece
         const platformContents = await prisma.platformContent.findMany({
           where: { contentPieceId: claimed.contentId },
         });
 
-        // Publish to each configured platform
         let anySuccess = false;
         for (const platformContent of platformContents) {
-          const platform = platformContent.platform as any;
+          const platform = platformContent.platform as Platform;
 
-          // Get platform API config
           const apiConfig = await prisma.platformApiConfig.findUnique({
             where: {
               workspaceId_platform: {
@@ -96,7 +111,6 @@ export async function GET(req: Request) {
             continue;
           }
 
-          // Create publish history record
           const history = await prisma.publishHistory.create({
             data: {
               workspaceId,
@@ -110,7 +124,6 @@ export async function GET(req: Request) {
             },
           });
 
-          // Publish with retry mechanism
           const publishSuccess = await publishWithRetry(
             platform,
             {
@@ -123,7 +136,7 @@ export async function GET(req: Request) {
             {
               title: contentPiece.title,
               content: platformContent.content || "",
-              images: [], // TODO: Extract images from content
+              images: [],
             },
             history.id
           );
@@ -133,12 +146,10 @@ export async function GET(req: Request) {
           }
         }
 
-        // Only mark as published if at least one platform succeeded
-        if (!anySuccess && platformContents.length > 0) {
+        if (platformContents.length > 0 && !anySuccess) {
           throw new Error("All platform publishes failed");
         }
 
-        // Update status to published
         await prisma.contentSchedule.update({
           where: { id: claimed.id },
           data: {
@@ -147,37 +158,47 @@ export async function GET(req: Request) {
           },
         });
 
-        // Update content piece status
         await prisma.contentPiece.update({
           where: { id: claimed.contentId },
           data: { status: "published" },
         });
 
-        // Create notification for workspace members
-        await prisma.notification.create({
-          data: {
-            userId: contentPiece.projectId, // Placeholder - should be actual assignee
-            workspaceId: contentPiece.projectId, // Placeholder
-            type: "content_published",
-            title: "Content published",
-            message: `"${contentPiece.title}" has been published successfully`,
-            link: `/content/${claimed.contentId}`,
-          },
-        });
+        try {
+          await notifyContentStatus(claimed.contentId, "published", workspaceId);
+        } catch (notificationError) {
+          console.error(
+            `Failed to send publish notifications for ${claimed.contentId}:`,
+            notificationError
+          );
+        }
 
         results.published++;
       } catch (error) {
         console.error(`Failed to publish schedule ${claimed.id}:`, error);
 
-        // Update status to failed
         await prisma.contentSchedule.update({
           where: { id: claimed.id },
           data: { status: "failed" },
         });
 
+        await prisma.contentPiece
+          .update({
+            where: { id: claimed.contentId },
+            data: { status: "failed" },
+          })
+          .catch((updateError) => {
+            console.error(
+              `Failed to update content status to failed for ${claimed.contentId}:`,
+              updateError
+            );
+          });
+
         results.failed++;
-        // Note: we can't push to errors array here without re-fetching the content piece
-        // since the error might have occurred before we fetched it
+        results.errors.push({
+          id: claimed.contentId,
+          title: contentTitle,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
       }
     }
 
@@ -200,7 +221,7 @@ export async function GET(req: Request) {
  * Implements exponential backoff: 1s, 2s, 4s delays
  */
 async function publishWithRetry(
-  platform: any,
+  platform: Platform,
   credentials: PlatformCredentials,
   options: PublishOptions,
   historyId: string,
@@ -214,7 +235,6 @@ async function publishWithRetry(
       const result = await getPlatformPublisher(platform, credentials).publish(options);
 
       if (result.success) {
-        // Update history as success
         await prisma.publishHistory.update({
           where: { id: historyId },
           data: {
@@ -226,7 +246,6 @@ async function publishWithRetry(
           },
         });
 
-        // Update platform content status
         const history = await prisma.publishHistory.findUnique({
           where: { id: historyId },
         });
@@ -244,7 +263,6 @@ async function publishWithRetry(
         return true;
       }
 
-      // Check if needs auth (non-retryable)
       if (result.needsAuth) {
         await prisma.publishHistory.update({
           where: { id: historyId },
@@ -257,7 +275,6 @@ async function publishWithRetry(
         return false;
       }
 
-      // Other failures - retry
       lastError = new Error(result.errorMessage || "Publish failed");
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("Unknown error");
@@ -266,13 +283,11 @@ async function publishWithRetry(
     attempt++;
 
     if (attempt < maxRetries) {
-      // Exponential backoff: 1s, 2s, 4s
       const delay = Math.pow(2, attempt) * 1000;
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 
-  // All retries failed
   await prisma.publishHistory.update({
     where: { id: historyId },
     data: {

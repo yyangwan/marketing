@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import crypto from "crypto";
+import { notifyContentStatus } from "@/lib/notifications/trigger";
 
 export async function POST(
   _req: Request,
@@ -32,8 +33,10 @@ export async function POST(
 
   const updated = await prisma.contentPiece.update({
     where: { id },
-    data: { reviewToken, reviewExpiresAt },
+    data: { reviewToken, reviewExpiresAt, status: "review" },
   });
+
+  await notifyContentStatus(id, "review", ws.workspaceId);
 
   return NextResponse.json({
     reviewToken: updated.reviewToken,

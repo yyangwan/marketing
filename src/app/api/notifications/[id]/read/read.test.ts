@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
-// Mock dependencies
 vi.mock("@/lib/db", () => ({
   prisma: {
     notification: {
@@ -28,117 +27,101 @@ describe("/api/notifications/[id]/read", () => {
     vi.clearAllMocks();
   });
 
-  describe("POST - Mark notification as read", () => {
-    it("should mark notification as read", async () => {
-      const mockSession = { user: { id: "user1" } };
-      const mockWs = { workspaceId: "ws1" };
-      const mockNotification = {
-        id: "n1",
-        userId: "user1",
-        workspaceId: "ws1",
-        isRead: false,
-      };
-      const updatedNotification = {
-        id: "n1",
-        userId: "user1",
-        workspaceId: "ws1",
-        isRead: true,
-      };
-
-      vi.mocked(auth).mockResolvedValue(mockSession);
-      vi.mocked(getCurrentWorkspace).mockReturnValue(mockWs);
-      (prisma.notification.findFirst as any).mockResolvedValue(mockNotification);
-      (prisma.notification.update as any).mockResolvedValue(updatedNotification);
-
-      const response = await POST(
-        {} as Request,
-        { params: Promise.resolve({ id: "n1" }) }
-      );
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.isRead).toBe(true);
-      expect(prisma.notification.update).toHaveBeenCalledWith({
-        where: { id: "n1" },
-        data: { isRead: true },
-      });
+  it("marks a notification as read", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+    vi.mocked(getCurrentWorkspace).mockReturnValue({
+      workspaceId: "ws1",
+      role: "member",
+    });
+    (prisma.notification.findFirst as any).mockResolvedValue({
+      id: "n1",
+      userId: "user1",
+      workspaceId: "ws1",
+      isRead: false,
+    });
+    (prisma.notification.update as any).mockResolvedValue({
+      id: "n1",
+      userId: "user1",
+      workspaceId: "ws1",
+      isRead: true,
     });
 
-    it("should return 401 for unauthorized requests", async () => {
-      vi.mocked(auth).mockResolvedValue(null);
-
-      const response = await POST(
-        {} as Request,
-        { params: Promise.resolve({ id: "n1" }) }
-      );
-
-      expect(response.status).toBe(401);
+    const response = await POST({} as Request, {
+      params: Promise.resolve({ id: "n1" }),
     });
 
-    it("should return 403 when workspace is not found", async () => {
-      const mockSession = { user: { id: "user1" } };
-      vi.mocked(auth).mockResolvedValue(mockSession);
-      vi.mocked(getCurrentWorkspace).mockReturnValue(null);
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.isRead).toBe(true);
+    expect(prisma.notification.update).toHaveBeenCalledWith({
+      where: { id: "n1" },
+      data: { isRead: true },
+    });
+  });
 
-      const response = await POST(
-        {} as Request,
-        { params: Promise.resolve({ id: "n1" }) }
-      );
+  it("returns a structured 401 when the user is not authenticated", async () => {
+    vi.mocked(auth).mockResolvedValue(null);
 
-      expect(response.status).toBe(403);
+    const response = await POST({} as Request, {
+      params: Promise.resolve({ id: "n1" }),
     });
 
-    it("should return 404 when notification not found", async () => {
-      const mockSession = { user: { id: "user1" } };
-      vi.mocked(auth).mockResolvedValue(mockSession);
-      vi.mocked(getCurrentWorkspace).mockReturnValue({ workspaceId: "ws1" });
-      (prisma.notification.findFirst as any).mockResolvedValue(null);
+    expect(response.status).toBe(401);
+    const data = await response.json();
+    expect(data.error.code).toBe("missing_session");
+  });
 
-      const response = await POST(
-        {} as Request,
-        { params: Promise.resolve({ id: "n1" }) }
-      );
+  it("returns a structured 403 when no workspace is active", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+    vi.mocked(getCurrentWorkspace).mockReturnValue(null);
 
-      expect(response.status).toBe(404);
+    const response = await POST({} as Request, {
+      params: Promise.resolve({ id: "n1" }),
     });
 
-    it("should return 404 when notification belongs to different user", async () => {
-      const mockSession = { user: { id: "user1" } };
-      const mockWs = { workspaceId: "ws1" };
+    expect(response.status).toBe(403);
+    const data = await response.json();
+    expect(data.error.code).toBe("no_workspace");
+  });
 
-      vi.mocked(auth).mockResolvedValue(mockSession);
-      vi.mocked(getCurrentWorkspace).mockReturnValue(mockWs);
-      (prisma.notification.findFirst as any).mockResolvedValue(null);
+  it("returns a structured 404 when the notification is not visible to the user", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+    vi.mocked(getCurrentWorkspace).mockReturnValue({
+      workspaceId: "ws1",
+      role: "member",
+    });
+    (prisma.notification.findFirst as any).mockResolvedValue(null);
 
-      const response = await POST(
-        {} as Request,
-        { params: Promise.resolve({ id: "n1" }) }
-      );
-
-      expect(response.status).toBe(404);
+    const response = await POST({} as Request, {
+      params: Promise.resolve({ id: "n1" }),
     });
 
-    it("should return 500 on database error", async () => {
-      const mockSession = { user: { id: "user1" } };
-      const mockWs = { workspaceId: "ws1" };
-      const mockNotification = {
-        id: "n1",
-        userId: "user1",
-        workspaceId: "ws1",
-        isRead: false,
-      };
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error.code).toBe("notification_not_found");
+    expect(data.error.param).toBe("id");
+  });
 
-      vi.mocked(auth).mockResolvedValue(mockSession);
-      vi.mocked(getCurrentWorkspace).mockReturnValue(mockWs);
-      (prisma.notification.findFirst as any).mockResolvedValue(mockNotification);
-      (prisma.notification.update as any).mockRejectedValue(new Error("DB error"));
-
-      const response = await POST(
-        {} as Request,
-        { params: Promise.resolve({ id: "n1" }) }
-      );
-
-      expect(response.status).toBe(500);
+  it("returns a structured 500 when the update fails", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+    vi.mocked(getCurrentWorkspace).mockReturnValue({
+      workspaceId: "ws1",
+      role: "member",
     });
+    (prisma.notification.findFirst as any).mockResolvedValue({
+      id: "n1",
+      userId: "user1",
+      workspaceId: "ws1",
+      isRead: false,
+    });
+    (prisma.notification.update as any).mockRejectedValue(new Error("DB error"));
+
+    const response = await POST({} as Request, {
+      params: Promise.resolve({ id: "n1" }),
+    });
+
+    expect(response.status).toBe(500);
+    const data = await response.json();
+    expect(data.error.code).toBe("database_error");
   });
 });

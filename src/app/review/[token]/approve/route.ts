@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { notifyContentStatus } from "@/lib/notifications/trigger";
 
 export async function POST(
   req: Request,
@@ -48,6 +49,15 @@ export async function POST(
     where: { id: piece.id },
     data: { status: "approved" },
   });
+
+  const fullPiece = await prisma.contentPiece.findUnique({
+    where: { id: piece.id },
+    include: { project: true },
+  });
+
+  if (fullPiece) {
+    await notifyContentStatus(piece.id, "approved", fullPiece.project.workspaceId);
+  }
 
   return NextResponse.json({ success: true, action: "approved" });
 }

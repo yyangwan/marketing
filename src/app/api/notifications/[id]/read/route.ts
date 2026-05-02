@@ -2,22 +2,25 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { ERROR_CODES, apiError, errors, responses } from "@/lib/errors";
 
 // POST /api/notifications/[id]/read - Mark notification as read
-export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
+export async function POST(
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
 
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
   const { id } = await context.params;
 
-  // Verify notification belongs to user
   const notification = await prisma.notification.findFirst({
     where: {
       id,
@@ -27,7 +30,11 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   });
 
   if (!notification) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+    return responses.notFound(
+      apiError("not_found_error", "notification_not_found", "Notification not found", {
+        param: "id",
+      })
+    );
   }
 
   try {
@@ -39,9 +46,12 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Failed to mark notification as read:", error);
-    return NextResponse.json(
-      { error: "Failed to mark notification as read" },
-      { status: 500 }
+    return responses.serverError(
+      apiError(
+        "api_error",
+        ERROR_CODES.DATABASE_ERROR,
+        "Failed to mark notification as read"
+      )
     );
   }
 }

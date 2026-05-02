@@ -29,7 +29,7 @@ export default async function PublishingSettingsPage() {
   });
 
   return (
-    <div className="p-6 max-w-6xl">
+    <div>
       <h1 className="text-xl font-semibold text-foreground tracking-tight mb-6">
         发布设置
       </h1>

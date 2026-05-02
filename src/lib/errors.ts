@@ -122,6 +122,14 @@ export const errors = {
       { param }
     ),
 
+  invalidParam: (param: string, message: string) =>
+    apiError(
+      "invalid_request_error",
+      ERROR_CODES.INVALID_PARAMETER,
+      message,
+      { param }
+    ),
+
   projectNotFound: (projectId: string) =>
     apiError(
       "not_found_error",
@@ -135,6 +143,22 @@ export const errors = {
       "not_found_error",
       ERROR_CODES.WORKSPACE_NOT_FOUND,
       `工作区不存在: ${workspaceId}`,
+      { param: "workspaceId" }
+    ),
+
+  contentNotFound: (contentId: string) =>
+    apiError(
+      "not_found_error",
+      ERROR_CODES.CONTENT_NOT_FOUND,
+      `内容不存在: ${contentId}`,
+      { param: "contentId" }
+    ),
+
+  workspaceMismatch: () =>
+    apiError(
+      "authentication_error",
+      ERROR_CODES.INSUFFICIENT_PERMISSIONS,
+      "Requested workspace does not match the current session workspace.",
       { param: "workspaceId" }
     ),
 
@@ -166,6 +190,7 @@ export const responses = {
   forbidden: (error: ContentOSError) => ErrorResponse(error, 403),
   badRequest: (error: ContentOSError) => ErrorResponse(error, 400),
   notFound: (error: ContentOSError) => ErrorResponse(error, 404),
+  conflict: (error: ContentOSError) => ErrorResponse(error, 409),
   rateLimit: (error: ContentOSError) => ErrorResponse(error, 429),
   serverError: (error: ContentOSError) => ErrorResponse(error, 500),
 };

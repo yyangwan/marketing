@@ -1,92 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/config";
+import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { prisma } from "@/lib/db";
+import { ERROR_CODES, apiError, errors, responses } from "@/lib/errors";
 
 // GET /api/content?workspaceId=xxx&status=draft&unscheduled=true
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return responses.unauthorized();
     }
 
-    const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId");
+    const ws = getCurrentWorkspace(session);
+    if (!ws) {
+      return responses.forbidden(errors.noWorkspace());
+    }
+
+    const { searchParams } = req.nextUrl;
+    const requestedWorkspaceId = searchParams.get("workspaceId");
     const status = searchParams.get("status");
     const unscheduled = searchParams.get("unscheduled") === "true";
 
-    if (!workspaceId) {
-      return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
+    if (requestedWorkspaceId && requestedWorkspaceId !== ws.workspaceId) {
+      return responses.forbidden(errors.workspaceMismatch());
     }
 
-    // Get all projects in this workspace
-    const projects = await prisma.project.findMany({
-      where: { workspaceId },
-      select: { id: true },
-    });
-
-    const projectIds = projects.map((p) => p.id);
-
-    // Build where clause
-    const where: {
-      projectId: { in: string[] };
-      status?: string;
-    } = {
-      projectId: { in: projectIds },
+    const where = {
+      project: { workspaceId: ws.workspaceId },
+      ...(status ? { status } : {}),
+      ...(unscheduled ? { schedules: { none: {} } } : {}),
     };
 
-    if (status) {
-      where.status = status;
-    }
+    const contentPieces = await prisma.contentPiece.findMany({
+      where,
+      include: {
+        project: {
+          select: { name: true },
+        },
+        platformContents: {
+          select: { platform: true },
+          take: 1,
+        },
+        ...(!unscheduled
+          ? {
+              schedules: {
+                orderBy: { scheduledAt: "desc" as const },
+                take: 1,
+              },
+            }
+          : {}),
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-    // If unscheduled=true, only get content without schedules
-    let contentPieces;
-    if (unscheduled) {
-      // Get content pieces that don't have any schedules
-      contentPieces = await prisma.contentPiece.findMany({
-        where: {
-          ...where,
-          schedules: {
-            none: {},
-          },
-        },
-        include: {
-          project: {
-            select: { name: true },
-          },
-          platformContents: {
-            select: { platform: true },
-            take: 1,
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-    } else {
-      contentPieces = await prisma.contentPiece.findMany({
-        where,
-        include: {
-          project: {
-            select: { name: true },
-          },
-          platformContents: {
-            select: { platform: true },
-            take: 1,
-          },
-          schedules: {
-            orderBy: { scheduledAt: "desc" },
-            take: 1,
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-    }
-
-    // Transform to match UnscheduledPanel interface
     const items = contentPieces.map((piece) => ({
       id: piece.id,
       title: piece.title,
       type: piece.type,
-      platform: piece.platformContents?.[0]?.platform || "generic", // Fallback to "generic" if no platform
+      platform: piece.platformContents[0]?.platform || "generic",
       status: piece.status,
       createdAt: piece.createdAt.toISOString(),
     }));
@@ -94,6 +66,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(items);
   } catch (error) {
     console.error("Error fetching content:", error);
-    return NextResponse.json({ error: "Failed to fetch content" }, { status: 500 });
+    return responses.serverError(
+      apiError(
+        "api_error",
+        ERROR_CODES.DATABASE_ERROR,
+        "Failed to fetch content"
+      )
+    );
   }
 }

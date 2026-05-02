@@ -2,17 +2,18 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { ERROR_CODES, apiError, errors, responses } from "@/lib/errors";
 
 // POST /api/notifications/mark-all-read - Mark all user notifications as read
-export async function POST(req: Request) {
+export async function POST() {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
 
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
   try {
@@ -30,9 +31,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ count: result.count });
   } catch (error) {
     console.error("Failed to mark all notifications as read:", error);
-    return NextResponse.json(
-      { error: "Failed to mark all notifications as read" },
-      { status: 500 }
+    return responses.serverError(
+      apiError(
+        "api_error",
+        ERROR_CODES.DATABASE_ERROR,
+        "Failed to mark all notifications as read"
+      )
     );
   }
 }

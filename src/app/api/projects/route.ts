@@ -2,61 +2,76 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { ERROR_CODES, apiError, errors, responses } from "@/lib/errors";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
-  const projects = await prisma.project.findMany({
-    where: { workspaceId: ws.workspaceId },
-    orderBy: { createdAt: "desc" },
-  });
+  try {
+    const projects = await prisma.project.findMany({
+      where: { workspaceId: ws.workspaceId },
+      orderBy: { createdAt: "desc" },
+    });
 
-  return NextResponse.json(projects);
+    return NextResponse.json(projects);
+  } catch (error) {
+    console.error("Failed to fetch projects:", error);
+    return responses.serverError(
+      apiError("api_error", ERROR_CODES.DATABASE_ERROR, "Failed to fetch projects")
+    );
+  }
 }
 
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
   try {
     const { name, clientName } = await req.json();
 
-    if (!name) {
-      return NextResponse.json(
-        { error: "项目名称不能为空" },
-        { status: 400 }
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return responses.badRequest(
+        errors.invalidParam("name", "Project name is required")
       );
     }
 
     const project = await prisma.project.create({
       data: {
-        name,
-        clientName: clientName || "",
+        name: name.trim(),
+        clientName: typeof clientName === "string" ? clientName.trim() : "",
         workspaceId: ws.workspaceId,
       },
     });
 
     return NextResponse.json(project);
-  } catch (err: unknown) {
-    if (String(err).includes("Unique constraint")) {
-      return NextResponse.json(
-        { error: "项目名称已存在" },
-        { status: 409 }
+  } catch (error) {
+    if (String(error).includes("Unique constraint")) {
+      return responses.conflict(
+        apiError(
+          "invalid_request_error",
+          ERROR_CODES.VALIDATION_FAILED,
+          "A project with this name already exists in the workspace.",
+          { param: "name" }
+        )
       );
     }
-    return NextResponse.json({ error: "创建失败" }, { status: 500 });
+
+    console.error("Failed to create project:", error);
+    return responses.serverError(
+      apiError("api_error", ERROR_CODES.DATABASE_ERROR, "Failed to create project")
+    );
   }
 }

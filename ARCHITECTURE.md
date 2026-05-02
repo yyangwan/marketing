@@ -105,6 +105,7 @@ where: {
 ```
 
 **角色定义**:
+- `owner`: 工作区拥有者（可管理工作区与成员）
 - `admin`: 工作区管理员（完全访问权限）
 - `member`: 普通成员（受限访问权限）
 
@@ -125,10 +126,6 @@ POST /api/briefs
 品牌调性注入 (Brand Voice)
     ↓
 更新 PlatformContent.content
-    ↓
-质量评估 (Quality Panel)
-    ↓
-SEO 分析 (SEO Scorer)
     ↓
 返回完整 ContentPiece
 ```
@@ -162,22 +159,26 @@ interface BrandVoice {
 - 4 维度评分: 质量、互动性、品牌匹配度、平台适配度
 - AI 驱动的改进建议
 - 实时 SEO 分析（字符数、词数、关键词密度）
+- 质量评估通过 `POST /api/content/[id]/quality` 按需触发
+- SEO 分析主要由前端 `SEOScorer` 在编辑时即时计算
 
 ### 4. 内容审核 (Review Workflow)
 
 **Kanban 状态流转**:
 ```
-draft (草稿) → in_review (审核中) → approved (已批准) → scheduled (已调度) → publishing (发布中) → published (已发布)
-                    ↓                                           ↓
-              revision_requested (需修改)                   failed (发布失败)
+draft (草稿) / genie_draft (Genie 草稿)
+    ↓
+editing (人工编辑) → review (客户审核) → approved (已批准) → scheduled (已调度) → publishing (发布中) → published (已发布)
+         ↑                    ↓                                                         ↓
+         └──── revision_requested (需修改) ───────────────────────────────────────────→ failed (发布失败)
 ```
 
 **审核评论**:
 ```typescript
 interface ReviewComment {
   action: "approved" | "revision_requested" | "comment";
-  content: string;
-  authorId: string;
+  comment?: string;
+  authorName: string;
   createdAt: Date;
 }
 ```
@@ -212,11 +213,10 @@ POST /api/cron/publish
 **数据模型**:
 ```typescript
 interface ContentSchedule {
-  contentPieceId: string;
-  scheduledFor: DateTime;
+  contentId: string;
+  scheduledAt: DateTime;
   status: "scheduled" | "publishing" | "published" | "failed";
   publishedAt?: DateTime;
-  error?: string;
 }
 ```
 
@@ -249,10 +249,10 @@ interface Notification {
   type: string;
   title: string;
   message: string;
-  actionUrl?: string;
+  link?: string;
   userId: string;
   workspaceId: string;
-  read: boolean;
+  isRead: boolean;
   createdAt: DateTime;
 }
 ```
@@ -278,8 +278,8 @@ User ────< WorkspaceMember >──── Workspace
                                      │    │    ▼
                                      │    │  ReviewComment
                                      │    │
-                                     │    ├── BrandVoice (per-project)
-                                     │    └── AITemplate (per-project)
+                                     │    ├── BrandVoice (workspace-level, optionally referenced by project/content)
+                                     │    └── AITemplate (workspace-level)
                                      │
                                      ├── Notification
                                      │
@@ -463,7 +463,7 @@ layout.tsx (根布局)
 
 ### 生产环境
 ```
-用户 → CDN (Vercel) → Next.js Server → PostgreSQL → DeepSeek API
+用户 → CDN (Vercel) → Next.js Server → SQLite（当前实现）/ PostgreSQL（规划中） → DeepSeek API
                                             ↓
                                       Prisma ORM
 ```
@@ -471,7 +471,7 @@ layout.tsx (根布局)
 ### 环境变量
 ```bash
 # 必需
-DATABASE_URL=           # PostgreSQL 连接字符串
+DATABASE_URL=           # 当前默认使用 SQLite；迁移 PostgreSQL 时替换为对应连接字符串
 NEXTAUTH_SECRET=        # JWT 签名密钥
 NEXTAUTH_URL=           # 生产域名
 

@@ -66,6 +66,7 @@ export async function POST(req: Request) {
     // Verify project belongs to this workspace
     const project = await prisma.project.findFirst({
       where: { id: projectId, workspaceId: ws.workspaceId },
+      include: { brandVoice: true },
     });
     if (!project) {
       return responses.notFound(errors.projectNotFound(projectId));
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
       )
     );
 
-    const results = await generateForAllPlatforms(brief);
+    const results = await generateForAllPlatforms(brief, project.brandVoice || undefined);
 
     await Promise.all(
       results.map((r, i) => {

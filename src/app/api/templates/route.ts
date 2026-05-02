@@ -2,81 +2,86 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
-import type { AITemplate, TemplateVariable, TemplateVariableType } from "@/types";
+import { ERROR_CODES, apiError, errors, responses } from "@/lib/errors";
 
 // GET /api/templates - List all templates for the current workspace
-export async function GET(req: Request) {
+export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
 
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
-  const templates = await prisma.aITemplate.findMany({
-    where: { workspaceId: ws.workspaceId },
-    orderBy: { createdAt: "desc" },
-  });
+  try {
+    const templates = await prisma.aITemplate.findMany({
+      where: { workspaceId: ws.workspaceId },
+      orderBy: { createdAt: "desc" },
+    });
 
-  return NextResponse.json(templates);
+    return NextResponse.json(templates);
+  } catch (error) {
+    console.error("Failed to fetch templates:", error);
+    return responses.serverError(
+      apiError("api_error", ERROR_CODES.DATABASE_ERROR, "Failed to fetch templates")
+    );
+  }
 }
 
 // POST /api/templates - Create a new template
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
 
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
   const body = await req.json();
   const { name, description, template, variables } = body;
 
-  // Validation
   if (!name || typeof name !== "string" || name.trim().length === 0) {
-    return NextResponse.json(
-      { error: "Invalid input", message: "Name is required" },
-      { status: 400 }
-    );
+    return responses.badRequest(errors.invalidParam("name", "Name is required"));
   }
 
   if (!template || typeof template !== "string" || template.trim().length === 0) {
-    return NextResponse.json(
-      { error: "Invalid input", message: "Template content is required" },
-      { status: 400 }
+    return responses.badRequest(
+      errors.invalidParam("template", "Template content is required")
     );
   }
 
   if (!variables || !Array.isArray(variables)) {
-    return NextResponse.json(
-      { error: "Invalid input", message: "Variables must be an array" },
-      { status: 400 }
+    return responses.badRequest(
+      errors.invalidParam("variables", "Variables must be an array")
     );
   }
 
-  // Validate variable names (whitelist: a-z, 0-9, underscore only)
   const varNameRegex = /^[a-z0-9_]+$/;
-  for (const v of variables) {
-    if (!v.name || typeof v.name !== "string" || !varNameRegex.test(v.name)) {
-      return NextResponse.json(
-        {
-          error: "Invalid input",
-          message: `Invalid variable name "${v.name}". Only lowercase letters, numbers, and underscore are allowed.`,
-        },
-        { status: 400 }
+  for (const variable of variables) {
+    if (
+      !variable?.name ||
+      typeof variable.name !== "string" ||
+      !varNameRegex.test(variable.name)
+    ) {
+      return responses.badRequest(
+        errors.invalidParam(
+          "variables",
+          `Invalid variable name "${variable?.name}". Only lowercase letters, numbers, and underscore are allowed.`
+        )
       );
     }
-    if (!["text", "number", "textarea"].includes(v.type)) {
-      return NextResponse.json(
-        { error: "Invalid input", message: `Invalid variable type "${v.type}"` },
-        { status: 400 }
+    if (!["text", "number", "textarea"].includes(variable.type)) {
+      return responses.badRequest(
+        errors.invalidParam(
+          "variables",
+          `Invalid variable type "${variable.type}"`
+        )
       );
     }
   }
@@ -85,7 +90,7 @@ export async function POST(req: Request) {
     const newTemplate = await prisma.aITemplate.create({
       data: {
         name: name.trim(),
-        description: description?.trim() || "",
+        description: typeof description === "string" ? description.trim() : "",
         template: template.trim(),
         variables: JSON.stringify(variables),
         workspaceId: ws.workspaceId,
@@ -95,9 +100,8 @@ export async function POST(req: Request) {
     return NextResponse.json(newTemplate, { status: 201 });
   } catch (error) {
     console.error("Failed to create template:", error);
-    return NextResponse.json(
-      { error: "Failed to create template" },
-      { status: 500 }
+    return responses.serverError(
+      apiError("api_error", ERROR_CODES.DATABASE_ERROR, "Failed to create template")
     );
   }
 }

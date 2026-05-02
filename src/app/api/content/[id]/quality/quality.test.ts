@@ -121,8 +121,13 @@ describe("Content Quality API", () => {
       // Mock the AI evaluation (this would normally call OpenAI)
       // For this test, we'll mock a successful response by spying on the actual implementation
 
+      // Create a proper mock request with json() method
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
       const response = await POST(
-        {} as Request,
+        mockRequest,
         { params: Promise.resolve({ id: "pc1" }) } as any
       );
 
@@ -183,8 +188,13 @@ describe("Content Quality API", () => {
         updatedAt: new Date(),
       });
 
+      // Create a proper mock request with json() method
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
       const response = await POST(
-        {} as Request,
+        mockRequest,
         { params: Promise.resolve({ id: "pc1" }) } as any
       );
 
@@ -232,8 +242,13 @@ describe("Content Quality API", () => {
       (prisma.contentPiece.findUnique as any).mockResolvedValue(mockContent);
       (prisma.contentQuality.upsert as any).mockResolvedValue(mockExistingQuality);
 
+      // Create a proper mock request with json() method
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
       const response = await POST(
-        {} as Request,
+        mockRequest,
         { params: Promise.resolve({ id: "pc1" }) } as any
       );
 
@@ -245,8 +260,12 @@ describe("Content Quality API", () => {
     it("should return 404 if content not found", async () => {
       (prisma.contentPiece.findUnique as any).mockResolvedValue(null);
 
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
       const response = await POST(
-        {} as Request,
+        mockRequest,
         { params: Promise.resolve({ id: "nonexistent" }) } as any
       );
 
@@ -292,8 +311,13 @@ describe("Content Quality API", () => {
       });
 
       // The implementation should catch errors and return default scores
+      // Create a proper mock request with json() method
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
       const response = await POST(
-        {} as Request,
+        mockRequest,
         { params: Promise.resolve({ id: "pc1" }) } as any
       );
 
@@ -342,8 +366,13 @@ describe("Content Quality API", () => {
         updatedAt: new Date(),
       });
 
+      // Create a proper mock request with json() method
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
       const response = await POST(
-        {} as Request,
+        mockRequest,
         { params: Promise.resolve({ id: "pc1" }) } as any
       );
 
@@ -378,8 +407,13 @@ describe("Content Quality API", () => {
 
       (prisma.contentPiece.findUnique as any).mockResolvedValue(mockContent);
 
+      // Create a proper mock request with json() method
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
       const response = await POST(
-        {} as Request,
+        mockRequest,
         { params: Promise.resolve({ id: "pc1" }) } as any
       );
 
@@ -429,8 +463,13 @@ describe("Content Quality API", () => {
         updatedAt: new Date(),
       });
 
+      // Create a proper mock request with json() method
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
       const response = await POST(
-        {} as Request,
+        mockRequest,
         { params: Promise.resolve({ id: "pc1" }) } as any
       );
 
@@ -478,8 +517,13 @@ describe("Content Quality API", () => {
         updatedAt: new Date(),
       });
 
+      // Create a proper mock request with json() method
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
       const response = await POST(
-        {} as Request,
+        mockRequest,
         { params: Promise.resolve({ id: "pc1" }) } as any
       );
 
@@ -540,8 +584,13 @@ describe("Content Quality API", () => {
         updatedAt: new Date(),
       });
 
+      // Create a proper mock request with json() method
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
       const response = await POST(
-        {} as Request,
+        mockRequest,
         { params: Promise.resolve({ id: "pc1" }) } as any
       );
 
@@ -589,8 +638,13 @@ describe("Content Quality API", () => {
         updatedAt: new Date(),
       });
 
+      // Create a proper mock request with json() method
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
       const response = await POST(
-        {} as Request,
+        mockRequest,
         { params: Promise.resolve({ id: "pc1" }) } as any
       );
 

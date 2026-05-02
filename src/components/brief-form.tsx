@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import type { Platform, Brief } from "@/types";
 import { PLATFORM_CONFIG } from "@/types";
@@ -10,6 +10,8 @@ const ALL_PLATFORMS: Platform[] = ["wechat", "weibo", "xiaohongshu", "douyin"];
 
 export function BriefForm({ projectId }: { projectId?: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromOnboarding = searchParams?.get("onboarding") === "true";
   const [submitting, setSubmitting] = useState(false);
   const [topic, setTopic] = useState("");
   const [keyPoints, setKeyPoints] = useState("");
@@ -65,7 +67,18 @@ export function BriefForm({ projectId }: { projectId?: string }) {
 
     if (res.ok) {
       const result = await res.json();
-      router.push(`/content/${result.id}`);
+
+      // Save onboarding progress if coming from onboarding
+      if (fromOnboarding) {
+        await fetch("/api/user/onboarding", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ step: "brief" }),
+        });
+        router.push("/onboarding");
+      } else {
+        router.push(`/content/${result.id}`);
+      }
     } else {
       const data = await res.json();
       // Handle structured error format: { error: { type, code, message, param, doc_url } }

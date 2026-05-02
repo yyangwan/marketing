@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 export default function NewProjectPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromOnboarding = searchParams.get("onboarding") === "true";
   const [name, setName] = useState("");
   const [clientName, setClientName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,7 +26,18 @@ export default function NewProjectPage() {
     if (res.ok) {
       const project = await res.json();
       toast.success("项目已创建");
-      router.push(`/projects/${project.id}`);
+
+      // Save onboarding progress
+      if (fromOnboarding) {
+        await fetch("/api/user/onboarding", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ step: "project" }),
+        });
+        router.push("/onboarding");
+      } else {
+        router.push(`/projects/${project.id}`);
+      }
       router.refresh();
     } else {
       const data = await res.json();

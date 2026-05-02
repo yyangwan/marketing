@@ -2,32 +2,36 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { notifyContentStatus } from "@/lib/notifications/trigger";
+import { ERROR_CODES, apiError, errors, responses } from "@/lib/errors";
+
+async function findWorkspaceContent(contentId: string, workspaceId: string) {
+  return prisma.contentPiece.findFirst({
+    where: {
+      id: contentId,
+      project: { workspaceId },
+    },
+    include: { schedules: true },
+  });
+}
 
 // GET /api/content/[id]/schedule - Get schedule for a content piece
 export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
 
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
   const { id } = await context.params;
-
-  // Verify content piece exists and belongs to workspace
-  const contentPiece = await prisma.contentPiece.findFirst({
-    where: {
-      id,
-      project: { workspaceId: ws.workspaceId },
-    },
-    include: { schedules: true },
-  });
+  const contentPiece = await findWorkspaceContent(id, ws.workspaceId);
 
   if (!contentPiece) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+    return responses.notFound(errors.contentNotFound(id));
   }
 
   return NextResponse.json(contentPiece.schedules[0] || null);
@@ -37,49 +41,35 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
 export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
 
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
   const { id } = await context.params;
   const body = await req.json();
   const { scheduledAt } = body;
 
-  // Validate scheduledAt
   if (!scheduledAt) {
-    return NextResponse.json(
-      { error: "invalid_input", message: "scheduledAt is required" },
-      { status: 400 }
-    );
+    return responses.badRequest(errors.missingParam("scheduledAt"));
   }
 
   const scheduledDate = new Date(scheduledAt);
-  if (isNaN(scheduledDate.getTime())) {
-    return NextResponse.json(
-      { error: "invalid_input", message: "Invalid date format" },
-      { status: 400 }
+  if (Number.isNaN(scheduledDate.getTime())) {
+    return responses.badRequest(
+      errors.invalidParam("scheduledAt", "Invalid date format")
     );
   }
 
-  // Verify content piece exists and belongs to workspace
-  const contentPiece = await prisma.contentPiece.findFirst({
-    where: {
-      id,
-      project: { workspaceId: ws.workspaceId },
-    },
-  });
-
+  const contentPiece = await findWorkspaceContent(id, ws.workspaceId);
   if (!contentPiece) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+    return responses.notFound(errors.contentNotFound(id));
   }
 
   try {
-    // Use upsert to handle race condition - ensures atomic operation
-    // If concurrent requests create a record, one wins via unique constraint
     const schedule = await prisma.contentSchedule.upsert({
       where: { contentId: id },
       create: {
@@ -93,30 +83,18 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       },
     });
 
-    // Update content piece status
     await prisma.contentPiece.update({
       where: { id },
       data: { status: "scheduled" },
     });
 
-    // Create notification
-    await prisma.notification.create({
-      data: {
-        userId: session.user.id,
-        workspaceId: ws.workspaceId,
-        type: "schedule_reminder",
-        title: "Content scheduled",
-        message: `"${contentPiece.title}" is scheduled for ${scheduledDate.toISOString()}`,
-        link: `/content/${id}`,
-      },
-    });
+    await notifyContentStatus(id, "scheduled", ws.workspaceId);
 
     return NextResponse.json(schedule, { status: 201 });
   } catch (error) {
     console.error("Failed to create schedule:", error);
-    return NextResponse.json(
-      { error: "Failed to create schedule" },
-      { status: 500 }
+    return responses.serverError(
+      apiError("api_error", ERROR_CODES.DATABASE_ERROR, "Failed to create schedule")
     );
   }
 }
@@ -125,46 +103,36 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 export async function DELETE(req: Request, context: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
 
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
   const { id } = await context.params;
-
-  // Verify content piece exists and belongs to workspace
-  const contentPiece = await prisma.contentPiece.findFirst({
-    where: {
-      id,
-      project: { workspaceId: ws.workspaceId },
-    },
-  });
+  const contentPiece = await findWorkspaceContent(id, ws.workspaceId);
 
   if (!contentPiece) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+    return responses.notFound(errors.contentNotFound(id));
   }
 
   try {
-    // Delete schedule record
     await prisma.contentSchedule.deleteMany({
       where: { contentId: id },
     });
 
-    // Update content status back to draft
     await prisma.contentPiece.update({
       where: { id },
-      data: { status: "draft" },
+      data: { status: "approved" },
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete schedule:", error);
-    return NextResponse.json(
-      { error: "Failed to delete schedule" },
-      { status: 500 }
+    return responses.serverError(
+      apiError("api_error", ERROR_CODES.DATABASE_ERROR, "Failed to delete schedule")
     );
   }
 }

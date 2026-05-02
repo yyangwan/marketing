@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, ArrowRight } from "lucide-react";
 
 interface Member {
   id: string;
@@ -31,6 +32,9 @@ export function SettingsClient({
   members: initialMembers,
   isOwnerOrAdmin,
 }: SettingsClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromOnboarding = searchParams?.get("onboarding") === "true";
   const [name, setName] = useState(initialName);
   const [saving, setSaving] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -82,8 +86,54 @@ export function SettingsClient({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCompleteOnboarding = async () => {
+    if (fromOnboarding) {
+      await fetch("/api/user/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: "invite" }),
+      });
+      router.push("/onboarding");
+    }
+  };
+
+  const handleSkipInvite = async () => {
+    await handleCompleteOnboarding();
+  };
+
   return (
     <div className="space-y-10">
+      {/* Onboarding Banner */}
+      {fromOnboarding && (
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="font-medium text-foreground mb-1">
+                邀请团队成员（可选）
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                与团队协作，提高内容创作效率。可以现在邀请，也可以稍后在设置中添加。
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={handleSkipInvite}
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                跳过
+              </button>
+              <button
+                onClick={handleCompleteOnboarding}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+              >
+                下一步
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Section 1: Workspace Name */}
       <section>
         <h2 className="text-base font-medium text-foreground mb-3">工作空间名称</h2>

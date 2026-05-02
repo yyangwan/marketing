@@ -22,7 +22,7 @@ export default async function SettingsPage() {
   const isOwnerOrAdmin = session.user.role === "owner" || session.user.role === "admin";
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div>
       <h1 className="text-xl font-semibold text-foreground tracking-tight mb-6">
         工作空间设置
       </h1>

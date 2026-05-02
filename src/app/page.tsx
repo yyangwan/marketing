@@ -1,4 +1,5 @@
 import { KanbanBoard } from "@/components/kanban-board";
+import { OnboardingPrompt } from "@/components/onboarding-prompt";
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
         </p>
       </div>
       <KanbanBoard />
+      <OnboardingPrompt />
     </div>
   );
 }

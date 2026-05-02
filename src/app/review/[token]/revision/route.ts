@@ -53,7 +53,7 @@ export async function POST(
   // Update content piece status back to editing
   await prisma.contentPiece.update({
     where: { id: piece.id },
-    data: { status: "editing" },
+    data: { status: "revision_requested" },
   });
 
   return NextResponse.json({ success: true, action: "revision_requested" });
