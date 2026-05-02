@@ -2,17 +2,18 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { apiError, errors, ERROR_CODES, responses } from "@/lib/errors";
 
 // GET /api/analytics - Fetch analytics data for dashboard
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return responses.unauthorized();
   }
 
   const ws = getCurrentWorkspace(session);
   if (!ws) {
-    return NextResponse.json({ error: "no_workspace" }, { status: 403 });
+    return responses.forbidden(errors.noWorkspace());
   }
 
   const url = new URL(req.url);
@@ -33,9 +34,9 @@ export async function GET(req: Request) {
       publishStats,
       scheduleStats,
       recentContent,
-      teamActivity,
+      topProjectsRaw,
     ] = await Promise.all([
-      // Total content count
+      // Total content count in time range
       prisma.contentPiece.count({
         where: {
           project: { workspaceId: ws.workspaceId },
@@ -117,42 +118,36 @@ export async function GET(req: Request) {
         take: 10,
       }),
 
-      // Team activity - content created by user (if we had createdBy field)
-      // For now, return project-level activity
+      // Top projects by content count in time range
       prisma.project.findMany({
         where: { workspaceId: ws.workspaceId },
         include: {
-          _count: {
-            select: { contentPieces: true },
-          },
-        },
-        orderBy: {
           contentPieces: {
-            _count: "desc",
+            where: { createdAt: { gte: startDate } },
+            select: { id: true },
           },
         },
-        take: 5,
       }),
     ]);
 
-    // Content trend over time (daily buckets)
+    // Content trend over time (daily buckets) — SQLite compatible
     const contentTrend = await prisma.$queryRaw<Array<{ date: string; count: number }>>`
       SELECT
-        DATE(createdAt) as date,
+        SUBSTR(createdAt, 1, 10) as date,
         COUNT(*) as count
       FROM ContentPiece
       WHERE projectId IN (
         SELECT id FROM Project WHERE workspaceId = ${ws.workspaceId}
       )
-      AND DATE(createdAt) >= DATE(${startDate.toISOString()})
-      GROUP BY DATE(createdAt)
+      AND createdAt >= ${startDate.toISOString()}
+      GROUP BY SUBSTR(createdAt, 1, 10)
       ORDER BY date ASC
     `;
 
-    // Quality trend over time
+    // Quality trend over time — SQLite compatible
     const qualityTrend = await prisma.$queryRaw<Array<{ date: string; avgQuality: number }>>`
       SELECT
-        DATE(evaluatedAt) as date,
+        SUBSTR(evaluatedAt, 1, 10) as date,
         AVG(quality) as avgQuality
       FROM ContentQuality
       WHERE contentPieceId IN (
@@ -160,8 +155,8 @@ export async function GET(req: Request) {
           SELECT id FROM Project WHERE workspaceId = ${ws.workspaceId}
         )
       )
-      AND DATE(evaluatedAt) >= DATE(${startDate.toISOString()})
-      GROUP BY DATE(evaluatedAt)
+      AND evaluatedAt >= ${startDate.toISOString()}
+      GROUP BY SUBSTR(evaluatedAt, 1, 10)
       ORDER BY date ASC
     `;
 
@@ -186,6 +181,17 @@ export async function GET(req: Request) {
     // Calculate scheduled vs published
     const scheduledCount = scheduleStats.find((s) => s.status === "scheduled")?._count || 0;
     const publishedCount = scheduleStats.find((s) => s.status === "published")?._count || 0;
+
+    // Sort top projects by content count in time range
+    const topProjects = topProjectsRaw
+      .map((project) => ({
+        id: project.id,
+        name: project.name,
+        contentCount: project.contentPieces.length,
+      }))
+      .filter((p) => p.contentCount > 0)
+      .sort((a, b) => b.contentCount - a.contentCount)
+      .slice(0, 5);
 
     return NextResponse.json({
       summary: {
@@ -219,17 +225,12 @@ export async function GET(req: Request) {
         projectName: content.project.name,
         createdAt: content.createdAt,
       })),
-      topProjects: teamActivity.map((project) => ({
-        id: project.id,
-        name: project.name,
-        contentCount: project._count.contentPieces,
-      })),
+      topProjects,
     });
   } catch (error) {
     console.error("Failed to fetch analytics:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch analytics data" },
-      { status: 500 }
+    return responses.serverError(
+      apiError("api_error", ERROR_CODES.DATABASE_ERROR, "获取统计数据失败，请稍后重试")
     );
   }
 }

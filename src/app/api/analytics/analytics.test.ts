@@ -96,8 +96,8 @@ describe("Analytics API", () => {
       ]);
 
       (prisma.project.findMany as any).mockResolvedValue([
-        { id: "p1", name: "Project A", _count: { contentPieces: 25 } },
-        { id: "p2", name: "Project B", _count: { contentPieces: 17 } },
+        { id: "p1", name: "Project A", contentPieces: Array(25).fill({ id: "x" }) },
+        { id: "p2", name: "Project B", contentPieces: Array(17).fill({ id: "y" }) },
       ]);
 
       (prisma.$queryRaw as any)

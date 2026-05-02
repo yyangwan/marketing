@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   FileText,
   TrendingUp,
@@ -9,6 +10,8 @@ import {
   BarChart3,
   Calendar,
 } from "lucide-react";
+import { STATUS_COLUMNS, PLATFORM_CONFIG } from "@/types";
+import type { ContentStatus, Platform } from "@/types";
 
 interface AnalyticsData {
   summary: {
@@ -43,28 +46,22 @@ interface AnalyticsData {
   }>;
 }
 
-const PLATFORM_LABELS: Record<string, string> = {
-  wechat: "微信",
-  weibo: "微博",
-  xiaohongshu: "小红书",
-  douyin: "抖音",
-};
+// Build lookup maps from the canonical STATUS_COLUMNS and PLATFORM_CONFIG
+const STATUS_LABEL_MAP = Object.fromEntries(
+  STATUS_COLUMNS.map((s) => [s.key, s.label])
+) as Record<string, string>;
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "草稿",
-  reviewing: "审核中",
-  approved: "已通过",
-  published: "已发布",
-  scheduled: "已排期",
-};
+const STATUS_COLOR_MAP = Object.fromEntries(
+  STATUS_COLUMNS.map((s) => [s.key, s.color])
+) as Record<string, string>;
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700",
-  reviewing: "bg-yellow-100 text-yellow-700",
-  approved: "bg-blue-100 text-blue-700",
-  published: "bg-green-100 text-green-700",
-  scheduled: "bg-purple-100 text-purple-700",
-};
+const PLATFORM_LABEL_MAP = Object.fromEntries(
+  (Object.entries(PLATFORM_CONFIG) as [Platform, typeof PLATFORM_CONFIG[Platform]][]).map(
+    ([key, cfg]) => [key, cfg.label]
+  )
+) as Record<string, string>;
+
+const MAX_TREND_BARS = 14; // Limit visible bars to prevent overflow
 
 interface AnalyticsDashboardProps {
   workspaceId: string;
@@ -104,12 +101,17 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
 
   const { summary, distributions, trends, recentActivity, topProjects } = data;
 
+  // Trim trend data to max bars (keep most recent)
+  const visibleContentTrend = trends.contentOverTime.slice(-MAX_TREND_BARS);
+  const visibleQualityTrend = trends.qualityOverTime.slice(-MAX_TREND_BARS);
+
   // Calculate max values for bar charts
   const maxContentCount = Math.max(
-    ...trends.contentOverTime.map((d) => d.count),
+    ...visibleContentTrend.map((d) => d.count),
     1
   );
-  const maxQualityScore = 10;
+
+  const hasData = summary.totalContent > 0;
 
   return (
     <div className="p-6 space-y-6 overflow-auto">
@@ -130,195 +132,224 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard
-          title="内容总数"
-          value={summary.totalContent}
-          icon={FileText}
-          color="text-blue-600"
-          bgColor="bg-blue-50"
-        />
-        <SummaryCard
-          title="平均质量分"
-          value={summary.avgQualityScore.toFixed(1)}
-          icon={TrendingUp}
-          color="text-green-600"
-          bgColor="bg-green-50"
-          suffix="/10"
-        />
-        <SummaryCard
-          title="发布成功率"
-          value={`${summary.publishSuccessRate}%`}
-          icon={CheckCircle}
-          color="text-purple-600"
-          bgColor="bg-purple-50"
-        />
-        <SummaryCard
-          title="活跃项目"
-          value={topProjects.length}
-          icon={Users}
-          color="text-orange-600"
-          bgColor="bg-orange-50"
-        />
-      </div>
+      {!hasData ? (
+        <EmptyState />
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <SummaryCard
+              title="内容总数"
+              value={summary.totalContent}
+              icon={FileText}
+              color="text-blue-600"
+              bgColor="bg-blue-50"
+            />
+            <SummaryCard
+              title="平均质量分"
+              value={summary.avgQualityScore.toFixed(1)}
+              icon={TrendingUp}
+              color="text-green-600"
+              bgColor="bg-green-50"
+              suffix="/10"
+            />
+            <SummaryCard
+              title="发布成功率"
+              value={`${summary.publishSuccessRate}%`}
+              icon={CheckCircle}
+              color="text-purple-600"
+              bgColor="bg-purple-50"
+            />
+            <SummaryCard
+              title="活跃项目"
+              value={topProjects.length}
+              icon={Users}
+              color="text-orange-600"
+              bgColor="bg-orange-50"
+            />
+          </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Content Trend Chart */}
-        <ChartCard title="内容生成趋势">
-          <div className="space-y-2">
-            {trends.contentOverTime.map((item) => (
-              <div key={item.date} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-20">
-                  {formatDate(item.date)}
-                </span>
-                <div className="flex-1 h-8 bg-muted rounded overflow-hidden">
-                  <div
-                    className="h-full bg-blue-500 transition-all"
-                    style={{
-                      width: `${(item.count / maxContentCount) * 100}%`,
-                    }}
-                  />
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Content Trend Chart */}
+            <ChartCard title="内容生成趋势">
+              {visibleContentTrend.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">暂无数据</p>
+              ) : (
+                <div className="space-y-2">
+                  {visibleContentTrend.map((item) => (
+                    <div key={item.date} className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-20">
+                        {formatDate(item.date)}
+                      </span>
+                      <div className="flex-1 h-8 bg-muted rounded overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 transition-all"
+                          style={{
+                            width: `${(item.count / maxContentCount) * 100}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium w-8 text-right">
+                        {item.count}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <span className="text-sm font-medium w-8 text-right">
-                  {item.count}
-                </span>
-              </div>
-            ))}
-          </div>
-        </ChartCard>
+              )}
+            </ChartCard>
 
-        {/* Quality Trend Chart */}
-        <ChartCard title="质量评分趋势">
-          <div className="space-y-2">
-            {trends.qualityOverTime.map((item) => (
-              <div key={item.date} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-20">
-                  {formatDate(item.date)}
-                </span>
-                <div className="flex-1 h-8 bg-muted rounded overflow-hidden">
-                  <div
-                    className="h-full bg-green-500 transition-all"
-                    style={{
-                      width: `${(item.score / maxQualityScore) * 100}%`,
-                    }}
-                  />
+            {/* Quality Trend Chart */}
+            <ChartCard title="质量评分趋势">
+              {visibleQualityTrend.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">暂无数据</p>
+              ) : (
+                <div className="space-y-2">
+                  {visibleQualityTrend.map((item) => (
+                    <div key={item.date} className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-20">
+                        {formatDate(item.date)}
+                      </span>
+                      <div className="flex-1 h-8 bg-muted rounded overflow-hidden">
+                        <div
+                          className="h-full bg-green-500 transition-all"
+                          style={{
+                            width: `${(item.score / 10) * 100}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium w-8 text-right">
+                        {item.score.toFixed(1)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <span className="text-sm font-medium w-8 text-right">
-                  {item.score.toFixed(1)}
-                </span>
-              </div>
-            ))}
+              )}
+            </ChartCard>
           </div>
-        </ChartCard>
-      </div>
 
-      {/* Distribution Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Status Distribution */}
-        <ChartCard title="内容状态分布">
-          <div className="space-y-3">
-            {Object.entries(distributions.byStatus).map(([status, count]) => (
-              <div key={status} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs ${STATUS_COLORS[status] || "bg-gray-100"}`}
-                  >
-                    {STATUS_LABELS[status] || status}
-                  </span>
+          {/* Distribution Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Status Distribution */}
+            <ChartCard title="内容状态分布">
+              {Object.keys(distributions.byStatus).length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">暂无数据</p>
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(distributions.byStatus).map(([status, count]) => (
+                    <div key={status} className="flex items-center justify-between">
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs ${STATUS_COLOR_MAP[status] || "bg-gray-100 text-gray-700"}`}
+                      >
+                        {STATUS_LABEL_MAP[status] || status}
+                      </span>
+                      <span className="text-sm font-medium">{count}</span>
+                    </div>
+                  ))}
                 </div>
-                <span className="text-sm font-medium">{count}</span>
-              </div>
-            ))}
-          </div>
-        </ChartCard>
+              )}
+            </ChartCard>
 
-        {/* Platform Distribution */}
-        <ChartCard title="平台内容分布">
-          <div className="space-y-3">
-            {Object.entries(distributions.byPlatform).map(([platform, count]) => (
-              <div key={platform} className="flex items-center justify-between">
-                <span className="text-sm">
-                  {PLATFORM_LABELS[platform] || platform}
-                </span>
-                <span className="text-sm font-medium">{count}</span>
-              </div>
-            ))}
-          </div>
-        </ChartCard>
-      </div>
-
-      {/* Quality Scores Breakdown */}
-      <ChartCard title="质量评分详情">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <QualityScoreCard
-            label="内容质量"
-            score={summary.avgQualityScore}
-            color="bg-blue-500"
-          />
-          <QualityScoreCard
-            label="吸引力"
-            score={summary.avgEngagementScore}
-            color="bg-purple-500"
-          />
-          <QualityScoreCard
-            label="品牌调性"
-            score={summary.avgBrandVoiceScore}
-            color="bg-green-500"
-          />
-          <QualityScoreCard
-            label="平台适配"
-            score={summary.avgPlatformFitScore}
-            color="bg-orange-500"
-          />
-        </div>
-      </ChartCard>
-
-      {/* Recent Activity & Top Projects */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity */}
-        <ChartCard title="最近内容">
-          <div className="space-y-2">
-            {recentActivity.slice(0, 5).map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between py-2 border-b last:border-0"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {item.projectName}
-                  </p>
+            {/* Platform Distribution */}
+            <ChartCard title="平台内容分布">
+              {Object.keys(distributions.byPlatform).length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">暂无数据</p>
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(distributions.byPlatform).map(([platform, count]) => (
+                    <div key={platform} className="flex items-center justify-between">
+                      <span className="text-sm">
+                        {PLATFORM_LABEL_MAP[platform] || platform}
+                      </span>
+                      <span className="text-sm font-medium">{count}</span>
+                    </div>
+                  ))}
                 </div>
-                <span
-                  className={`px-2 py-0.5 rounded text-xs ml-2 ${STATUS_COLORS[item.status] || "bg-gray-100"}`}
-                >
-                  {STATUS_LABELS[item.status] || item.status}
-                </span>
-              </div>
-            ))}
+              )}
+            </ChartCard>
           </div>
-        </ChartCard>
 
-        {/* Top Projects */}
-        <ChartCard title="活跃项目">
-          <div className="space-y-2">
-            {topProjects.map((project) => (
-              <div
-                key={project.id}
-                className="flex items-center justify-between py-2 border-b last:border-0"
-              >
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm">{project.name}</span>
+          {/* Quality Scores Breakdown */}
+          <ChartCard title="质量评分详情">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <QualityScoreCard
+                label="内容质量"
+                score={summary.avgQualityScore}
+                color="bg-blue-500"
+              />
+              <QualityScoreCard
+                label="吸引力"
+                score={summary.avgEngagementScore}
+                color="bg-purple-500"
+              />
+              <QualityScoreCard
+                label="品牌调性"
+                score={summary.avgBrandVoiceScore}
+                color="bg-green-500"
+              />
+              <QualityScoreCard
+                label="平台适配"
+                score={summary.avgPlatformFitScore}
+                color="bg-orange-500"
+              />
+            </div>
+          </ChartCard>
+
+          {/* Recent Activity & Top Projects */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Recent Activity */}
+            <ChartCard title="最近内容">
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">暂无内容</p>
+              ) : (
+                <div className="space-y-2">
+                  {recentActivity.slice(0, 5).map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/content/${item.id}`}
+                      className="flex items-center justify-between py-2 border-b last:border-0 hover:bg-muted/50 rounded px-1 -mx-1 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{item.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.projectName}
+                        </p>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs ml-2 ${STATUS_COLOR_MAP[item.status] || "bg-gray-100 text-gray-700"}`}
+                      >
+                        {STATUS_LABEL_MAP[item.status] || item.status}
+                      </span>
+                    </Link>
+                  ))}
                 </div>
-                <span className="text-sm font-medium">{project.contentCount} 篇</span>
-              </div>
-            ))}
+              )}
+            </ChartCard>
+
+            {/* Top Projects */}
+            <ChartCard title="活跃项目">
+              {topProjects.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">暂无项目</p>
+              ) : (
+                <div className="space-y-2">
+                  {topProjects.map((project) => (
+                    <div
+                      key={project.id}
+                      className="flex items-center justify-between py-2 border-b last:border-0"
+                    >
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm">{project.name}</span>
+                      </div>
+                      <span className="text-sm font-medium">{project.contentCount} 篇</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ChartCard>
           </div>
-        </ChartCard>
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -411,6 +442,18 @@ function QualityScoreCard({
         </div>
       </div>
       <p className="text-xs text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="text-center py-16">
+      <BarChart3 className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+      <h3 className="text-lg font-medium text-muted-foreground">暂无统计数据</h3>
+      <p className="text-sm text-muted-foreground/70 mt-1">
+        开始创建内容后，数据统计将自动生成
+      </p>
     </div>
   );
 }
