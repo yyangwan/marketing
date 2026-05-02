@@ -145,12 +145,13 @@ export async function GET(req: Request) {
     `;
 
     // Quality trend over time — SQLite compatible
+    // Note: ContentPieceId column is mapped to "ContentQuality_contentPieceId_key" in SQLite
     const qualityTrend = await prisma.$queryRaw<Array<{ date: string; avgQuality: number }>>`
       SELECT
         SUBSTR(evaluatedAt, 1, 10) as date,
         AVG(quality) as avgQuality
       FROM ContentQuality
-      WHERE contentPieceId IN (
+      WHERE "ContentQuality_contentPieceId_key" IN (
         SELECT id FROM ContentPiece WHERE projectId IN (
           SELECT id FROM Project WHERE workspaceId = ${ws.workspaceId}
         )

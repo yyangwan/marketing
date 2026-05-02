@@ -70,6 +70,7 @@ interface AnalyticsDashboardProps {
 export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState("30"); // days
 
   useEffect(() => {
@@ -78,26 +79,47 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
 
   const fetchAnalytics = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch(`/api/analytics?timeRange=${timeRange}`);
       if (response.ok) {
         const result = await response.json();
         setData(result);
+      } else if (response.status === 401) {
+        setError("请先登录");
+      } else {
+        setError("加载失败，请稍后重试");
       }
-    } catch (error) {
-      console.error("Failed to fetch analytics:", error);
+    } catch {
+      setError("网络错误，请检查连接");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-muted-foreground">加载中...</div>
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <p className="text-muted-foreground">{error}</p>
+        <button
+          onClick={fetchAnalytics}
+          className="px-4 py-2 text-sm border rounded-md hover:bg-secondary transition-colors"
+        >
+          重试
+        </button>
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   const { summary, distributions, trends, recentActivity, topProjects } = data;
 
