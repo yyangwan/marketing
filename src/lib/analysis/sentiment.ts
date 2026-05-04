@@ -214,7 +214,7 @@ export function analyzeSentiment(text: string): SentimentAnalysis {
   }
 
   let totalScore = 0;
-  let emotionCounts: Record<string, number> = {
+  const emotionCounts: Record<string, number> = {
     joy: 0,
     sadness: 0,
     anger: 0,
@@ -303,7 +303,7 @@ export function analyzeEmotions(text: string): EmotionBreakdown {
     };
   }
 
-  let emotionCounts: Record<string, number> = {
+  const emotionCounts: Record<string, number> = {
     joy: 0,
     sadness: 0,
     anger: 0,

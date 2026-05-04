@@ -1,7 +1,7 @@
 import type { Brief, BrandVoice } from "@/types";
 
 export function buildXiaohongshuPrompt(brief: Brief, brandVoice?: BrandVoice): string {
-  let prompt = `你是一位专业的小红书种草博主。请根据以下简报，撰写一篇高质量的小红书笔记。
+  const prompt = `你是一位专业的小红书种草博主。请根据以下简报，撰写一篇高质量的小红书笔记。
 
 ## 简报信息
 - 主题：${brief.topic}

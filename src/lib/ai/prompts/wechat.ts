@@ -1,7 +1,7 @@
 import type { Brief, BrandVoice } from "@/types";
 
 export function buildWeChatPrompt(brief: Brief, brandVoice?: BrandVoice): string {
-  let prompt = `你是一位专业的微信公众号内容创作者。请根据以下简报，撰写一篇高质量的微信公众号长文章。
+  const prompt = `你是一位专业的微信公众号内容创作者。请根据以下简报，撰写一篇高质量的微信公众号长文章。
 
 ## 简报信息
 - 主题：${brief.topic}

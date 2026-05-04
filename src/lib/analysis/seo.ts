@@ -115,7 +115,7 @@ export function analyzeImages(content: string): ImageAnalysis {
   const imgRegex = /<img[^>]*>/gi;
   const images = [...content.matchAll(imgRegex)];
 
-  let totalImages = images.length;
+  const totalImages = images.length;
   let imagesWithAlt = 0;
   let imagesWithoutAlt = 0;
 

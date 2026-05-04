@@ -1,7 +1,7 @@
 import type { Brief, BrandVoice } from "@/types";
 
 export function buildDouyinPrompt(brief: Brief, brandVoice?: BrandVoice): string {
-  let prompt = `你是一位专业的抖音短视频脚本创作者。请根据以下简报，撰写一份抖音短视频脚本。
+  const prompt = `你是一位专业的抖音短视频脚本创作者。请根据以下简报，撰写一份抖音短视频脚本。
 
 ## 简报信息
 - 主题：${brief.topic}

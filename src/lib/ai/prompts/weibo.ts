@@ -1,7 +1,7 @@
 import type { Brief, BrandVoice } from "@/types";
 
 export function buildWeiboPrompt(brief: Brief, brandVoice?: BrandVoice): string {
-  let prompt = `你是一位专业的微博内容创作者。请根据以下简报，撰写一条微博帖子。
+  const prompt = `你是一位专业的微博内容创作者。请根据以下简报，撰写一条微博帖子。
 
 ## 简报信息
 - 主题：${brief.topic}
