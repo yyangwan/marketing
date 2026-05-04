@@ -115,7 +115,9 @@
       "Bash(bun dev:*)",
       "Bash(cmd //c \"taskkill /PID 75412 /F\")",
       "Bash(cat src/app/api/content/[id]/optimize-seo/route.ts)",
-      "Bash(bun prisma:*)"
+      "Bash(bun prisma:*)",
+      "Bash(./node_modules/.bin/tsc --noEmit --pretty)",
+      "Bash(./node_modules/.bin/vitest run:*)"
     ]
   }
 }

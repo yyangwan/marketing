@@ -159,3 +159,48 @@
     @apply font-sans;
   }
 }
+
+/* react-big-calendar overrides to match design system */
+.rbc-toolbar button {
+  @apply border-border text-muted-foreground rounded-md text-sm;
+}
+.rbc-toolbar button:hover {
+  @apply bg-secondary text-foreground;
+}
+.rbc-toolbar button.rbc-active {
+  @apply bg-primary text-primary-foreground border-primary;
+}
+.rbc-toolbar button:focus {
+  @apply outline-ring/50;
+}
+.rbc-header {
+  @apply border-b border-border py-2 text-xs font-medium text-muted-foreground;
+}
+.rbc-today {
+  @apply bg-primary/5;
+}
+.rbc-off-range-bg {
+  @apply bg-muted/50;
+}
+.rbc-event {
+  @apply rounded-sm text-xs;
+}
+.rbc-day-bg + .rbc-day-bg,
+.rbc-month-row + .rbc-month-row,
+.rbc-header + .rbc-header {
+  @apply border-border;
+}
+.rbc-month-view,
+.rbc-time-view {
+  @apply border-border;
+}
+.rbc-agenda-view table.rbc-agenda-table,
+.rbc-time-content {
+  @apply border-border;
+}
+.rbc-date-cell {
+  @apply text-sm text-muted-foreground;
+}
+.rbc-date-cell a {
+  @apply text-inherit no-underline;
+}

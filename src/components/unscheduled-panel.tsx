@@ -48,7 +48,7 @@ export default function UnscheduledPanel({
   const fetchUnscheduledContent = async () => {
     try {
       const response = await fetch(
-        `/api/content?workspaceId=${workspaceId}&status=draft&unscheduled=true`
+        `/api/content?unscheduled=true`
       );
       if (response.ok) {
         const data = await response.json();
@@ -87,13 +87,13 @@ export default function UnscheduledPanel({
   };
 
   return (
-    <div className="bg-gray-50 p-4 space-y-3 overflow-y-auto">
-      <h3 className="font-semibold text-sm text-gray-700">
+    <div className="p-4 space-y-3 overflow-y-auto">
+      <h3 className="font-semibold text-sm text-foreground">
         未排期 ({unscheduledItems.length})
       </h3>
 
       {unscheduledItems.length === 0 ? (
-        <p className="text-sm text-gray-500 italic">暂无未排期内容</p>
+        <p className="text-sm text-muted-foreground italic">暂无未排期内容</p>
       ) : (
         <div className="space-y-2">
           {unscheduledItems.map((item) => (
@@ -101,17 +101,17 @@ export default function UnscheduledPanel({
               key={item.id}
               draggable
               onDragStart={(e) => handleDragStart(e, item.id)}
-              className="p-2 bg-white rounded border hover:shadow-sm transition-shadow cursor-move"
+              className="p-2.5 bg-card rounded-md border border-border hover:shadow-sm transition-shadow cursor-move"
             >
               <div className="flex items-start gap-2">
                 <span className="text-lg">{getPlatformIcon(item.platform)}</span>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium truncate">{item.title}</h4>
-                  <p className="text-xs text-gray-500">{item.type}</p>
+                  <h4 className="text-sm font-medium text-foreground truncate">{item.title}</h4>
+                  <p className="text-xs text-muted-foreground">{item.type}</p>
                 </div>
                 <button
                   onClick={() => handleScheduleClick(item.id)}
-                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
                 >
                   排期
                 </button>

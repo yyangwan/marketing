@@ -56,6 +56,7 @@ export default function CalendarClient({
   workspaceId,
 }: CalendarClientProps) {
   const [currentView, setCurrentView] = useState<"month" | "week" | "day">(initialView);
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
   const [filterProject, setFilterProject] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -114,9 +115,8 @@ export default function CalendarClient({
   const fetchScheduledContent = useCallback(async () => {
     try {
       setLoading(true);
-      const today = new Date();
       const range =
-        currentView === "month" ? getMonthRange(today) : getWeekRange(today);
+        currentView === "month" ? getMonthRange(currentDate) : getWeekRange(currentDate);
 
       const params = new URLSearchParams({
         start: range.start.toISOString(),
@@ -154,13 +154,17 @@ export default function CalendarClient({
     } finally {
       setLoading(false);
     }
-  }, [currentView, filterProject, filterStatus]);
+  }, [currentView, currentDate, filterProject, filterStatus]);
 
   useEffect(() => {
     fetchScheduledContent();
   }, [fetchScheduledContent]);
 
-  const handleNavigate = useCallback(() => {
+  const handleNavigate = useCallback((date: Date) => {
+    setCurrentDate(date);
+  }, []);
+
+  const refreshEvents = useCallback(() => {
     fetchScheduledContent();
   }, [fetchScheduledContent]);
 
@@ -191,7 +195,7 @@ export default function CalendarClient({
 
       if (response.ok) {
         // Refresh events
-        handleNavigate();
+        refreshEvents();
         // Trigger immediate refresh of unscheduled panel
         window.dispatchEvent(new CustomEvent(CUSTOM_EVENTS.UNSCHEDULED_REFRESH));
         setIsDialogOpen(false);
@@ -217,13 +221,13 @@ export default function CalendarClient({
   return (
     <div className="h-full flex flex-col">
       {/* Header with filters */}
-      <div className="border-b bg-white p-4 flex gap-4 flex-wrap">
-        <div className="min-w-[160px]">
-          <label className="block text-sm text-gray-600 mb-1">项目</label>
+      <div className="border-b border-border bg-card px-4 py-3 flex gap-4 flex-wrap items-end">
+        <div className="min-w-[140px]">
+          <label className="block text-xs text-muted-foreground mb-1">项目</label>
           <select
             value={filterProject}
             onChange={(e) => setFilterProject(e.target.value)}
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="w-full h-7 px-2 rounded-md border border-border bg-background text-sm text-foreground outline-none focus:border-ring"
           >
             <option value="">全部项目</option>
             {projects.map((p) => (
@@ -232,12 +236,12 @@ export default function CalendarClient({
           </select>
         </div>
 
-        <div className="min-w-[160px]">
-          <label className="block text-sm text-gray-600 mb-1">状态</label>
+        <div className="min-w-[140px]">
+          <label className="block text-xs text-muted-foreground mb-1">状态</label>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="w-full h-7 px-2 rounded-md border border-border bg-background text-sm text-foreground outline-none focus:border-ring"
           >
             <option value="">全部状态</option>
             <option value="scheduled">已排期</option>
@@ -248,16 +252,16 @@ export default function CalendarClient({
         </div>
 
         <div>
-          <label className="block text-sm text-gray-600 mb-1">视图</label>
-          <div className="flex gap-1">
+          <label className="block text-xs text-muted-foreground mb-1">视图</label>
+          <div className="flex gap-0.5 bg-secondary rounded-md p-0.5">
             {(["month", "week", "day"] as const).map((view) => (
               <button
                 key={view}
                 onClick={() => setCurrentView(view)}
-                className={`px-3 py-1 text-sm rounded ${
+                className={`px-3 py-1 text-sm rounded-sm transition-colors ${
                   currentView === view
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-100"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {view === "month" ? "月" : view === "week" ? "周" : "日"}
@@ -266,19 +270,19 @@ export default function CalendarClient({
           </div>
         </div>
 
-        <div className="ml-auto text-sm text-gray-500">
+        <div className="ml-auto text-xs text-muted-foreground self-end pb-1">
           {events.length} 个日程
         </div>
       </div>
 
       {/* Calendar */}
-      <div className="flex-1 p-2 sm:p-4 bg-gray-50" style={{ minHeight: "500px" }}>
+      <div className="flex-1 p-3 min-h-0 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500">加载日历中...</p>
+            <p className="text-sm text-muted-foreground">加载日历中...</p>
           </div>
         ) : (
-          <div className="bg-white rounded shadow p-2 sm:p-4" style={{ height: "600px" }}>
+          <div className="bg-card border border-border rounded-lg p-2 sm:p-3 h-full flex flex-col">
             <DnDCalendar
               localizer={localizer}
               events={events}
@@ -300,7 +304,7 @@ export default function CalendarClient({
                   });
 
                   if (response.ok) {
-                    handleNavigate();
+                    refreshEvents();
                   } else {
                     console.error("Failed to update schedule:", response.status);
                     toast.error("Failed to update schedule");
@@ -328,7 +332,7 @@ export default function CalendarClient({
                   });
 
                   if (response.ok) {
-                    handleNavigate();
+                    refreshEvents();
                     // Dispatch custom event to refresh unscheduled panel immediately
                     window.dispatchEvent(new CustomEvent(CUSTOM_EVENTS.UNSCHEDULED_REFRESH));
                   } else {
@@ -340,7 +344,7 @@ export default function CalendarClient({
                   toast.error("Failed to schedule content");
                 }
               }}
-              defaultDate={new Date()}
+              date={currentDate}
               views={["month", "week", "day"]}
               defaultView={currentView}
               step={60}
@@ -350,7 +354,7 @@ export default function CalendarClient({
               draggableAccessor={() => true}
               resizable
               selectable
-              style={{ height: 600 }}
+              style={{ flex: 1, minHeight: 0 }}
               components={{
                 event: (eventProps: any) => {
                   const handleClick = (e: React.MouseEvent) => {
@@ -398,10 +402,10 @@ export default function CalendarClient({
 
           {selectedEvent && (
             <div className="py-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-foreground">
                 <strong>{selectedEvent.title}</strong>
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground mt-1">
                 {new Date(selectedEvent.start).toLocaleString("zh-CN")}
               </p>
             </div>
@@ -411,7 +415,7 @@ export default function CalendarClient({
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               取消
             </Button>
-            <Button variant="default" onClick={handleUnschedule} className="bg-red-500 hover:bg-red-600">
+            <Button variant="destructive" onClick={handleUnschedule}>
               取消排期
             </Button>
             <Button variant="default" onClick={handleOpenDetails}>

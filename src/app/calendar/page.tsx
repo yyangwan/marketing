@@ -17,22 +17,25 @@ export default async function CalendarPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      <header className="border-b p-4">
-        <h1 className="text-2xl font-bold">Content Calendar</h1>
-      </header>
+    <div className="flex flex-col h-full">
+      <div className="px-6 py-4 border-b border-border bg-card">
+        <h1 className="text-xl font-semibold text-foreground tracking-tight">内容日历</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          拖拽排期、管理发布计划
+        </p>
+      </div>
 
-      <main className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Calendar component */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
           <CalendarClient workspaceId={ws.workspaceId} />
         </div>
 
         {/* Unscheduled sidebar */}
-        <div className="w-80 border-l">
+        <div className="w-72 border-l border-border">
           <UnscheduledPanel workspaceId={ws.workspaceId} />
         </div>
-      </main>
+      </div>
     </div>
   );
 }
