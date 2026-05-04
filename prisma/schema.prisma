@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
@@ -86,7 +86,7 @@ model ContentPiece {
   brandVoiceId     String?           // Brand voice used for this content
   brandVoice       BrandVoice?       @relation("ContentPieceBrandVoice", fields: [brandVoiceId], references: [id], onDelete: Restrict)
   status           String            @default("draft")
-  reviewToken      String?           @unique @map("ContentPiece_reviewToken_key")
+  reviewToken      String?           @unique
   reviewExpiresAt  DateTime?
   platformContents PlatformContent[]
   reviewComments   ReviewComment[]
@@ -154,7 +154,7 @@ model AITemplate {
 // Phase 1C: Content Quality Metrics
 model ContentQuality {
   id               String   @id @default(cuid())
-  contentPieceId   String   @unique @map("ContentQuality_contentPieceId_key")
+  contentPieceId   String   @unique
   contentPiece     ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
 
   // AI scores (0-10)

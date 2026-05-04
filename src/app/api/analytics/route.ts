@@ -130,34 +130,33 @@ export async function GET(req: Request) {
       }),
     ]);
 
-    // Content trend over time (daily buckets) — SQLite compatible
+    // Content trend over time (daily buckets)
     const contentTrend = await prisma.$queryRaw<Array<{ date: string; count: number }>>`
       SELECT
-        SUBSTR(createdAt, 1, 10) as date,
+        TO_CHAR("createdAt", 'YYYY-MM-DD') as date,
         COUNT(*) as count
-      FROM ContentPiece
-      WHERE projectId IN (
-        SELECT id FROM Project WHERE workspaceId = ${ws.workspaceId}
+      FROM "ContentPiece"
+      WHERE "projectId" IN (
+        SELECT id FROM "Project" WHERE "workspaceId" = ${ws.workspaceId}
       )
-      AND createdAt >= ${startDate.toISOString()}
-      GROUP BY SUBSTR(createdAt, 1, 10)
+      AND "createdAt" >= ${startDate}
+      GROUP BY TO_CHAR("createdAt", 'YYYY-MM-DD')
       ORDER BY date ASC
     `;
 
-    // Quality trend over time — SQLite compatible
-    // Note: ContentPieceId column is mapped to "ContentQuality_contentPieceId_key" in SQLite
+    // Quality trend over time
     const qualityTrend = await prisma.$queryRaw<Array<{ date: string; avgQuality: number }>>`
       SELECT
-        SUBSTR(evaluatedAt, 1, 10) as date,
-        AVG(quality) as avgQuality
-      FROM ContentQuality
-      WHERE "ContentQuality_contentPieceId_key" IN (
-        SELECT id FROM ContentPiece WHERE projectId IN (
-          SELECT id FROM Project WHERE workspaceId = ${ws.workspaceId}
+        TO_CHAR("evaluatedAt", 'YYYY-MM-DD') as date,
+        AVG(quality) as "avgQuality"
+      FROM "ContentQuality"
+      WHERE "contentPieceId" IN (
+        SELECT id FROM "ContentPiece" WHERE "projectId" IN (
+          SELECT id FROM "Project" WHERE "workspaceId" = ${ws.workspaceId}
         )
       )
-      AND evaluatedAt >= ${startDate.toISOString()}
-      GROUP BY SUBSTR(evaluatedAt, 1, 10)
+      AND "evaluatedAt" >= ${startDate}
+      GROUP BY TO_CHAR("evaluatedAt", 'YYYY-MM-DD')
       ORDER BY date ASC
     `;
 
