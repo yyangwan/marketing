@@ -57,7 +57,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { projectId, ...briefData } = body;
+    const { projectId, brandVoiceId, ...briefData } = body;
 
     if (!projectId) {
       return responses.badRequest(errors.missingParam("projectId"));
@@ -78,7 +78,19 @@ export async function POST(req: Request) {
       platforms: briefData.platforms || ["wechat"],
       references: briefData.references || "",
       notes: briefData.notes || "",
+      brandVoiceId: brandVoiceId || undefined,
     };
+
+    // Resolve brand voice: user-selected > project default
+    let effectiveBrandVoice = project.brandVoice || undefined;
+    if (brandVoiceId) {
+      const selectedVoice = await prisma.brandVoice.findFirst({
+        where: { id: brandVoiceId, workspaceId: ws.workspaceId },
+      });
+      if (selectedVoice) {
+        effectiveBrandVoice = selectedVoice;
+      }
+    }
 
     const piece = await prisma.contentPiece.create({
       data: {
@@ -87,6 +99,7 @@ export async function POST(req: Request) {
         type: "blog_post",
         brief: JSON.stringify(brief),
         status: "draft",
+        brandVoiceId: effectiveBrandVoice?.id || null,
       },
     });
 
@@ -103,7 +116,7 @@ export async function POST(req: Request) {
       )
     );
 
-    const results = await generateForAllPlatforms(brief, project.brandVoice || undefined);
+    const results = await generateForAllPlatforms(brief, effectiveBrandVoice);
 
     await Promise.all(
       results.map((r, i) => {

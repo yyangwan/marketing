@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { ContentStatus, Platform } from "@/types";
 import { STATUS_COLUMNS, PLATFORM_CONFIG } from "@/types";
 import { Link as LinkIcon, MessageSquare, CheckCircle, AlertCircle } from "lucide-react";
+import { normalizeContentStatus } from "@/lib/content-status";
+import { getNextStatusActions } from "@/lib/content-workflow";
 
 interface ReviewAction {
   action: string;
@@ -29,19 +31,21 @@ interface CardProps {
 
 export function KanbanCard({ piece, onStatusChange, showProject }: CardProps) {
   const platforms = piece.platformContents.map((pc) => pc.platform as Platform);
-  const statusConfig = STATUS_COLUMNS.find((s) => s.key === piece.status);
+  const currentStatus = normalizeContentStatus(piece.status) ?? "draft";
+  const statusConfig = STATUS_COLUMNS.find((s) => s.key === currentStatus);
+  const nextStatusActions = getNextStatusActions(currentStatus);
   const hasReviewLink = !!piece.reviewToken;
   const lastAction = piece._lastReviewAction;
 
   return (
-    <div className="bg-card rounded-lg border border-border p-3 shadow-sm hover:shadow-md transition-shadow duration-100 group">
+    <div className="group rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow duration-100 hover:shadow-md">
       {showProject && piece.project?.name && (
-        <p className="text-xs text-secondary mb-1">{piece.project.name}</p>
+        <p className="mb-1 truncate text-xs text-secondary">{piece.project.name}</p>
       )}
-      <div className="flex items-start justify-between gap-2 mb-2">
+      <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
         <Link
           href={`/content/${piece.id}`}
-          className="text-sm font-medium text-foreground hover:text-primary line-clamp-2 transition-colors duration-100"
+          className="min-w-0 flex-1 text-sm font-medium text-foreground transition-colors duration-100 hover:text-primary line-clamp-2"
         >
           {piece.title}
         </Link>
@@ -65,7 +69,7 @@ export function KanbanCard({ piece, onStatusChange, showProject }: CardProps) {
 
       {/* Review status indicators */}
       {hasReviewLink && (
-        <div className="flex items-center gap-2 mb-2 text-xs">
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
           {lastAction ? (
             lastAction.action === "approved" ? (
               <span className="flex items-center gap-1 text-green-600">
@@ -93,17 +97,26 @@ export function KanbanCard({ piece, onStatusChange, showProject }: CardProps) {
         </div>
       )}
 
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-100">
-        {STATUS_COLUMNS.filter((s) => s.key !== piece.status).map((s) => (
-          <button
-            key={s.key}
-            onClick={() => onStatusChange(piece.id, s.key)}
-            className="text-xs px-1.5 py-0.5 rounded-md border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors duration-100"
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
+      {nextStatusActions.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/70 pt-3 opacity-100 transition-opacity duration-100 sm:opacity-0 sm:group-hover:opacity-100">
+          {nextStatusActions.map((status) => {
+            const option = STATUS_COLUMNS.find((s) => s.key === status);
+            if (!option) {
+              return null;
+            }
+
+            return (
+              <button
+                key={option.key}
+                onClick={() => onStatusChange(piece.id, option.key)}
+                className="min-w-0 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors duration-100 hover:bg-secondary hover:text-foreground"
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

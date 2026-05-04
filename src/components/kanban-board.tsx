@@ -68,16 +68,20 @@ export function KanbanBoard({ projectId }: { projectId?: string | null }) {
   }
 
   return (
-    <div className="flex gap-4 p-4 h-full overflow-x-auto">
-      {STATUS_COLUMNS.map((col) => {
+    <div className="h-full min-w-0 overflow-y-auto">
+      <div className="grid content-start gap-4 p-4 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
+        {STATUS_COLUMNS.map((col) => {
         const items = pieces.filter((p) => p.status === col.key);
         return (
-          <div key={col.key} className="flex-1 min-w-[220px]">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium text-foreground/70">{col.label}</h2>
-              <span className="text-xs text-muted-foreground">{items.length}</span>
+          <section
+            key={col.key}
+            className="min-w-0 self-start rounded-xl border border-border/70 bg-muted/20 p-3"
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="truncate text-sm font-medium text-foreground/70">{col.label}</h2>
+              <span className="shrink-0 text-xs text-muted-foreground">{items.length}</span>
             </div>
-            <div className="space-y-2 min-h-[200px]">
+            <div className="min-h-[140px] space-y-2">
               {items.map((piece) => (
                 <KanbanCard
                   key={piece.id}
@@ -92,9 +96,10 @@ export function KanbanBoard({ projectId }: { projectId?: string | null }) {
                 </div>
               )}
             </div>
-          </div>
+          </section>
         );
-      })}
+        })}
+      </div>
     </div>
   );
 }

@@ -4,26 +4,47 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth/config";
+import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { prisma } from "@/lib/db";
 import { fetchURL, analyzeContent } from "@/lib/genie";
+import { apiError, errors, responses } from "@/lib/errors";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
+
+async function findWorkspaceSource(id: string, workspaceId: string) {
+  return prisma.genieSource.findFirst({
+    where: { id, workspaceId },
+  });
+}
+
+function sourceNotFoundError() {
+  return apiError("not_found_error", "source_not_found", "Source not found");
+}
 
 /**
  * GET /api/genie/sources/[id] - Get a single source
  */
 export async function GET(request: NextRequest, routeContext: RouteContext) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return responses.unauthorized();
+    }
+
+    const ws = getCurrentWorkspace(session);
+    if (!ws) {
+      return responses.forbidden(errors.noWorkspace());
+    }
+
     const { id } = await routeContext.params;
 
-    const source = await prisma.genieSource.findUnique({
-      where: { id },
-    });
+    const source = await findWorkspaceSource(id, ws.workspaceId);
 
     if (!source) {
-      return NextResponse.json({ error: "Source not found" }, { status: 404 });
+      return responses.notFound(sourceNotFoundError());
     }
 
     // Parse JSON fields
@@ -50,11 +71,26 @@ export async function GET(request: NextRequest, routeContext: RouteContext) {
  */
 export async function PUT(request: NextRequest, routeContext: RouteContext) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return responses.unauthorized();
+    }
+
+    const ws = getCurrentWorkspace(session);
+    if (!ws) {
+      return responses.forbidden(errors.noWorkspace());
+    }
+
     const { id } = await routeContext.params;
     const body = await request.json();
     const { enabled } = body;
 
-    const source = await prisma.genieSource.update({
+    const source = await findWorkspaceSource(id, ws.workspaceId);
+    if (!source) {
+      return responses.notFound(sourceNotFoundError());
+    }
+
+    const updatedSource = await prisma.genieSource.update({
       where: { id },
       data: {
         ...(enabled !== undefined && { enabled }),
@@ -62,7 +98,7 @@ export async function PUT(request: NextRequest, routeContext: RouteContext) {
       },
     });
 
-    return NextResponse.json({ source });
+    return NextResponse.json({ source: updatedSource });
   } catch (e) {
     console.error("Failed to update Genie source:", e);
 
@@ -82,7 +118,22 @@ export async function PUT(request: NextRequest, routeContext: RouteContext) {
  */
 export async function DELETE(request: NextRequest, routeContext: RouteContext) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return responses.unauthorized();
+    }
+
+    const ws = getCurrentWorkspace(session);
+    if (!ws) {
+      return responses.forbidden(errors.noWorkspace());
+    }
+
     const { id } = await routeContext.params;
+
+    const source = await findWorkspaceSource(id, ws.workspaceId);
+    if (!source) {
+      return responses.notFound(sourceNotFoundError());
+    }
 
     await prisma.genieSource.delete({
       where: { id },
@@ -111,14 +162,22 @@ export async function POST(
   routeContext: RouteContext
 ) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return responses.unauthorized();
+    }
+
+    const ws = getCurrentWorkspace(session);
+    if (!ws) {
+      return responses.forbidden(errors.noWorkspace());
+    }
+
     const { id } = await routeContext.params;
 
-    const source = await prisma.genieSource.findUnique({
-      where: { id },
-    });
+    const source = await findWorkspaceSource(id, ws.workspaceId);
 
     if (!source) {
-      return NextResponse.json({ error: "Source not found" }, { status: 404 });
+      return responses.notFound(sourceNotFoundError());
     }
 
     // Re-fetch and analyze

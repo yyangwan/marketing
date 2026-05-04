@@ -43,6 +43,16 @@ export async function GET(
   }
 
   const { id } = await params;
+  const requestUrl = req.url || "http://localhost";
+  const { searchParams } = new URL(requestUrl);
+  const platform = searchParams.get("platform");
+
+  if (platform && !["wechat", "weibo", "xiaohongshu", "douyin"].includes(platform)) {
+    return NextResponse.json(
+      { error: "Invalid platform. Must be wechat, weibo, xiaohongshu, or douyin" },
+      { status: 400 }
+    );
+  }
 
   // Find content piece and verify workspace access
   const piece = await prisma.contentPiece.findUnique({
@@ -57,8 +67,10 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Get the first platform content for analysis
-  const platformContent = piece.platformContents[0];
+  // Prefer the requested platform; fall back to the first available platform content.
+  const platformContent = platform
+    ? piece.platformContents.find((item) => item.platform === platform) || piece.platformContents[0]
+    : piece.platformContents[0];
   if (!platformContent || !platformContent.content) {
     return NextResponse.json(
       {

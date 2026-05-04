@@ -4,46 +4,57 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth/config";
+import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { prisma } from "@/lib/db";
 import {
   generateContentIdeasFromSources,
   ideasToContentPieces,
 } from "@/lib/genie/generator";
+import { errors, responses } from "@/lib/errors";
 
 /**
  * POST /api/genie/generate - Generate content ideas from sources
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { workspaceId, projectId, count = 5, platforms } = body;
+    const session = await auth();
+    if (!session?.user?.id) {
+      return responses.unauthorized();
+    }
 
-    if (!workspaceId || !projectId) {
-      return NextResponse.json(
-        { error: "workspaceId and projectId are required" },
-        { status: 400 }
-      );
+    const ws = getCurrentWorkspace(session);
+    if (!ws) {
+      return responses.forbidden(errors.noWorkspace());
+    }
+
+    const body = await request.json();
+    const { workspaceId: requestedWorkspaceId, projectId, count = 5, platforms } = body;
+
+    if (requestedWorkspaceId && requestedWorkspaceId !== ws.workspaceId) {
+      return responses.forbidden(errors.workspaceMismatch());
+    }
+
+    if (!projectId) {
+      return responses.badRequest(errors.missingParam("projectId"));
     }
 
     // Validate project exists and belongs to workspace
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
-        workspaceId,
+        workspaceId: ws.workspaceId,
       },
     });
 
     if (!project) {
-      return NextResponse.json(
-        { error: "Project not found in workspace" },
-        { status: 404 }
-      );
+      return responses.notFound(errors.projectNotFound(projectId));
     }
 
     // Fetch all enabled Genie sources for the workspace
     const sources = await prisma.genieSource.findMany({
       where: {
-        workspaceId,
+        workspaceId: ws.workspaceId,
         enabled: true,
         lastAnalyzedAt: { not: null }, // Only use analyzed sources
       },
@@ -129,14 +140,32 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return responses.unauthorized();
+    }
+
+    const ws = getCurrentWorkspace(session);
+    if (!ws) {
+      return responses.forbidden(errors.noWorkspace());
+    }
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
 
     if (!projectId) {
-      return NextResponse.json(
-        { error: "projectId is required" },
-        { status: 400 }
-      );
+      return responses.badRequest(errors.missingParam("projectId"));
+    }
+
+    const project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        workspaceId: ws.workspaceId,
+      },
+    });
+
+    if (!project) {
+      return responses.notFound(errors.projectNotFound(projectId));
     }
 
     // Fetch all genie_draft content pieces for this project
@@ -144,6 +173,9 @@ export async function GET(request: NextRequest) {
       where: {
         projectId,
         status: "genie_draft",
+        project: {
+          workspaceId: ws.workspaceId,
+        },
       },
       orderBy: {
         createdAt: "desc",

@@ -107,7 +107,11 @@ export function calculateFleschReadingEase(text: string): ReadabilityResult {
 
 /**
  * Calculate readability for Chinese text
- * Uses character and sentence counts as proxies
+ * Multi-factor approach:
+ * 1. Average sentence length (primary factor)
+ * 2. Punctuation density (comma-to-period ratio — more commas = longer clauses)
+ * 3. Sentence length variance (variety is good, monotone is not)
+ * 4. Short vs long sentence balance
  */
 export interface ChineseReadabilityResult {
   score: number;  // 0-100
@@ -129,20 +133,75 @@ export function calculateChineseReadability(text: string): ChineseReadabilityRes
   const characters = cleanText.replace(/\s+/g, "");
   const characterCount = characters.length;
 
-  // Average sentence length
+  // --- Factor 1: Average sentence length (0-40 pts) ---
+  const sentenceLengths = sentences.map((s) => s.replace(/\s+/g, "").length);
   const averageSentenceLength = characterCount / sentenceCount;
 
-  // Simple scoring based on sentence length
-  // Shorter sentences are easier to read
-  let score = 100;
-  if (averageSentenceLength > 30) score -= 20;
-  if (averageSentenceLength > 50) score -= 20;
-  if (averageSentenceLength > 70) score -= 20;
-  if (averageSentenceLength > 100) score -= 20;
+  let lengthScore = 40;
+  if (averageSentenceLength > 30) lengthScore -= 8;
+  if (averageSentenceLength > 40) lengthScore -= 8;
+  if (averageSentenceLength > 50) lengthScore -= 8;
+  if (averageSentenceLength > 70) lengthScore -= 8;
+  if (averageSentenceLength > 100) lengthScore -= 8;
+  // Very short sentences might indicate fragmentation
+  if (averageSentenceLength < 5) lengthScore -= 6;
+  lengthScore = Math.max(0, lengthScore);
 
-  // Penalty for very short sentences (might be fragmented)
-  if (averageSentenceLength < 5) score -= 10;
+  // --- Factor 2: Punctuation density (0-20 pts) ---
+  // Good writing uses a mix of commas, semicolons, colons for pacing
+  // The ratio of clause-level punctuation to sentence-ending punctuation
+  const clausePunctuation = (cleanText.match(/[，、；：,;:]/g) || []).length;
+  const sentenceEndPunctuation = (cleanText.match(/[。！？.?!?]/g) || []).length;
+  // Ideal ratio: 1.5-3.0 commas per period (enough rhythm, not run-on)
+  const commaRatio = sentenceEndPunctuation > 0
+    ? clausePunctuation / sentenceEndPunctuation
+    : 0;
 
+  let punctuationScore = 20;
+  if (commaRatio < 0.5) punctuationScore -= 8;  // Too few pauses — run-on sentences
+  else if (commaRatio < 1.0) punctuationScore -= 3;
+  if (commaRatio > 4.0) punctuationScore -= 10;  // Too many clauses — over-complex
+  else if (commaRatio > 3.0) punctuationScore -= 4;
+  punctuationScore = Math.max(0, punctuationScore);
+
+  // --- Factor 3: Sentence length variance (0-20 pts) ---
+  // A healthy mix of short and long sentences is more readable
+  let varianceScore = 20;
+  if (sentenceLengths.length >= 2) {
+    const mean = sentenceLengths.reduce((a, b) => a + b, 0) / sentenceLengths.length;
+    const variance = sentenceLengths.reduce((sum, l) => sum + (l - mean) ** 2, 0) / sentenceLengths.length;
+    const stdDev = Math.sqrt(variance);
+    // Coefficient of variation: stdDev / mean
+    const cv = mean > 0 ? stdDev / mean : 0;
+    // Ideal CV range: 0.3-0.7 (good variety without being chaotic)
+    if (cv < 0.15) varianceScore -= 12;  // Monotonous sentence lengths
+    else if (cv < 0.25) varianceScore -= 4;
+    if (cv > 1.0) varianceScore -= 8;  // Too chaotic
+    varianceScore = Math.max(0, varianceScore);
+  } else {
+    varianceScore = 10;  // Single sentence — can't measure variance well
+  }
+
+  // --- Factor 4: Short vs long sentence balance (0-20 pts) ---
+  // Count sentences in different ranges
+  const shortSentences = sentenceLengths.filter((l) => l > 0 && l <= 20).length;
+  const mediumSentences = sentenceLengths.filter((l) => l > 20 && l <= 50).length;
+  const longSentences = sentenceLengths.filter((l) => l > 50).length;
+  const total = shortSentences + mediumSentences + longSentences || 1;
+
+  let balanceScore = 20;
+  // Penalize if > 60% are long sentences
+  const longRatio = longSentences / total;
+  if (longRatio > 0.6) balanceScore -= 15;
+  else if (longRatio > 0.4) balanceScore -= 6;
+  // Reward having at least some short/medium sentences
+  if (shortSentences + mediumSentences === 0 && total > 1) balanceScore -= 10;
+  // Reward variety: having all 3 types
+  if (shortSentences > 0 && mediumSentences > 0 && longSentences === 0) balanceScore += 0; // ideal: short+medium, no long
+  balanceScore = Math.max(0, Math.min(20, balanceScore));
+
+  // --- Combine ---
+  let score = lengthScore + punctuationScore + varianceScore + balanceScore;
   score = Math.max(0, Math.min(100, score));
 
   let level: ReadabilityLevel;
@@ -264,11 +323,12 @@ export function analyzeSentenceComplexity(text: string): SentenceComplexity {
  * Get suggestions for improving readability
  */
 export function getReadabilitySuggestions(
-  result: ReadabilityResult | ChineseReadabilityResult
+  result: ReadabilityResult | ChineseReadabilityResult,
+  originalText?: string
 ): string[] {
   const suggestions: string[] = [];
 
-  if ("averageSentenceLength" in result) {
+  if ("averageSyllablesPerWord" in result) {
     const englishResult = result as ReadabilityResult;
 
     if (englishResult.averageSentenceLength > 25) {
@@ -295,6 +355,42 @@ export function getReadabilitySuggestions(
 
     if (chineseResult.score < 60) {
       suggestions.push("可读性评分较低，建议使用更通俗的表达和更短的句子");
+    }
+
+    // Advanced suggestions based on new factors
+    if (originalText) {
+      const cleanText = originalText.replace(/<[^>]*>/g, "").trim();
+
+      // Punctuation density analysis
+      const clausePunct = (cleanText.match(/[，、；：,;:]/g) || []).length;
+      const endPunct = (cleanText.match(/[。！？.?!?]/g) || []).length;
+      const commaRatio = endPunct > 0 ? clausePunct / endPunct : 0;
+
+      if (commaRatio < 0.5 && chineseResult.averageSentenceLength > 30) {
+        suggestions.push("长句中缺少逗号/顿号等断句标点，建议适当增加停顿让读者有呼吸空间");
+      } else if (commaRatio > 4.0) {
+        suggestions.push("单句中分句过多（逗号/分号占比高），建议拆分成多个独立句子");
+      }
+
+      // Sentence variety analysis
+      const sentenceLengths = cleanText.split(/[。！？.?!?]/)
+        .filter((s) => s.trim().length > 0)
+        .map((s) => s.replace(/\s+/g, "").length);
+
+      if (sentenceLengths.length >= 3) {
+        const allSimilar = sentenceLengths.every((l) => {
+          const avg = sentenceLengths.reduce((a, b) => a + b, 0) / sentenceLengths.length;
+          return Math.abs(l - avg) / Math.max(avg, 1) < 0.15;
+        });
+        if (allSimilar) {
+          suggestions.push("句子长度变化较少，建议穿插长短句来增加节奏感");
+        }
+
+        const longCount = sentenceLengths.filter((l) => l > 50).length;
+        if (longCount / sentenceLengths.length > 0.5) {
+          suggestions.push("长句（>50字）占比过高，建议拆分部分长句为短句");
+        }
+      }
     }
   }
 

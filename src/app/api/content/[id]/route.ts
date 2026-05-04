@@ -53,6 +53,20 @@ export async function PUT(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // Update platform content if provided
+  if (body.platformContent) {
+    const { platform, content } = body.platformContent;
+    if (platform) {
+      await prisma.platformContent.upsert({
+        where: {
+          contentPieceId_platform: { contentPieceId: id, platform },
+        },
+        create: { contentPieceId: id, platform, content },
+        update: { content },
+      });
+    }
+  }
+
   const piece = await prisma.contentPiece.update({
     where: { id },
     data: { title: body.title, status: body.status },

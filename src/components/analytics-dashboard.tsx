@@ -166,6 +166,7 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
               icon={FileText}
               color="text-blue-600"
               bgColor="bg-blue-50"
+              description="所选时间范围内创建的所有内容数量（含草稿和已发布）"
             />
             <SummaryCard
               title="平均质量分"
@@ -174,6 +175,7 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
               color="text-green-600"
               bgColor="bg-green-50"
               suffix="/10"
+              description="AI 复核对内容专业性、逻辑和表达的综合评分均值"
             />
             <SummaryCard
               title="发布成功率"
@@ -181,6 +183,7 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
               icon={CheckCircle}
               color="text-purple-600"
               bgColor="bg-purple-50"
+              description="已发布内容占尝试发布总数的比例，反映发布流程的稳定性"
             />
             <SummaryCard
               title="活跃项目"
@@ -188,20 +191,21 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
               icon={Users}
               color="text-orange-600"
               bgColor="bg-orange-50"
+              description="所选时间范围内有内容产出的项目数量"
             />
           </div>
 
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Content Trend Chart */}
-            <ChartCard title="内容生成趋势">
+            <ChartCard title="内容生成趋势" description="按天统计新建内容的数量变化，帮助识别产出节奏是否稳定">
               {visibleContentTrend.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">暂无数据</p>
               ) : (
                 <div className="space-y-2">
                   {visibleContentTrend.map((item) => (
                     <div key={item.date} className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground w-20">
+                      <span className="text-[11px] text-muted-foreground w-[52px] shrink-0 text-right">
                         {formatDate(item.date)}
                       </span>
                       <div className="flex-1 h-8 bg-muted rounded overflow-hidden">
@@ -222,14 +226,14 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
             </ChartCard>
 
             {/* Quality Trend Chart */}
-            <ChartCard title="质量评分趋势">
+            <ChartCard title="质量评分趋势" description="AI 质量评分的日均走势，持续上升说明内容迭代有效">
               {visibleQualityTrend.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">暂无数据</p>
               ) : (
                 <div className="space-y-2">
                   {visibleQualityTrend.map((item) => (
                     <div key={item.date} className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground w-20">
+                      <span className="text-[11px] text-muted-foreground w-[52px] shrink-0 text-right">
                         {formatDate(item.date)}
                       </span>
                       <div className="flex-1 h-8 bg-muted rounded overflow-hidden">
@@ -253,7 +257,7 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
           {/* Distribution Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Status Distribution */}
-            <ChartCard title="内容状态分布">
+            <ChartCard title="内容状态分布" description="各状态的内容数量占比，用于判断内容管线是否有堵塞">
               {Object.keys(distributions.byStatus).length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">暂无数据</p>
               ) : (
@@ -273,7 +277,7 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
             </ChartCard>
 
             {/* Platform Distribution */}
-            <ChartCard title="平台内容分布">
+            <ChartCard title="平台内容分布" description="各平台的内容产出数量，可用来评估平台覆盖是否均衡">
               {Object.keys(distributions.byPlatform).length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">暂无数据</p>
               ) : (
@@ -292,27 +296,27 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
           </div>
 
           {/* Quality Scores Breakdown */}
-          <ChartCard title="质量评分详情">
+          <ChartCard title="质量评分详情" description="AI 复核的四项子评分均值，从不同维度衡量内容表现">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <QualityScoreCard
                 label="内容质量"
                 score={summary.avgQualityScore}
-                color="bg-blue-500"
+                description="专业性与逻辑性"
               />
               <QualityScoreCard
                 label="吸引力"
                 score={summary.avgEngagementScore}
-                color="bg-purple-500"
+                description="标题和开头的抓取力"
               />
               <QualityScoreCard
                 label="品牌调性"
                 score={summary.avgBrandVoiceScore}
-                color="bg-green-500"
+                description="与品牌语调的吻合度"
               />
               <QualityScoreCard
                 label="平台适配"
                 score={summary.avgPlatformFitScore}
-                color="bg-orange-500"
+                description="符合平台写作规范的程度"
               />
             </div>
           </ChartCard>
@@ -320,7 +324,7 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
           {/* Recent Activity & Top Projects */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Recent Activity */}
-            <ChartCard title="最近内容">
+            <ChartCard title="最近内容" description="最新创建的 5 篇内容及其当前状态">
               {recentActivity.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">暂无内容</p>
               ) : (
@@ -349,7 +353,7 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
             </ChartCard>
 
             {/* Top Projects */}
-            <ChartCard title="活跃项目">
+            <ChartCard title="活跃项目" description="按内容产出量排序的项目列表，反映团队精力分布">
               {topProjects.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">暂无项目</p>
               ) : (
@@ -383,6 +387,7 @@ function SummaryCard({
   color,
   bgColor,
   suffix = "",
+  description,
 }: {
   title: string;
   value: string | number;
@@ -390,6 +395,7 @@ function SummaryCard({
   color: string;
   bgColor: string;
   suffix?: string;
+  description?: string;
 }) {
   return (
     <div className="bg-card rounded-lg p-4 border border-border">
@@ -400,6 +406,9 @@ function SummaryCard({
             {value}
             {suffix}
           </p>
+          {description && (
+            <p className="text-[11px] text-muted-foreground/70 mt-1 leading-4">{description}</p>
+          )}
         </div>
         <div className={`p-3 rounded-lg ${bgColor}`}>
           <Icon className={`w-5 h-5 ${color}`} />
@@ -411,14 +420,21 @@ function SummaryCard({
 
 function ChartCard({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="bg-card rounded-lg p-4 border border-border">
-      <h3 className="text-sm font-semibold mb-4">{title}</h3>
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {description && (
+          <p className="text-[11px] text-muted-foreground/70 mt-0.5 leading-4">{description}</p>
+        )}
+      </div>
       {children}
     </div>
   );
@@ -427,25 +443,32 @@ function ChartCard({
 function QualityScoreCard({
   label,
   score,
-  color,
+  description,
 }: {
   label: string;
   score: number;
-  color: string;
+  description?: string;
 }) {
   const clampedScore = Math.max(0, Math.min(10, score));
   const percentage = (clampedScore / 10) * 100;
+  // Score-based color: green >=7, amber 5-7, red <5
+  const scoreColor =
+    clampedScore >= 7 ? "text-emerald-600" : clampedScore >= 5 ? "text-amber-600" : "text-red-600";
+  const ringColor =
+    clampedScore >= 7 ? "stroke-emerald-500" : clampedScore >= 5 ? "stroke-amber-500" : "stroke-red-500";
+  const bgColor =
+    clampedScore >= 7 ? "bg-emerald-50" : clampedScore >= 5 ? "bg-amber-50" : "bg-red-50";
 
   return (
     <div className="text-center">
-      <div className="relative w-20 h-20 mx-auto mb-2">
+      <div className={`relative w-20 h-20 mx-auto mb-2 rounded-full ${bgColor}`}>
         <svg className="w-full h-full transform -rotate-90">
           <circle
             cx="40"
             cy="40"
             r="36"
             fill="none"
-            className="stroke-muted"
+            className="stroke-muted/40"
             strokeWidth="8"
           />
           <circle
@@ -453,17 +476,20 @@ function QualityScoreCard({
             cy="40"
             r="36"
             fill="none"
-            className={color}
+            className={ringColor}
             strokeWidth="8"
             strokeDasharray={`${percentage * 2.26} 226`}
             strokeLinecap="round"
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-lg font-bold">{score.toFixed(1)}</span>
+          <span className={`text-lg font-bold ${scoreColor}`}>{score.toFixed(1)}</span>
         </div>
       </div>
       <p className="text-xs text-muted-foreground">{label}</p>
+      {description && (
+        <p className="text-[10px] text-muted-foreground/60 mt-0.5 leading-3.5 max-w-[100px] mx-auto">{description}</p>
+      )}
     </div>
   );
 }
@@ -482,5 +508,5 @@ function EmptyState() {
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
-  return `${date.getMonth() + 1}/${date.getDate()}`;
+  return `${date.getMonth() + 1}月${date.getDate()}日`;
 }

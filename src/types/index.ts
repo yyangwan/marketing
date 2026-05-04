@@ -20,6 +20,7 @@ export interface Brief {
   platforms: Platform[];
   references: string;
   notes: string;
+  brandVoiceId?: string;
 }
 
 // Phase 1C: Brand Voice System

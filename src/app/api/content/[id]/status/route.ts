@@ -37,6 +37,11 @@ export async function PATCH(
     return responses.notFound(errors.contentNotFound(id));
   }
 
+  // If leaving "scheduled", remove the corresponding ContentSchedule record
+  if (existing.status === "scheduled" && status !== "scheduled") {
+    await prisma.contentSchedule.deleteMany({ where: { contentId: id } });
+  }
+
   const piece = await prisma.contentPiece.update({
     where: { id },
     data: { status },

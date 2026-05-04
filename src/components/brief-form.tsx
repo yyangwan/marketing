@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import type { Platform, Brief } from "@/types";
+import type { Platform, Brief, BrandVoice } from "@/types";
 import { PLATFORM_CONFIG } from "@/types";
 
 const ALL_PLATFORMS: Platform[] = ["wechat", "weibo", "xiaohongshu", "douyin"];
@@ -20,6 +20,8 @@ export function BriefForm({ projectId }: { projectId?: string }) {
   const [references, setReferences] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [brandVoices, setBrandVoices] = useState<BrandVoice[]>([]);
+  const [selectedBrandVoiceId, setSelectedBrandVoiceId] = useState("");
   const [loadingProjects, setLoadingProjects] = useState(!projectId);
 
   useEffect(() => {
@@ -35,6 +37,12 @@ export function BriefForm({ projectId }: { projectId?: string }) {
         .finally(() => setLoadingProjects(false));
     }
   }, [projectId, selectedProjectId]);
+
+  useEffect(() => {
+    fetch("/api/brand-voices")
+      .then((r) => r.json())
+      .then((data) => setBrandVoices(data));
+  }, []);
 
   const togglePlatform = (p: Platform) => {
     setPlatforms((prev) =>
@@ -57,6 +65,7 @@ export function BriefForm({ projectId }: { projectId?: string }) {
       platforms,
       notes,
       references,
+      brandVoiceId: selectedBrandVoiceId || undefined,
     };
 
     const res = await fetch("/api/briefs", {
@@ -165,6 +174,25 @@ export function BriefForm({ projectId }: { projectId?: string }) {
             </button>
           ))}
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1">品牌调性</label>
+        <select
+          value={selectedBrandVoiceId}
+          onChange={(e) => setSelectedBrandVoiceId(e.target.value)}
+          className="w-full px-3 py-2 border border-input rounded-md text-sm focus:ring-2 focus:ring-ring focus:border-primary transition-colors duration-100 bg-card text-foreground"
+        >
+          <option value="">不指定（使用项目默认）</option>
+          {brandVoices.map((bv) => (
+            <option key={bv.id} value={bv.id}>{bv.name}</option>
+          ))}
+        </select>
+        {brandVoices.length === 0 && (
+          <p className="text-xs text-muted-foreground mt-1">
+            暂无品牌调性，<a href="/settings/brand-voice" className="text-primary hover:underline">去创建</a>
+          </p>
+        )}
       </div>
 
       <div>

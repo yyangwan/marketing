@@ -234,8 +234,8 @@ export function BrandVoiceClient({ workspaceId }: { workspaceId: string }) {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <form onSubmit={handleSubmit}>
-          <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl">
+          <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>
                 {editingId ? "编辑品牌调性" : "新建品牌调性"}
@@ -309,8 +309,8 @@ export function BrandVoiceClient({ workspaceId }: { workspaceId: string }) {
                 {submitting ? "保存中..." : editingId ? "更新" : "创建"}
               </Button>
             </DialogFooter>
-          </DialogContent>
-        </form>
+          </form>
+        </DialogContent>
       </Dialog>
     </div>
   );

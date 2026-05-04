@@ -68,6 +68,15 @@ describe("Local Quality API", () => {
       expect(response.status).toBe(404);
     });
 
+    it("should return 400 for invalid platform parameter", async () => {
+      const response = await GET(
+        new Request("http://localhost/api/content/test-id/quality/local?platform=invalid"),
+        { params: Promise.resolve({ id: "test-id" }) } as any
+      );
+
+      expect(response.status).toBe(400);
+    });
+
     it("should return default metrics for empty content", async () => {
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
@@ -120,6 +129,27 @@ describe("Local Quality API", () => {
       expect(data.structure).toHaveProperty("hasH1");
       expect(data.structure).toHaveProperty("paragraphCount");
       expect(Array.isArray(data.keywords)).toBe(true);
+    });
+
+    it("should analyze the requested platform content when platform is provided", async () => {
+      (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
+        id: "test-id",
+        project: { workspaceId: "test-workspace-id" },
+        platformContents: [
+          { platform: "wechat", content: "<p>微信内容</p>" },
+          { platform: "weibo", content: "<p>微博内容更短</p>" },
+        ],
+      });
+
+      const response = await GET(
+        new Request("http://localhost/api/content/test-id/quality/local?platform=weibo"),
+        { params: Promise.resolve({ id: "test-id" }) } as any
+      );
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.localMetrics).toBeDefined();
+      expect(data.overallScore).toBeGreaterThanOrEqual(0);
     });
 
     it("should analyze sentiment correctly", async () => {

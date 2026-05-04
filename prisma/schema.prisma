@@ -250,7 +250,7 @@ model GenieSource {
   id               String   @id @default(cuid())
   workspaceId       String
   workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  url               String   @unique
+  url               String
 
   // Extracted metadata from URL analysis
   businessType      String?  // "电商", "SaaS", "本地服务", "内容创作"
@@ -266,6 +266,7 @@ model GenieSource {
   updatedAt         DateTime @updatedAt
 
   @@index([workspaceId, enabled])
+  @@unique([workspaceId, url])
   @@index([lastAnalyzedAt])
 }
 

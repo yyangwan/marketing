@@ -5,24 +5,37 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth/config";
+import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { fetchURL, isContentSubstantial } from "@/lib/genie/url-fetcher";
 import { analyzeContent } from "@/lib/genie/analyzer";
+import { errors, responses } from "@/lib/errors";
 
 /**
  * GET /api/genie/sources - List all Genie sources for a workspace
  */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get("workspaceId");
+    const session = await auth();
+    if (!session?.user?.id) {
+      return responses.unauthorized();
+    }
 
-    if (!workspaceId) {
-      return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
+    const ws = getCurrentWorkspace(session);
+    if (!ws) {
+      return responses.forbidden(errors.noWorkspace());
+    }
+
+    const { searchParams } = new URL(request.url);
+    const requestedWorkspaceId = searchParams.get("workspaceId");
+
+    if (requestedWorkspaceId && requestedWorkspaceId !== ws.workspaceId) {
+      return responses.forbidden(errors.workspaceMismatch());
     }
 
     const sources = await prisma.genieSource.findMany({
       where: {
-        workspaceId,
+        workspaceId: ws.workspaceId,
         enabled: true,
       },
       orderBy: {
@@ -45,28 +58,33 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { workspaceId, url } = body;
-
-    if (!workspaceId || !url) {
-      return NextResponse.json(
-        { error: "workspaceId and url are required" },
-        { status: 400 }
-      );
+    const session = await auth();
+    if (!session?.user?.id) {
+      return responses.unauthorized();
     }
 
-    // Validate workspace exists
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-    });
+    const ws = getCurrentWorkspace(session);
+    if (!ws) {
+      return responses.forbidden(errors.noWorkspace());
+    }
 
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+    const body = await request.json();
+    const { workspaceId: requestedWorkspaceId, url } = body;
+
+    if (requestedWorkspaceId && requestedWorkspaceId !== ws.workspaceId) {
+      return responses.forbidden(errors.workspaceMismatch());
+    }
+
+    if (!url) {
+      return responses.badRequest(errors.missingParam("url"));
     }
 
     // Check if URL already exists
-    const existing = await prisma.genieSource.findUnique({
-      where: { url },
+    const existing = await prisma.genieSource.findFirst({
+      where: {
+        workspaceId: ws.workspaceId,
+        url,
+      },
     });
 
     if (existing) {
@@ -92,7 +110,7 @@ export async function POST(request: NextRequest) {
     // Create Genie source with extracted insights
     const source = await prisma.genieSource.create({
       data: {
-        workspaceId,
+        workspaceId: ws.workspaceId,
         url,
         businessType: analysis.insights.businessType,
         keyProducts: JSON.stringify(analysis.insights.keyProducts),
