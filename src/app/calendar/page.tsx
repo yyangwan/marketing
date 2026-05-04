@@ -18,21 +18,21 @@ export default async function CalendarPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-4 border-b border-border bg-card">
+      <div className="px-4 md:px-6 py-4 border-b border-border bg-card">
         <h1 className="text-xl font-semibold text-foreground tracking-tight">内容日历</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
           拖拽排期、管理发布计划
         </p>
       </div>
 
-      <div className="flex-1 flex min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
         {/* Calendar component */}
         <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
           <CalendarClient workspaceId={ws.workspaceId} />
         </div>
 
-        {/* Unscheduled sidebar */}
-        <div className="w-72 border-l border-border">
+        {/* Unscheduled sidebar — below on mobile, side panel on desktop */}
+        <div className="md:w-72 md:border-l border-t md:border-t-0 border-border max-h-[300px] md:max-h-none overflow-y-auto">
           <UnscheduledPanel workspaceId={ws.workspaceId} />
         </div>
       </div>
