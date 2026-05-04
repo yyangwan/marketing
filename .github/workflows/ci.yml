@@ -30,12 +30,15 @@ jobs:
           path: |
             node_modules
             .bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
       - name: 安装依赖
         run: bun install --frozen-lockfile
+
+      - name: 生成 Prisma Client
+        run: bunx prisma generate
 
       - name: 运行 ESLint
         run: bun run lint
@@ -44,6 +47,7 @@ jobs:
         run: bun run typecheck
         env:
           MOCK_AI: 'true'
+          DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci'
 
       - name: 运行测试
         run: bun run test
@@ -70,17 +74,21 @@ jobs:
           path: |
             node_modules
             .bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
       - name: 安装依赖
         run: bun install --frozen-lockfile
 
+      - name: 生成 Prisma Client
+        run: bunx prisma generate
+
       - name: 构建
         run: bun run build
         env:
           MOCK_AI: 'true'
+          DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci'
 
   deploy:
     name: 部署到阿里云 ECS
@@ -105,6 +113,8 @@ jobs:
             cd /var/www/contentos
             git pull origin master
             bun install --frozen-lockfile
+            bunx prisma generate
+            bunx prisma migrate deploy
             bun run build
             pm2 restart contentos
           ENDSSH
