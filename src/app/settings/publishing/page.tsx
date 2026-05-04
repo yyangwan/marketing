@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth/config";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { PublishingDashboardClient } from "@/components/publishing-dashboard-client";
+import type { Platform } from "@/types";
+
+const ALL_PLATFORMS: Platform[] = ["douyin", "wechat", "weibo", "xiaohongshu"];
 
 /**
  * Publishing Settings Page
@@ -14,6 +17,15 @@ export default async function PublishingSettingsPage() {
   }
 
   const workspaceId = session.user.workspaceId;
+
+  // Ensure all platforms have a config row
+  for (const platform of ALL_PLATFORMS) {
+    await prisma.platformApiConfig.upsert({
+      where: { workspaceId_platform: { workspaceId, platform } },
+      create: { workspaceId, platform },
+      update: {},
+    });
+  }
 
   // Fetch platform configs
   const platformConfigs = await prisma.platformApiConfig.findMany({
@@ -40,6 +52,8 @@ export default async function PublishingSettingsPage() {
           id: config.id,
           platform: config.platform as any,
           appId: config.appId,
+          hasAppSecret: !!config.appSecret,
+          hasRefreshToken: !!config.refreshTokn,
           enabled: config.enabled,
           hasAccessToken: !!config.accessToken,
           tokenExpiresAt: config.tokenExpiresAt?.toISOString() || null,
