@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   FileText,
@@ -73,11 +73,7 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState("30"); // days
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [timeRange, workspaceId]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -95,7 +91,11 @@ export function AnalyticsDashboard({ workspaceId }: AnalyticsDashboardProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   if (loading) {
     return (

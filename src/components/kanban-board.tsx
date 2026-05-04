@@ -41,8 +41,18 @@ export function KanbanBoard({ projectId }: { projectId?: string | null }) {
   }, [projectId]);
 
   useEffect(() => {
-    fetchPieces().then(() => setLoading(false));
-  }, [fetchPieces]);
+    let stale = false;
+    const url = projectId ? `/api/briefs?projectId=${projectId}` : "/api/briefs";
+    fetch(url)
+      .then((r) => r.ok ? r.json() : [])
+      .then((all) => {
+        if (!stale) {
+          setPieces(all);
+          setLoading(false);
+        }
+      });
+    return () => { stale = true; };
+  }, [projectId]);
 
   // Poll every 30 seconds for review updates
   useEffect(() => {

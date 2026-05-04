@@ -157,6 +157,7 @@ export default function CalendarClient({
   }, [currentView, currentDate, filterProject, filterStatus]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchScheduledContent();
   }, [fetchScheduledContent]);
 

@@ -30,29 +30,29 @@ export default function NotificationBell({ workspaceId }: NotificationBellProps)
   // PERF: Multiple components poll independently (kanban-board also polls every 30s).
   // Consider consolidating with SWR/React Query or shared state when scaling.
   useEffect(() => {
-    fetchNotifications();
-
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [workspaceId]);
-
-  const fetchNotifications = async () => {
-    try {
-      const response = await fetch(
-        `/api/notifications?workspaceId=${workspaceId}&limit=10`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data);
-        setUnreadCount(data.filter((n: Notification) => !n.isRead).length);
-      } else {
+    const doFetch = async () => {
+      try {
+        const response = await fetch(
+          `/api/notifications?workspaceId=${workspaceId}&limit=10`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setNotifications(data);
+          setUnreadCount(data.filter((n: Notification) => !n.isRead).length);
+        } else {
+          toast.error("Failed to load notifications");
+        }
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
         toast.error("Failed to load notifications");
       }
-    } catch (error) {
-      console.error("Failed to fetch notifications:", error);
-      toast.error("Failed to load notifications");
-    }
-  };
+    };
+
+    doFetch();
+
+    const interval = setInterval(doFetch, 30000);
+    return () => clearInterval(interval);
+  }, [workspaceId]);
 
   const handleMarkAllAsRead = async () => {
     try {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import type { Platform, Brief, BrandVoice } from "@/types";
 import { PLATFORM_CONFIG } from "@/types";
@@ -116,7 +117,7 @@ export function BriefForm({ projectId }: { projectId?: string }) {
             <p className="text-sm text-muted-foreground">加载项目中...</p>
           ) : projects.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              请先<a href="/projects/new" className="text-primary hover:underline">创建一个项目</a>
+              请先<Link href="/projects/new" className="text-primary hover:underline">创建一个项目</Link>
             </p>
           ) : (
             <select

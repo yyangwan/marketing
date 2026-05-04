@@ -265,7 +265,7 @@ export function BrandVoiceClient({ workspaceId }: { workspaceId: string }) {
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  调性指南（Dos and Don'ts）
+                  调性指南（Dos and Don&apos;ts）
                 </label>
                 <Textarea
                   value={guidelines}

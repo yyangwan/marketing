@@ -27,14 +27,31 @@ export default function UnscheduledPanel({
   );
 
   useEffect(() => {
-    fetchUnscheduledContent();
+    const doFetch = async () => {
+      try {
+        const response = await fetch(
+          `/api/content?unscheduled=true`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setUnscheduledItems(data);
+        } else {
+          toast.error("Failed to load unscheduled content");
+        }
+      } catch (error) {
+        console.error("Failed to fetch unscheduled content:", error);
+        toast.error("Failed to load unscheduled content");
+      }
+    };
+
+    doFetch();
 
     // Poll every 10 seconds to refresh the list
-    const interval = setInterval(fetchUnscheduledContent, 10000);
+    const interval = setInterval(doFetch, 10000);
 
     // Listen for custom refresh event from calendar
     const handleRefreshEvent = () => {
-      fetchUnscheduledContent();
+      doFetch();
     };
 
     window.addEventListener(CUSTOM_EVENTS.UNSCHEDULED_REFRESH, handleRefreshEvent);
@@ -44,23 +61,6 @@ export default function UnscheduledPanel({
       window.removeEventListener(CUSTOM_EVENTS.UNSCHEDULED_REFRESH, handleRefreshEvent);
     };
   }, [workspaceId]);
-
-  const fetchUnscheduledContent = async () => {
-    try {
-      const response = await fetch(
-        `/api/content?unscheduled=true`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setUnscheduledItems(data);
-      } else {
-        toast.error("Failed to load unscheduled content");
-      }
-    } catch (error) {
-      console.error("Failed to fetch unscheduled content:", error);
-      toast.error("Failed to load unscheduled content");
-    }
-  };
 
   const handleDragStart = (e: React.DragEvent, contentId: string) => {
     e.dataTransfer.setData("contentId", contentId);

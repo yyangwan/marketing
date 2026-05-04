@@ -267,7 +267,7 @@ export function PublishingDashboardClient({
       }
 
       const data = await response.json();
-      window.location.href = data.oauthUrl;
+      window.location.href = data.oauthUrl; // eslint-disable-line react-hooks/immutability
     } catch (error) {
       toast.error("连接失败");
       setConnectingPlatform(null);

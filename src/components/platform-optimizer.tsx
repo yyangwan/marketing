@@ -52,25 +52,26 @@ export function PlatformOptimizer({
 
   // Analyze content on mount
   useEffect(() => {
-    analyzeContent();
-  }, [contentPieceId, platform]);
-
-  async function analyzeContent() {
-    setIsLoading(true);
-    try {
-      const res = await fetch(
-        `/api/content/${contentPieceId}/analyze?platform=${platform}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setAnalysis(data);
+    let stale = false;
+    const doFetch = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(
+          `/api/content/${contentPieceId}/analyze?platform=${platform}`
+        );
+        if (res.ok && !stale) {
+          const data = await res.json();
+          setAnalysis(data);
+        }
+      } catch (error) {
+        console.error("Analysis failed:", error);
+      } finally {
+        if (!stale) setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Analysis failed:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+    };
+    doFetch();
+    return () => { stale = true; };
+  }, [contentPieceId, platform]);
 
   async function handleOptimize() {
     setIsOptimizing(true);

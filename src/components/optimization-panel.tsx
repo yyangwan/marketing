@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertCircle,
   BarChart3,
@@ -121,6 +121,8 @@ export function OptimizationPanel({
     setLocalAnalysis(null);
     setAiQuality(null);
     setOptimization(null);
+    return () => {};
+    // Reset state when platform or content changes
   }, [platform, contentPieceId]);
 
   // Invalidate local analysis when content changes so it gets refreshed on next open/fetch
@@ -128,7 +130,7 @@ export function OptimizationPanel({
     if (localAnalysis) {
       setLocalAnalysis(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Reset on content change
   }, [content]);
 
   const seoAnalysis = useMemo(() => {
@@ -250,13 +252,7 @@ export function OptimizationPanel({
     return analyzeForPlatform(content, platform as Platform);
   }, [content, platform]);
 
-  useEffect(() => {
-    if (isOpen && !localAnalysis && !localLoading) {
-      void fetchLocalAnalysis();
-    }
-  }, [isOpen, localAnalysis, localLoading]);
-
-  const fetchLocalAnalysis = async () => {
+  const fetchLocalAnalysis = useCallback(async () => {
     setLocalLoading(true);
     try {
       const res = await fetch(`/api/content/${contentPieceId}/quality/local?platform=${platform}`);
@@ -271,7 +267,13 @@ export function OptimizationPanel({
     } finally {
       setLocalLoading(false);
     }
-  };
+  }, [contentPieceId, platform]);
+
+  useEffect(() => {
+    if (isOpen && !localAnalysis && !localLoading) {
+      void fetchLocalAnalysis();
+    }
+  }, [isOpen, localAnalysis, localLoading, fetchLocalAnalysis]);
 
   const handleEvaluate = async () => {
     setAiEvaluating(true);

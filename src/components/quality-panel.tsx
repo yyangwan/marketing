@@ -37,30 +37,30 @@ export function QualityPanel({
 
   useEffect(() => {
     if (isOpen && !quality) {
-      fetchQuality();
+      let stale = false;
+      const doFetch = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`/api/content/${contentPieceId}/quality`);
+          if (res.ok && !stale) {
+            const data = await res.json();
+            setQuality(data);
+          } else if (res.status === 404 && !stale) {
+            setQuality(null);
+          } else if (!stale) {
+            const data = await res.json();
+            toast.error(data.error || "加载质量评估失败");
+          }
+        } catch {
+          if (!stale) toast.error("网络错误，请重试");
+        } finally {
+          if (!stale) setLoading(false);
+        }
+      };
+      doFetch();
+      return () => { stale = true; };
     }
-  }, [isOpen, quality]);
-
-  const fetchQuality = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/content/${contentPieceId}/quality`);
-      if (res.ok) {
-        const data = await res.json();
-        setQuality(data);
-      } else if (res.status === 404) {
-        // No evaluation exists yet
-        setQuality(null);
-      } else {
-        const data = await res.json();
-        toast.error(data.error || "加载质量评估失败");
-      }
-    } catch {
-      toast.error("网络错误，请重试");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isOpen, quality, contentPieceId]);
 
   const handleEvaluate = async () => {
     setEvaluating(true);

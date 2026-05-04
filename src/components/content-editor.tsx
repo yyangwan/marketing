@@ -54,25 +54,27 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
 
   // Fetch existing schedule on mount
   useEffect(() => {
-    fetchSchedule();
-  }, [contentPieceId]);
-
-  const fetchSchedule = async () => {
-    try {
-      const res = await fetch(`/api/content/${contentPieceId}/schedule`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data) {
-          setCurrentSchedule(data);
-          const date = new Date(data.scheduledAt);
-          setScheduleDate(date.toISOString().split('T')[0]);
-          setScheduleTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
+    let stale = false;
+    const doFetch = async () => {
+      try {
+        const res = await fetch(`/api/content/${contentPieceId}/schedule`);
+        if (stale) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data) {
+            setCurrentSchedule(data);
+            const date = new Date(data.scheduledAt);
+            setScheduleDate(date.toISOString().split('T')[0]);
+            setScheduleTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
+          }
         }
+      } catch (error) {
+        if (!stale) console.error('Failed to fetch schedule:', error);
       }
-    } catch (error) {
-      console.error('Failed to fetch schedule:', error);
-    }
-  };
+    };
+    doFetch();
+    return () => { stale = true; };
+  }, [contentPieceId]);
 
   const handleSchedule = async () => {
     if (!scheduleDate || !scheduleTime) {
