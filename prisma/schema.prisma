@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 model User {
@@ -12,6 +12,7 @@ model User {
   email                String   @unique
   passwordHash         String
   name                 String
+  genilinkUserId       String?  @unique  // Links to GeniLink portal user
   onboardingCompleted  Boolean  @default(false)
   onboardingStep       String   @default("welcome")
   createdAt            DateTime @default(now())
@@ -82,7 +83,7 @@ model ContentPiece {
   project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   title            String
   type             String            @default("blog_post")
-  brief            String
+  brief            String            @db.MediumText
   brandVoiceId     String?           // Brand voice used for this content
   brandVoice       BrandVoice?       @relation("ContentPieceBrandVoice", fields: [brandVoiceId], references: [id], onDelete: Restrict)
   status           String            @default("draft")
@@ -103,7 +104,7 @@ model PlatformContent {
   contentPiece    ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
   platform        String
   status          String       @default("draft")
-  content         String?
+  content         String?       @db.MediumText
   publishedUrl    String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -116,7 +117,7 @@ model ReviewComment {
   contentPieceId String
   contentPiece   ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
   authorName     String
-  comment        String?
+  comment        String?       @db.MediumText
   action         String
   createdAt      DateTime     @default(now())
 }
@@ -127,9 +128,9 @@ model BrandVoice {
   name        String
   workspaceId String
   workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  description String?   @default("")
-  guidelines  String?   @default("")  // Dos and don'ts for tone
-  samples     String    // JSON array of sample content strings
+  description String?   @db.Text
+  guidelines  String?   @db.Text  // Dos and don'ts for tone
+  samples     String    @db.MediumText  // JSON array of sample content strings
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -144,9 +145,9 @@ model AITemplate {
   name        String
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  description String?   @default("")
-  template    String    // Template content with {variable} placeholders
-  variables   String    // JSON array: [{name, type, description, required}]
+  description String?   @db.Text
+  template    String    @db.MediumText  // Template content with {variable} placeholders
+  variables   String    @db.MediumText  // JSON array: [{name, type, description, required}]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -169,13 +170,13 @@ model ContentQuality {
   originality      Int      @default(0)   // Originality score
 
   // Local metrics (computed instantly)
-  localMetrics     String?  // JSON: {readabilityScore, vocabularyDiversity, sentenceComplexity, consistencyScore}
+  localMetrics     String?  @db.MediumText  // JSON: {readabilityScore, vocabularyDiversity, sentenceComplexity, consistencyScore}
 
   // AI suggestions for improvement
-  suggestions  String?  // JSON array of improvement suggestions
+  suggestions  String?  @db.MediumText  // JSON array of improvement suggestions
 
   // Historical tracking
-  previousScores   String?  // JSON: store previous evaluation for comparison
+  previousScores   String?  @db.MediumText  // JSON: store previous evaluation for comparison
   evaluationCount  Int      @default(1)   // Track how many times evaluated
 
   // Evaluation metadata
@@ -235,7 +236,7 @@ model Notification {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   type        String   // "content_review" | "content_approved" | "content_published" | "schedule_reminder" | "mention"
   title       String
-  message     String
+  message     String   @db.MediumText
   link        String?  // URL to relevant content
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
@@ -254,10 +255,10 @@ model GenieSource {
 
   // Extracted metadata from URL analysis
   businessType      String?  // "电商", "SaaS", "本地服务", "内容创作"
-  keyProducts       String?  // JSON array: ["产品A", "产品B"]
+  keyProducts       String?  @db.MediumText  // JSON array: ["产品A", "产品B"]
   brandTone         String?  // "专业", "亲切", "幽默", "高端"
   targetAudience    String?  // "Z世代", "职场人士", "宝妈", etc.
-  recurringTopics   String?  // JSON array: ["话题1", "话题2"]
+  recurringTopics   String?  @db.MediumText  // JSON array: ["话题1", "话题2"]
 
   // Analysis tracking
   lastAnalyzedAt    DateTime?
@@ -288,7 +289,7 @@ model PlatformApiConfig {
   lastRefreshedAt DateTime? // When we last refreshed the token
 
   // Additional platform-specific config (JSON)
-  extraConfig String? // Platform-specific settings
+  extraConfig String? @db.MediumText // Platform-specific settings
 
   enabled    Boolean  @default(true)
   createdAt  DateTime @default(now())
@@ -307,13 +308,13 @@ model PublishHistory {
 
   // Content data
   title           String
-  content         String   // The published content
+  content         String   @db.MediumText  // The published content
 
   // Result
   status          String   // "success" | "failed" | "pending"
   publishedUrl    String?  // URL of published content
   platformPostId  String?  @map("platform_post_id") // ID returned by platform
-  errorMessage    String?  @map("error_message") // Error message if failed
+  errorMessage    String?  @map("error_message") @db.Text // Error message if failed
 
   // Retry tracking
   attemptCount    Int      @default(0)

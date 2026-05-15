@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const GENILINK_URL = process.env.GENILINK_URL || "https://genilink.cn";
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -23,9 +25,14 @@ export function middleware(req: NextRequest) {
     req.cookies.get("__Secure-authjs.session-token")?.value;
 
   if (!sessionToken) {
-    const loginUrl = new URL("/login", req.nextUrl.origin);
-    loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+    // Redirect to GeniLink SSO
+    const ssoUrl = new URL(`${GENILINK_URL}/api/auth/sso`);
+    ssoUrl.searchParams.set("service", "content");
+    ssoUrl.searchParams.set(
+      "redirect_uri",
+      `${req.nextUrl.origin}/api/auth/sso/callback`
+    );
+    return NextResponse.redirect(ssoUrl);
   }
 
   return NextResponse.next();

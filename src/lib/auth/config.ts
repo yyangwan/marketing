@@ -19,6 +19,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
         if (!user) return null;
 
+        // SSO bypass: allow GeniLink SSO-authenticated users without local password
+        if (credentials.password === "__genilink_sso__" && user.genilinkUserId) {
+          return { id: user.id, email: user.email, name: user.name };
+        }
+
         const valid = await bcrypt.compare(
           credentials.password as string,
           user.passwordHash
