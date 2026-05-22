@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifyBearerToken } from "@/lib/auth/genilink";
 
 const GENILINK_URL = process.env.GENILINK_URL || "https://genilink.cn";
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Public routes — no auth required
@@ -18,6 +19,18 @@ export function middleware(req: NextRequest) {
     pathname === "/favicon.ico";
 
   if (isPublic) return NextResponse.next();
+
+  // Service-to-service: accept Bearer JWT on API routes
+  if (pathname.startsWith("/api/")) {
+    const bearerToken = req.headers.get("authorization");
+    if (bearerToken?.startsWith("Bearer ")) {
+      const claims = await verifyBearerToken(req);
+      if (!claims) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      return NextResponse.next();
+    }
+  }
 
   // Check for authjs session token (Edge-compatible — no Prisma needed)
   const sessionToken =

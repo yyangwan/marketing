@@ -1,7 +1,9 @@
-import { jwtVerify, importX509, createRemoteJWKSet } from "jose";
+import { jwtVerify, createRemoteJWKSet } from "jose";
+import { NextRequest } from "next/server";
 
 const GENILINK_JWKS_URL = process.env.GENILINK_JWKS_URL || "https://genilink.cn/.well-known/jwks.json";
-const SERVICE_AUDIENCE = process.env.NEXTAUTH_URL || "http://localhost:3001";
+const GENILINK_ISSUER = process.env.GENILINK_ISSUER || "https://app.genilink.cn";
+const SERVICE_AUDIENCE = process.env.GENILINK_AUDIENCE || "content.genilink.cn";
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
@@ -25,7 +27,7 @@ export interface GeniLinkClaims {
  */
 export async function verifyGeniLinkToken(token: string): Promise<GeniLinkClaims> {
   const { payload } = await jwtVerify(token, getJWKS(), {
-    issuer: "https://genilink.cn",
+    issuer: GENILINK_ISSUER,
     audience: SERVICE_AUDIENCE,
   });
 
@@ -36,6 +38,22 @@ export async function verifyGeniLinkToken(token: string): Promise<GeniLinkClaims
     wid: payload.wid as string | undefined,
     role: payload.role as string | undefined,
   };
+}
+
+/**
+ * Verify Bearer token from an incoming request.
+ * Returns claims if valid, null otherwise.
+ * Edge-compatible — uses jose, no Prisma.
+ */
+export async function verifyBearerToken(request: NextRequest): Promise<GeniLinkClaims | null> {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+
+  try {
+    return await verifyGeniLinkToken(authHeader.substring(7));
+  } catch {
+    return null;
+  }
 }
 
 /**
