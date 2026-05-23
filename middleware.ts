@@ -28,7 +28,16 @@ export async function middleware(req: NextRequest) {
       if (!claims) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      return NextResponse.next();
+      // Inject claims as request headers so route handlers can use them
+      const requestHeaders = new Headers(req.headers);
+      requestHeaders.set("x-genilink-user-id", claims.sub);
+      if (claims.email) requestHeaders.set("x-genilink-email", claims.email);
+      if (claims.name) requestHeaders.set("x-genilink-name", encodeURIComponent(claims.name));
+      if (claims.wid) requestHeaders.set("x-genilink-workspace-id", claims.wid);
+      if (claims.role) requestHeaders.set("x-genilink-role", claims.role);
+      return NextResponse.next({
+        request: { headers: requestHeaders },
+      });
     }
   }
 

@@ -1,7 +1,9 @@
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth/config";
+import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { notifyContentStatus } from "@/lib/notifications/trigger";
 import { ERROR_CODES, apiError, errors, responses } from "@/lib/errors";
 
@@ -17,12 +19,12 @@ async function findWorkspaceContent(contentId: string, workspaceId: string) {
 
 // GET /api/content/[id]/schedule - Get schedule for a content piece
 export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await auth();
+  const session = await getServiceSession();
   if (!session?.user?.id) {
     return responses.unauthorized();
   }
 
-  const ws = getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -39,12 +41,12 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
 
 // POST /api/content/[id]/schedule - Create or update schedule
 export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await auth();
+  const session = await getServiceSession();
   if (!session?.user?.id) {
     return responses.unauthorized();
   }
 
-  const ws = getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -101,12 +103,12 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 
 // DELETE /api/content/[id]/schedule - Remove schedule
 export async function DELETE(req: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await auth();
+  const session = await getServiceSession();
   if (!session?.user?.id) {
     return responses.unauthorized();
   }
 
-  const ws = getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }

@@ -1,11 +1,13 @@
+import { headers } from "next/headers";
 /**
  * Genie Content Generation API
  * Phase 1E: Generate content ideas from analyzed sources
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth/config";
+import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { prisma } from "@/lib/db";
 import {
   generateContentIdeasFromSources,
@@ -18,12 +20,12 @@ import { errors, responses } from "@/lib/errors";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
+    const session = await getServiceSession();
     if (!session?.user?.id) {
       return responses.unauthorized();
     }
 
-    const ws = getCurrentWorkspace(session);
+    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }
@@ -140,12 +142,12 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
+    const session = await getServiceSession();
     if (!session?.user?.id) {
       return responses.unauthorized();
     }
 
-    const ws = getCurrentWorkspace(session);
+    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }

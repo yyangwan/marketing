@@ -1,18 +1,20 @@
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth/config";
+import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { prisma } from "@/lib/db";
 import { ERROR_CODES, apiError, errors, responses } from "@/lib/errors";
 
 // GET /api/content?workspaceId=xxx&status=draft&unscheduled=true
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await getServiceSession();
     if (!session?.user?.id) {
       return responses.unauthorized();
     }
 
-    const ws = getCurrentWorkspace(session);
+    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }

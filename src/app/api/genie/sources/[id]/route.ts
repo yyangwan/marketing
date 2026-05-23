@@ -1,11 +1,13 @@
+import { headers } from "next/headers";
 /**
  * Genie Source Detail API
  * Phase 1E: Individual source operations
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth/config";
+import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { prisma } from "@/lib/db";
 import { fetchURL, analyzeContent } from "@/lib/genie";
 import { apiError, errors, responses } from "@/lib/errors";
@@ -29,12 +31,12 @@ function sourceNotFoundError() {
  */
 export async function GET(request: NextRequest, routeContext: RouteContext) {
   try {
-    const session = await auth();
+    const session = await getServiceSession();
     if (!session?.user?.id) {
       return responses.unauthorized();
     }
 
-    const ws = getCurrentWorkspace(session);
+    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }
@@ -71,12 +73,12 @@ export async function GET(request: NextRequest, routeContext: RouteContext) {
  */
 export async function PUT(request: NextRequest, routeContext: RouteContext) {
   try {
-    const session = await auth();
+    const session = await getServiceSession();
     if (!session?.user?.id) {
       return responses.unauthorized();
     }
 
-    const ws = getCurrentWorkspace(session);
+    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }
@@ -118,12 +120,12 @@ export async function PUT(request: NextRequest, routeContext: RouteContext) {
  */
 export async function DELETE(request: NextRequest, routeContext: RouteContext) {
   try {
-    const session = await auth();
+    const session = await getServiceSession();
     if (!session?.user?.id) {
       return responses.unauthorized();
     }
 
-    const ws = getCurrentWorkspace(session);
+    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }
@@ -162,12 +164,12 @@ export async function POST(
   routeContext: RouteContext
 ) {
   try {
-    const session = await auth();
+    const session = await getServiceSession();
     if (!session?.user?.id) {
       return responses.unauthorized();
     }
 
-    const ws = getCurrentWorkspace(session);
+    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }

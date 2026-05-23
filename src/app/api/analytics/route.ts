@@ -1,17 +1,19 @@
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth/config";
+import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { apiError, errors, ERROR_CODES, responses } from "@/lib/errors";
 
 // GET /api/analytics - Fetch analytics data for dashboard
 export async function GET(req: Request) {
-  const session = await auth();
+  const session = await getServiceSession();
   if (!session?.user?.id) {
     return responses.unauthorized();
   }
 
-  const ws = getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -133,30 +135,30 @@ export async function GET(req: Request) {
     // Content trend over time (daily buckets)
     const contentTrend = await prisma.$queryRaw<Array<{ date: string; count: number }>>`
       SELECT
-        TO_CHAR("createdAt", 'YYYY-MM-DD') as date,
+        DATE_FORMAT(\`createdAt\`, '%Y-%m-%d') as date,
         COUNT(*) as count
-      FROM "ContentPiece"
-      WHERE "projectId" IN (
-        SELECT id FROM "Project" WHERE "workspaceId" = ${ws.workspaceId}
+      FROM \`ContentPiece\`
+      WHERE \`projectId\` IN (
+        SELECT id FROM \`Project\` WHERE \`workspaceId\` = ${ws.workspaceId}
       )
-      AND "createdAt" >= ${startDate}
-      GROUP BY TO_CHAR("createdAt", 'YYYY-MM-DD')
+      AND \`createdAt\` >= ${startDate}
+      GROUP BY DATE_FORMAT(\`createdAt\`, '%Y-%m-%d')
       ORDER BY date ASC
     `;
 
     // Quality trend over time
     const qualityTrend = await prisma.$queryRaw<Array<{ date: string; avgQuality: number }>>`
       SELECT
-        TO_CHAR("evaluatedAt", 'YYYY-MM-DD') as date,
-        AVG(quality) as "avgQuality"
-      FROM "ContentQuality"
-      WHERE "contentPieceId" IN (
-        SELECT id FROM "ContentPiece" WHERE "projectId" IN (
-          SELECT id FROM "Project" WHERE "workspaceId" = ${ws.workspaceId}
+        DATE_FORMAT(\`evaluatedAt\`, '%Y-%m-%d') as date,
+        AVG(quality) as \`avgQuality\`
+      FROM \`ContentQuality\`
+      WHERE \`contentPieceId\` IN (
+        SELECT id FROM \`ContentPiece\` WHERE \`projectId\` IN (
+          SELECT id FROM \`Project\` WHERE \`workspaceId\` = ${ws.workspaceId}
         )
       )
-      AND "evaluatedAt" >= ${startDate}
-      GROUP BY TO_CHAR("evaluatedAt", 'YYYY-MM-DD')
+      AND \`evaluatedAt\` >= ${startDate}
+      GROUP BY DATE_FORMAT(\`evaluatedAt\`, '%Y-%m-%d')
       ORDER BY date ASC
     `;
 

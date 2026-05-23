@@ -1,7 +1,9 @@
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth/config";
+import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { apiError, ERROR_CODES, responses } from "@/lib/errors";
 
 // PATCH /api/workspaces/[id]/members/[memberId] - Change member role
@@ -9,12 +11,12 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
-  const session = await auth();
+  const session = await getServiceSession();
   if (!session?.user?.id) {
     return responses.unauthorized();
   }
 
-  const ws = getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(apiError("authentication_error", ERROR_CODES.NO_WORKSPACE, "您还没有加入任何工作区"));
   }
@@ -76,12 +78,12 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
-  const session = await auth();
+  const session = await getServiceSession();
   if (!session?.user?.id) {
     return responses.unauthorized();
   }
 
-  const ws = getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(apiError("authentication_error", ERROR_CODES.NO_WORKSPACE, "您还没有加入任何工作区"));
   }

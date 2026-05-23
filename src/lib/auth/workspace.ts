@@ -1,6 +1,13 @@
-import type { Session } from "next-auth";
+interface SessionLike {
+  user?: {
+    id?: string;
+    workspaceId?: string;
+    role?: string;
+    [key: string]: unknown;
+  };
+}
 
-export function getCurrentWorkspace(session: Session | null): {
+export function getCurrentWorkspace(session: SessionLike | null): {
   workspaceId: string;
   role: string;
 } | null {
@@ -13,7 +20,7 @@ export function getCurrentWorkspace(session: Session | null): {
   };
 }
 
-export function requireWorkspace(session: Session | null): {
+export function requireWorkspace(session: SessionLike | null): {
   workspaceId: string;
   role: string;
 } {

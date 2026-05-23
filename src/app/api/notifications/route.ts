@@ -1,7 +1,9 @@
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth/config";
+import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { ERROR_CODES, apiError, errors, responses } from "@/lib/errors";
 
 const VALID_NOTIFICATION_TYPES = [
@@ -14,12 +16,12 @@ const VALID_NOTIFICATION_TYPES = [
 
 // GET /api/notifications - List user's notifications
 export async function GET(req: Request) {
-  const session = await auth();
+  const session = await getServiceSession();
   if (!session?.user?.id) {
     return responses.unauthorized();
   }
 
-  const ws = getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -60,12 +62,12 @@ export async function GET(req: Request) {
 
 // POST /api/notifications - Create a notification (for testing or triggers)
 export async function POST(req: Request) {
-  const session = await auth();
+  const session = await getServiceSession();
   if (!session?.user?.id) {
     return responses.unauthorized();
   }
 
-  const ws = getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
