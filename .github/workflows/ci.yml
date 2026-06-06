@@ -47,7 +47,7 @@ jobs:
         run: bun run typecheck
         env:
           MOCK_AI: 'true'
-          DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci'
+          DATABASE_URL: 'mysql://ci:ci@localhost:3306/ci'
 
       - name: 运行测试
         run: bun run test
@@ -88,7 +88,7 @@ jobs:
         run: bun run build
         env:
           MOCK_AI: 'true'
-          DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci'
+          DATABASE_URL: 'mysql://ci:ci@localhost:3306/ci'
 
   deploy:
     name: 部署到阿里云 ECS

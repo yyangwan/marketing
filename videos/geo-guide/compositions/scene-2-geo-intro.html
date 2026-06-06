@@ -1,0 +1,344 @@
+<template id="scene-2-template">
+<div data-composition-id="scene-2" data-width="1080" data-height="1920" data-start="0" data-duration="5">
+
+  <style>
+    [data-composition-id="scene-2"] {
+      --s2-canvas: #0B0F1A;
+      --s2-accent: #00D4AA;
+      --s2-surface: #161B2E;
+      --s2-text: #F0F2F5;
+      --s2-muted: #8892A4;
+      --s2-border: #2A3050;
+
+      position: relative;
+      width: 1080px;
+      height: 1920px;
+      background: var(--s2-canvas);
+      overflow: hidden;
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* BG: Grid pattern */
+    .s2-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(42,48,80,0.25) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(42,48,80,0.25) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+    }
+
+    /* BG: Ghost "AI" text */
+    .s2-ghost-ai {
+      position: absolute;
+      top: 15%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 280px;
+      font-weight: 900;
+      color: var(--s2-accent);
+      opacity: 0.04;
+      letter-spacing: -0.05em;
+      pointer-events: none;
+    }
+
+    /* Step indicator pill */
+    .s2-step-pill {
+      position: absolute;
+      top: 100px;
+      left: 60px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 24px;
+      background: rgba(0, 212, 170, 0.15);
+      border: 1px solid rgba(0, 212, 170, 0.3);
+      border-radius: 8px;
+      font-family: 'Geist Mono', monospace;
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--s2-accent);
+    }
+
+    /* Website card mockup */
+    .s2-card-wrap {
+      position: absolute;
+      top: 22%;
+      left: 50%;
+      transform: translate(-50%, -50%) perspective(1200px) rotateY(-8deg);
+      width: 700px;
+      background: var(--s2-surface);
+      border: 2px solid var(--s2-border);
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(0,212,170,0.1);
+    }
+
+    .s2-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .s2-card-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .s2-card-dot:nth-child(1) { background: #FF3B5C; }
+    .s2-card-dot:nth-child(2) { background: #FFBE0B; }
+    .s2-card-dot:nth-child(3) { background: #00D4AA; }
+
+    .s2-card-title {
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--s2-text);
+      margin-bottom: 16px;
+    }
+
+    .s2-card-line {
+      height: 8px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      background: var(--s2-border);
+    }
+    .s2-card-line:nth-child(1) { width: 80%; }
+    .s2-card-line:nth-child(2) { width: 60%; }
+    .s2-card-line:nth-child(3) { width: 45%; }
+
+    .s2-card-img-placeholder {
+      width: 100%;
+      height: 100px;
+      background: linear-gradient(135deg, var(--s2-border), var(--s2-surface));
+      border-radius: 8px;
+      margin-top: 16px;
+    }
+
+    /* Orbiting scan dots */
+    .s2-orbit {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .s2-orbit-1 {
+      width: 24px;
+      height: 24px;
+      background: var(--s2-accent);
+      box-shadow: 0 0 20px rgba(0,212,170,0.6);
+      top: 18%;
+      left: 15%;
+    }
+
+    .s2-orbit-2 {
+      width: 18px;
+      height: 18px;
+      background: #FFBE0B;
+      box-shadow: 0 0 16px rgba(255,190,11,0.5);
+      top: 30%;
+      right: 12%;
+    }
+
+    .s2-orbit-3 {
+      width: 20px;
+      height: 20px;
+      background: #4CC9F0;
+      box-shadow: 0 0 18px rgba(76,201,240,0.5);
+      top: 10%;
+      right: 30%;
+    }
+
+    /* "GEO = AI的导航员" label */
+    .s2-label {
+      position: absolute;
+      top: 45%;
+      left: 60px;
+      right: 60px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .s2-label-text {
+      font-family: 'Geist Mono', monospace;
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--s2-accent);
+      white-space: nowrap;
+    }
+
+    .s2-label-line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--s2-accent), transparent);
+      opacity: 0.3;
+    }
+
+    /* Body text */
+    .s2-body {
+      position: absolute;
+      top: 54%;
+      left: 60px;
+      right: 60px;
+      font-size: 34px;
+      font-weight: 400;
+      color: var(--s2-text);
+      line-height: 1.7;
+    }
+
+    .s2-body em {
+      font-style: normal;
+      color: var(--s2-accent);
+    }
+
+    /* Decorative corner bracket */
+    .s2-bracket {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-color: rgba(0,212,170,0.3);
+      border-style: solid;
+    }
+    .s2-bracket-tl { top: 60px; left: 30px; border-width: 2px 0 0 2px; }
+    .s2-bracket-br { bottom: 60px; right: 30px; border-width: 0 2px 2px 0; }
+  </style>
+
+  <!-- BG: Grid -->
+  <div class="s2-grid" id="s2-grid"></div>
+
+  <!-- BG: Ghost AI -->
+  <div class="s2-ghost-ai" id="s2-ghost">AI</div>
+
+  <!-- Step pill -->
+  <div class="s2-step-pill" id="s2-pill">第一</div>
+
+  <!-- Corner brackets -->
+  <div class="s2-bracket s2-bracket-tl"></div>
+  <div class="s2-bracket s2-bracket-br"></div>
+
+  <!-- Website card -->
+  <div class="s2-card-wrap" id="s2-card">
+    <div class="s2-card-header">
+      <div class="s2-card-dot"></div>
+      <div class="s2-card-dot"></div>
+      <div class="s2-card-dot"></div>
+    </div>
+    <div class="s2-card-title">你的网站首页</div>
+    <div class="s2-card-line"></div>
+    <div class="s2-card-line"></div>
+    <div class="s2-card-line"></div>
+    <div class="s2-card-img-placeholder"></div>
+  </div>
+
+  <!-- Orbit dots -->
+  <div class="s2-orbit s2-orbit-1" id="s2-orbit1"></div>
+  <div class="s2-orbit s2-orbit-2" id="s2-orbit2"></div>
+  <div class="s2-orbit s2-orbit-3" id="s2-orbit3"></div>
+
+  <!-- Label -->
+  <div class="s2-label" id="s2-label">
+    <div class="s2-label-text">GEO = AI的导航员</div>
+    <div class="s2-label-line"></div>
+  </div>
+
+  <!-- Body text -->
+  <div class="s2-body" id="s2-body">
+    GEO不是选做题，是<em>送命题</em>。<br>
+    AI搜索引擎现在直接扒你家底，<br>
+    没有GEO优化，AI连你卖啥都猜错。
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    var tl = gsap.timeline({ paused: true });
+
+    // 1. Card drops in with perspective (0.2s)
+    tl.fromTo('#s2-card',
+      { y: -80, opacity: 0, rotateY: -20 },
+      { y: 0, opacity: 1, rotateY: -8, duration: 0.7, ease: 'expo.out' },
+      0.2
+    );
+
+    // 2. Orbit dots stagger in
+    tl.fromTo('#s2-orbit1',
+      { scale: 0, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.4, ease: 'elastic.out(1,0.6)' },
+      0.5
+    );
+    tl.fromTo('#s2-orbit2',
+      { scale: 0, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.4, ease: 'elastic.out(1,0.6)' },
+      0.65
+    );
+    tl.fromTo('#s2-orbit3',
+      { scale: 0, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.4, ease: 'elastic.out(1,0.6)' },
+      0.8
+    );
+
+    // 3. Label slides from left
+    tl.fromTo('#s2-label',
+      { x: -60, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.5, ease: 'power3.out' },
+      0.9
+    );
+
+    // 4. Pill fades in
+    tl.fromTo('#s2-pill',
+      { y: -20, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' },
+      0.3
+    );
+
+    // 5. Body text fades up
+    tl.fromTo('#s2-body',
+      { y: 30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out' },
+      1.2
+    );
+
+    // 6. Ghost AI drift
+    // Duration 5s, cycle ~3s. repeats = ceil(5/3) - 1 = 1
+    tl.fromTo('#s2-ghost',
+      { x: -20 },
+      { x: 20, duration: 1.5, yoyo: true, repeat: 2, ease: 'sine.inOut' },
+      0
+    );
+
+    // 7. Orbit 1 ambient orbit motion
+    // cycle ~2s, repeats = ceil(5/2) - 1 = 1
+    tl.fromTo('#s2-orbit1',
+      { x: 0, y: 0 },
+      { x: 20, y: -15, duration: 1.0, yoyo: true, repeat: 4, ease: 'sine.inOut' },
+      0.5
+    );
+
+    // 8. Orbit 2 ambient
+    tl.fromTo('#s2-orbit2',
+      { x: 0, y: 0 },
+      { x: -15, y: 20, duration: 1.2, yoyo: true, repeat: 3, ease: 'sine.inOut' },
+      0.65
+    );
+
+    // 9. Orbit 3 ambient
+    tl.fromTo('#s2-orbit3',
+      { x: 0, y: 0 },
+      { x: 10, y: -20, duration: 0.9, yoyo: true, repeat: 4, ease: 'sine.inOut' },
+      0.8
+    );
+
+    // 10. Card subtle rotation (starts after entrance completes)
+    tl.fromTo('#s2-card',
+      { rotateY: -8 },
+      { rotateY: -6, duration: 1.5, yoyo: true, repeat: 2, ease: 'sine.inOut' },
+      1.0
+    );
+
+    window.__timelines['scene-2'] = tl;
+  </script>
+
+</div>
+</template>

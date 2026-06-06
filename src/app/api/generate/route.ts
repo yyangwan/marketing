@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+﻿import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -33,13 +33,10 @@ export async function POST(req: Request) {
   const piece = await prisma.contentPiece.findUnique({
     where: { id: contentPieceId },
     include: {
-      project: {
-        include: { brandVoice: true },
-      },
       brandVoice: true,
     },
   });
-  if (!piece || piece.project.workspaceId !== ws.workspaceId) {
+  if (!piece || piece.workspaceId !== ws.workspaceId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -49,8 +46,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `No prompt for ${platform}` }, { status: 400 });
   }
 
-  // Use contentPiece's brandVoice, fall back to project's default
-  const brandVoice = piece.brandVoice || piece.project.brandVoice;
+  const brandVoice = piece.brandVoice;
 
   const prompt = builder(brief, brandVoice || undefined);
   const content = await callLLM(prompt);
@@ -65,3 +61,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json(pc);
 }
+

@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -13,7 +12,7 @@ export async function GET() {
     return responses.unauthorized();
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await getServiceWorkspace()) ?? getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -44,13 +43,13 @@ export async function POST(req: Request) {
     return responses.unauthorized();
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await getServiceWorkspace()) ?? getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
 
   const body = await req.json();
-  const { name, description, guidelines, samples } = body;
+  const { name, description, guidelines, samples, brandId } = body;
 
   if (!name || typeof name !== "string" || name.trim().length === 0) {
     return responses.badRequest(errors.invalidParam("name", "Name is required"));
@@ -86,6 +85,8 @@ export async function POST(req: Request) {
         guidelines: typeof guidelines === "string" ? guidelines.trim() : "",
         samples: JSON.stringify(samples),
         workspaceId: ws.workspaceId,
+        brandId: typeof brandId === "string" ? brandId : ws.brandId,
+        createdByUserId: session.user.id,
       },
     });
 

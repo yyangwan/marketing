@@ -7,107 +7,44 @@ datasource db {
   provider = "mysql"
 }
 
-model User {
-  id                   String   @id @default(cuid())
-  email                String   @unique
-  passwordHash         String
-  name                 String
-  genilinkUserId       String?  @unique  // Links to GeniLink portal user
-  onboardingCompleted  Boolean  @default(false)
-  onboardingStep       String   @default("welcome")
-  createdAt            DateTime @default(now())
-
-  memberships  WorkspaceMember[]
-  notifications Notification[]
-}
-
-model Workspace {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-
-  members           WorkspaceMember[]
-  projects          Project[]
-  invites           WorkspaceInvite[]
-  brandVoices       BrandVoice[]
-  aiTemplates       AITemplate[]
-  notifications     Notification[]
-  genieSources      GenieSource[]
-  platformApiConfigs PlatformApiConfig[]
-}
-
-model WorkspaceMember {
-  id          String   @id @default(cuid())
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role        String   @default("member")
-  joinedAt    DateTime @default(now())
-
-  @@unique([workspaceId, userId])
-}
-
-model WorkspaceInvite {
-  id          String    @id @default(cuid())
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  token       String    @unique @default(cuid())
-  email       String
-  role        String    @default("member")
-  invitedBy   String
-  usedAt      DateTime?
-  expiresAt   DateTime
-  createdAt   DateTime  @default(now())
-}
-
-model Project {
-  id                String   @id @default(cuid())
-  name              String
-  clientName        String   @default("")
-  workspaceId       String
-  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  brandVoiceId      String?   // Default brand voice for this project
-  brandVoice        BrandVoice? @relation("ProjectBrandVoice", fields: [brandVoiceId], references: [id], onDelete: Restrict)
-  defaultAssigneeId String?   // Default assignee for content in this project
-  createdAt         DateTime @default(now())
-
-  contentPieces ContentPiece[]
-
-  @@unique([workspaceId, name])
-}
-
 model ContentPiece {
   id               String            @id @default(cuid())
+  workspaceId      String
   projectId        String
-  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  brandId          String?
+  createdByUserId  String
   title            String
   type             String            @default("blog_post")
   brief            String            @db.MediumText
-  brandVoiceId     String?           // Brand voice used for this content
+  brandVoiceId     String?
   brandVoice       BrandVoice?       @relation("ContentPieceBrandVoice", fields: [brandVoiceId], references: [id], onDelete: Restrict)
   status           String            @default("draft")
   reviewToken      String?           @unique
   reviewExpiresAt  DateTime?
   platformContents PlatformContent[]
   reviewComments   ReviewComment[]
-  quality          ContentQuality?   // AI evaluation scores
-  qualityHistory   QualityHistory[]  // Historical evaluation records
-  schedules        ContentSchedule[] // Phase 1D: Scheduling records
+  quality          ContentQuality?
+  qualityHistory   QualityHistory[]
+  schedules        ContentSchedule[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([brandId])
+  @@index([createdByUserId])
 }
 
 model PlatformContent {
-  id              String       @id @default(cuid())
-  contentPieceId  String
-  contentPiece    ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
-  platform        String
-  status          String       @default("draft")
-  content         String?       @db.MediumText
-  publishedUrl    String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id             String       @id @default(cuid())
+  contentPieceId String
+  contentPiece   ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+  platform       String
+  status         String       @default("draft")
+  content        String?      @db.MediumText
+  publishedUrl   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@unique([contentPieceId, platform])
 }
@@ -117,127 +54,101 @@ model ReviewComment {
   contentPieceId String
   contentPiece   ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
   authorName     String
-  comment        String?       @db.MediumText
+  comment        String?      @db.MediumText
   action         String
   createdAt      DateTime     @default(now())
 }
 
-// Phase 1C: Brand Voice System
+// Business generation profile linked to a Brand ID owned by 智链.
 model BrandVoice {
-  id          String    @id @default(cuid())
-  name        String
-  workspaceId String
-  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  description String?   @db.Text
-  guidelines  String?   @db.Text  // Dos and don'ts for tone
-  samples     String    @db.MediumText  // JSON array of sample content strings
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String         @id @default(cuid())
+  workspaceId     String
+  brandId         String?
+  name            String
+  description     String?        @db.Text
+  guidelines      String?        @db.Text
+  samples         String         @db.MediumText
+  createdByUserId String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  contentPieces   ContentPiece[] @relation("ContentPieceBrandVoice")
 
-  // Relations: can be used as default for projects or selected for content pieces
-  projects       Project[]        @relation("ProjectBrandVoice")
-  contentPieces  ContentPiece[]   @relation("ContentPieceBrandVoice")
+  @@index([workspaceId])
+  @@index([brandId])
 }
 
-// Phase 1C: Custom AI Templates
 model AITemplate {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
   workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  description String?   @db.Text
-  template    String    @db.MediumText  // Template content with {variable} placeholders
-  variables   String    @db.MediumText  // JSON array: [{name, type, description, required}]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  description String?  @db.Text
+  template    String   @db.MediumText
+  variables   String   @db.MediumText
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
 }
 
-// Phase 1C: Content Quality Metrics
 model ContentQuality {
-  id               String   @id @default(cuid())
-  contentPieceId   String   @unique
+  id               String       @id @default(cuid())
+  contentPieceId   String       @unique
   contentPiece     ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
-
-  // AI scores (0-10)
-  quality      Int      @default(0)      // Overall writing quality
-  engagement   Int      @default(0)      // How engaging it is
-  brandVoice   Int      @default(0)      // How well it matches brand voice
-  platformFit  Int      @default(0)      // How well it fits the platform
-
-  // Extended AI scores (0-10)
-  sentiment        Int      @default(0)   // Sentiment analysis (-10 to 10 converted to 0-10)
-  topicConsistency Int      @default(0)   // Topic consistency score
-  originality      Int      @default(0)   // Originality score
-
-  // Local metrics (computed instantly)
-  localMetrics     String?  @db.MediumText  // JSON: {readabilityScore, vocabularyDiversity, sentenceComplexity, consistencyScore}
-
-  // AI suggestions for improvement
-  suggestions  String?  @db.MediumText  // JSON array of improvement suggestions
-
-  // Historical tracking
-  previousScores   String?  @db.MediumText  // JSON: store previous evaluation for comparison
-  evaluationCount  Int      @default(1)   // Track how many times evaluated
-
-  // Evaluation metadata
-  evaluatedAt  DateTime @default(now())
+  quality          Int          @default(0)
+  engagement       Int          @default(0)
+  brandVoice       Int          @default(0)
+  platformFit      Int          @default(0)
+  sentiment        Int          @default(0)
+  topicConsistency Int          @default(0)
+  originality      Int          @default(0)
+  localMetrics     String?      @db.MediumText
+  suggestions      String?      @db.MediumText
+  previousScores   String?      @db.MediumText
+  evaluationCount  Int          @default(1)
+  evaluatedAt      DateTime     @default(now())
 
   @@index([evaluatedAt])
 }
 
-// Phase 1C+: Quality History (tracks evaluation changes over time)
 model QualityHistory {
-  id               String   @id @default(cuid())
+  id               String       @id @default(cuid())
   contentPieceId   String
   contentPiece     ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
-
-  // AI scores snapshot
   quality          Int
   engagement       Int
   brandVoice       Int
   platformFit      Int
-  sentiment        Int      @default(0)
-  topicConsistency Int      @default(0)
-  originality      Int      @default(0)
-
-  // Content hash to detect actual changes
+  sentiment        Int          @default(0)
+  topicConsistency Int          @default(0)
+  originality      Int          @default(0)
   contentHash      String
-
-  evaluatedAt      DateTime @default(now())
+  evaluatedAt      DateTime     @default(now())
 
   @@index([contentPieceId, evaluatedAt])
 }
 
-// Phase 1D: Scheduling
 model ContentSchedule {
-  id          String   @id @default(cuid())
-  contentId   String
+  id           String       @id @default(cuid())
+  contentId    String
   contentPiece ContentPiece @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  scheduledAt DateTime
-  publishedAt DateTime?
-  // Status values must match ScheduleStatus type in src/types/index.ts
-  // Valid values: "scheduled" | "publishing" | "published" | "failed"
-  // Note: SQLite CHECK constraint should be added via migration for production:
-  // ALTER TABLE ContentSchedule ADD COLUMN status TEXT CHECK(status IN ('scheduled', 'publishing', 'published', 'failed'));
-  status      String   @default("scheduled")
-  createdAt   DateTime @default(now())
+  scheduledAt  DateTime
+  publishedAt  DateTime?
+  status       String       @default("scheduled")
+  createdAt    DateTime     @default(now())
 
   @@unique([contentId])
   @@index([scheduledAt])
   @@index([status])
 }
 
-// Phase 1D: Notifications
 model Notification {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  type        String   // "content_review" | "content_approved" | "content_published" | "schedule_reminder" | "mention"
+  type        String
   title       String
   message     String   @db.MediumText
-  link        String?  // URL to relevant content
+  link        String?
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
 
@@ -246,82 +157,59 @@ model Notification {
   @@index([workspaceId])
 }
 
-// Phase 1E: Genie Auto-Content Factory - URL Sources
 model GenieSource {
-  id               String   @id @default(cuid())
-  workspaceId       String
-  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  url               String
-
-  // Extracted metadata from URL analysis
-  businessType      String?  // "电商", "SaaS", "本地服务", "内容创作"
-  keyProducts       String?  @db.MediumText  // JSON array: ["产品A", "产品B"]
-  brandTone         String?  // "专业", "亲切", "幽默", "高端"
-  targetAudience    String?  // "Z世代", "职场人士", "宝妈", etc.
-  recurringTopics   String?  @db.MediumText  // JSON array: ["话题1", "话题2"]
-
-  // Analysis tracking
-  lastAnalyzedAt    DateTime?
-  enabled           Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id              String   @id @default(cuid())
+  workspaceId     String
+  url             String
+  businessType    String?
+  keyProducts     String?  @db.MediumText
+  brandTone       String?
+  targetAudience  String?
+  recurringTopics String?  @db.MediumText
+  lastAnalyzedAt  DateTime?
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([workspaceId, enabled])
   @@unique([workspaceId, url])
   @@index([lastAnalyzedAt])
 }
 
-// Phase 1F: Platform API Configuration
 model PlatformApiConfig {
-  id          String   @id @default(cuid())
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  platform    String   // "wechat" | "weibo" | "xiaohongshu" | "douyin"
-
-  // Platform-specific credentials (stored encrypted in production)
-  appId      String?  @map("app_id")       // WeChat AppID, Weibo App Key, etc.
-  appSecret  String?  @map("app_secret")   // WeChat AppSecret, Weibo App Secret, etc.
-  accessToken String? @map("access_token") // OAuth access token
-  refreshTokn String?  @map("refresh_token") // OAuth refresh token
-
-  // Token management
-  tokenExpiresAt DateTime? // When access token expires
-  lastRefreshedAt DateTime? // When we last refreshed the token
-
-  // Additional platform-specific config (JSON)
-  extraConfig String? @db.MediumText // Platform-specific settings
-
-  enabled    Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id             String   @id @default(cuid())
+  workspaceId    String
+  platform       String
+  appId          String?  @map("app_id")
+  appSecret      String?  @map("app_secret")
+  accessToken    String?  @map("access_token")
+  refreshTokn    String?  @map("refresh_token")
+  tokenExpiresAt DateTime?
+  lastRefreshedAt DateTime?
+  extraConfig    String?  @db.MediumText
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([workspaceId, platform])
   @@index([workspaceId, enabled])
 }
 
-// Phase 1F: Publish History
 model PublishHistory {
-  id              String   @id @default(cuid())
-  workspaceId     String
-  platform        String   // "wechat" | "weibo" | "xiaohongshu" | "douyin"
-  platformContentId String  // References PlatformContent.id
-
-  // Content data
-  title           String
-  content         String   @db.MediumText  // The published content
-
-  // Result
-  status          String   // "success" | "failed" | "pending"
-  publishedUrl    String?  // URL of published content
-  platformPostId  String?  @map("platform_post_id") // ID returned by platform
-  errorMessage    String?  @map("error_message") @db.Text // Error message if failed
-
-  // Retry tracking
-  attemptCount    Int      @default(0)
-  lastAttemptAt   DateTime @default(now())
-  completedAt     DateTime?
-
-  createdAt       DateTime @default(now())
+  id                String   @id @default(cuid())
+  workspaceId       String
+  platform          String
+  platformContentId String
+  title             String
+  content           String   @db.MediumText
+  status            String
+  publishedUrl      String?
+  platformPostId    String?  @map("platform_post_id")
+  errorMessage      String?  @map("error_message") @db.Text
+  attemptCount      Int      @default(0)
+  lastAttemptAt     DateTime @default(now())
+  completedAt       DateTime?
+  createdAt         DateTime @default(now())
 
   @@index([workspaceId, platform])
   @@index([platformContentId])

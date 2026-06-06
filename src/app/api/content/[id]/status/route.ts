@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+﻿import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -16,7 +16,7 @@ export async function PATCH(
   if (!session?.user?.id) {
     return responses.unauthorized();
   }
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -33,9 +33,9 @@ export async function PATCH(
 
   const existing = await prisma.contentPiece.findUnique({
     where: { id },
-    include: { project: true },
+    include: {},
   });
-  if (!existing || existing.project.workspaceId !== ws.workspaceId) {
+  if (!existing || existing.workspaceId !== ws.workspaceId) {
     return responses.notFound(errors.contentNotFound(id));
   }
 
@@ -56,3 +56,4 @@ export async function PATCH(
 
   return NextResponse.json(piece);
 }
+

@@ -1,9 +1,8 @@
 import { PrismaClient } from '../src/generated/prisma/client.js';
-import { PrismaPg } from '@prisma/adapter-pg';
-import pg from 'pg';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
+const url = process.env.DATABASE_URL!.replace(/^mysql:/, 'mariadb:');
+const adapter = new PrismaMariaDb(url);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {

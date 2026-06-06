@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+﻿import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -13,7 +13,7 @@ export async function GET(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -21,10 +21,10 @@ export async function GET(
   const { id } = await params;
   const piece = await prisma.contentPiece.findUnique({
     where: { id },
-    include: { platformContents: true, project: true },
+    include: { platformContents: true },
   });
 
-  if (!piece || piece.project.workspaceId !== ws.workspaceId) {
+  if (!piece || piece.workspaceId !== ws.workspaceId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return NextResponse.json(piece);
@@ -38,7 +38,7 @@ export async function PUT(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -49,9 +49,9 @@ export async function PUT(
   // Verify ownership
   const existing = await prisma.contentPiece.findUnique({
     where: { id },
-    include: { project: true },
+    include: {},
   });
-  if (!existing || existing.project.workspaceId !== ws.workspaceId) {
+  if (!existing || existing.workspaceId !== ws.workspaceId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -77,3 +77,4 @@ export async function PUT(
 
   return NextResponse.json(piece);
 }
+

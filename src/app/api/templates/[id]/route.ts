@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+﻿import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -15,7 +15,7 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -42,7 +42,7 @@ export async function PUT(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -133,7 +133,7 @@ export async function DELETE(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }

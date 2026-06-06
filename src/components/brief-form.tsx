@@ -83,7 +83,7 @@ export function BriefForm({ projectId }: { projectId?: string }) {
         await fetch("/api/user/onboarding", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ step: "brief" }),
+          body: JSON.stringify({ step: "invite" }),
         });
         router.push("/onboarding");
       } else {

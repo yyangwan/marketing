@@ -5,69 +5,79 @@ ContentOS 是一个多租户 SaaS 平台，使用 Next.js 16 (App Router)、Pris
 ## 系统架构
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Client Layer                            │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-│  │  看板视图  │  │ Brief表单 │  │ 内容编辑器 │  │ 日历视图  │      │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-│  │ 品牌调性  │  │ 模板管理  │  │ 质量面板  │  │ 通知铃铛  │      │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      API Layer (Next.js)                        │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-│  │ /api/briefs│ │ /api/content│ │ /api/projects│ │ /api/workspaces│  │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-│  │/api/brand│ │ /api/templates│ │/api/calendar │ │/api/notifications││
-│  │ _voices  │  │             │  │  /events   │  │                │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                       │
-│  │/api/content│ │ /api/cron/publish│ │ /api/quality│            │
-│  │/[id]/schedule│ │              │  │              │             │
-│  └──────────┘  └──────────┘  └──────────┘                       │
-└─────────────────────────────────────────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│ NextAuth v5  │    │  Prisma ORM  │    │   AI Client  │
-│  认证中间件    │    │  数据访问层   │    │  LLM 集成    │
-└──────────────┘    └──────────────┘    └──────────────┘
-                            │
-                            ▼
-                  ┌──────────────────┐
-                  │   SQLite / PG    │
-                  │    数据库         │
-                  └──────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                          Client Layer                                │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │
+│  │  看板视图  │ │ Brief表单 │ │ 内容编辑器 │ │ 日历视图  │ │ 数据分析  │ │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │
+│  │ 品牌调性  │ │ 模板管理  │ │ 质量面板  │ │ 通知铃铛  │ │ Genie工厂 │ │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ │
+└──────────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                       API Layer (Next.js)                            │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐      │
+│  │ /api/auth  │ │ /api/content│ │ /api/projects│ │/api/workspaces│  │
+│  │   +SSO     │ │   +quality │ │             │ │  +invites    │  │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────┘      │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐      │
+│  │/api/brand  │ │/api/templates│ │/api/calendar│ │/api/notif   │   │
+│  │  _voices   │ │             │ │  /events    │ │  ications   │   │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────┘      │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐      │
+│  │/api/genie  │ │/api/analytics│ │/api/publish │ │/api/platform│  │
+│  │ sources+gen│ │             │ │             │ │  -config    │  │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────┘      │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐                       │
+│  │/api/cron   │ │/api/user   │ │/api/integr │                       │
+│  │publish+genie│ │profile+pwd │ │  ation     │                       │
+│  └────────────┘ └────────────┘ └────────────┘                       │
+└──────────────────────────────────────────────────────────────────────┘
+        │                   │                   │
+        ▼                   ▼                   ▼
+┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+│ NextAuth v5  │   │  Prisma ORM  │   │   AI Client  │
+│  认证+SSO     │   │  MySQL       │   │ DeepSeek API │
+└──────────────┘   └──────────────┘   └──────────────┘
+                           │
+                           ▼
+                 ┌──────────────────┐
+                 │     MySQL 8      │
+                 │      数据库       │
+                 └──────────────────┘
 ```
 
 ## 核心模块
 
 ### 1. 认证与授权 (Auth)
 
-**技术栈**: NextAuth v5 (Credentials Provider)
+**技术栈**: NextAuth v5 (Credentials Provider) + GeniLink SSO
+
+**认证方式**:
+- **邮箱密码**: 标准注册/登录，bcrypt 哈希
+- **GeniLink SSO**: OAuth2 授权码流程，自动开通用户
 
 **数据流**:
 ```
-用户输入邮箱密码
-    ↓
-POST /api/auth/callback/credentials
-    ↓
-验证用户 (bcrypt.compare)
-    ↓
-创建 JWT Token
-    ↓
-存储工作区角色 (workspaceMember)
-    ↓
-设置 Session Cookie
+用户输入邮箱密码                    GeniLink门户点击SSO登录
+    ↓                                      ↓
+POST /api/auth/callback/credentials    GET /api/auth/sso/callback?code=xxx
+    ↓                                      ↓
+验证用户 (bcrypt.compare)              exchangeCodeForToken → JWT验证
+    ↓                                      ↓
+创建 JWT Token                          自动开通/关联用户
+    ↓                                      ↓
+存储工作区角色 (workspaceMember)         签发NextAuth Session
+    ↓                                      ↓
+设置 Session Cookie                     设置 Session Cookie
 ```
 
 **关键文件**:
-- `src/lib/auth/config.ts` — NextAuth 配置
+- `src/lib/auth/config.ts` — NextAuth 配置 (含 SSO bypass)
 - `src/lib/auth/workspace.ts` — 工作区上下文管理
+- `src/lib/auth/genilink.ts` — GeniLink SSO 客户端
 
 **会话结构**:
 ```typescript
@@ -115,7 +125,7 @@ where: {
 ```
 用户填写 Brief
     ↓
-POST /api/briefs
+POST /api/content
     ↓
 创建 ContentPiece (draft)
     ↓
@@ -146,21 +156,14 @@ interface PlatformConfig {
   emojis: boolean;
 }
 
-// 品牌调性注入
-interface BrandVoice {
-  name: string;
-  description: string;
-  guidelines: string;
-  sampleContent: string;
-}
+// 支持平台: wechat, weibo, xiaohongshu, douyin
 ```
 
 **质量评估**:
-- 4 维度评分: 质量、互动性、品牌匹配度、平台适配度
-- AI 驱动的改进建议
-- 实时 SEO 分析（字符数、词数、关键词密度）
-- 质量评估通过 `POST /api/content/[id]/quality` 按需触发
-- SEO 分析主要由前端 `SEOScorer` 在编辑时即时计算
+- AI 评估: 质量、互动性、品牌匹配度、平台适配度、情感分析、话题一致性、原创性 (0-10)
+- 本地即时指标: 可读性、词汇多样性、句子复杂度、一致性（无AI调用）
+- 历史追踪: QualityHistory 记录每次评估变化
+- SEO 分析: 字符数、词数、关键词密度 + AI优化建议
 
 ### 4. 内容审核 (Review Workflow)
 
@@ -173,15 +176,10 @@ editing (人工编辑) → review (客户审核) → approved (已批准) → sc
          └──── revision_requested (需修改) ───────────────────────────────────────────→ failed (发布失败)
 ```
 
-**审核评论**:
-```typescript
-interface ReviewComment {
-  action: "approved" | "revision_requested" | "comment";
-  comment?: string;
-  authorName: string;
-  createdAt: Date;
-}
-```
+**审核链接**:
+- 生成唯一 `reviewToken`，7天有效期
+- 外部审阅者可通过链接查看内容并添加评论
+- 支持评论类型: approved / revision_requested / comment
 
 ### 5. 日历与调度 (Calendar & Scheduling)
 
@@ -203,29 +201,23 @@ POST /api/content/[id]/schedule
     ↓
 Cron job 定期检查到期内容
     ↓
-POST /api/cron/publish
+GET /api/cron/publish
     ↓
-状态变更为 publishing → published/failed
+乐观锁抢占 → 指数退避重试(1s, 2s, 4s, 最多3次) → 发布到各平台
+    ↓
+状态变更为 published / failed
     ↓
 触发通知
-```
-
-**数据模型**:
-```typescript
-interface ContentSchedule {
-  contentId: string;
-  scheduledAt: DateTime;
-  status: "scheduled" | "publishing" | "published" | "failed";
-  publishedAt?: DateTime;
-}
 ```
 
 ### 6. 通知系统 (Notifications)
 
 **通知类型**:
 - `content_review`: 内容审核状态变更
-- `schedule_reminder`: 即将发布的内容提醒
+- `content_approved`: 内容已批准
 - `content_published`: 内容发布成功/失败
+- `schedule_reminder`: 即将发布的内容提醒
+- `mention`: @提及
 
 **通知流**:
 ```
@@ -239,23 +231,74 @@ interface ContentSchedule {
     ↓
 前端显示通知铃铛 + 下拉列表
     ↓
-用户标记已读/删除
+用户标记已读/全部已读
+```
+
+### 7. Genie 自动内容工厂
+
+**工作流**:
+```
+用户添加 URL 信息源
+    ↓
+POST /api/genie/sources — 抓取内容 + AI分析提取商业洞察
+    ↓
+提取: 业务类型、核心产品、品牌调性、目标受众、常驻话题
+    ↓
+POST /api/genie/generate — 基于所有已启用信息源生成内容创意
+    ↓
+创建 ContentPiece (genie_draft) — 3-5个内容创意
+    ↓
+Cron 周任务: GET /api/cron/genie 自动为活跃工作区生成内容
 ```
 
 **数据模型**:
 ```typescript
-interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  link?: string;
-  userId: string;
-  workspaceId: string;
-  isRead: boolean;
-  createdAt: DateTime;
+interface GenieSource {
+  url: string;
+  businessType: string;      // "电商", "SaaS", "本地服务"
+  keyProducts: string[];      // JSON array
+  brandTone: string;          // "专业", "亲切", "幽默"
+  targetAudience: string;     // "Z世代", "职场人士"
+  recurringTopics: string[];  // JSON array
+  enabled: boolean;
 }
 ```
+
+### 8. 平台发布 (Publishing)
+
+**工作流**:
+```
+用户配置平台 API (OAuth / 手动凭证)
+    ↓
+POST /api/platform-config/[platform] — 存储加密凭证
+    ↓
+POST /api/publish/[platformContentId] — 发布到平台
+    ↓
+验证凭证 → 调用平台API → 记录 PublishHistory → 更新状态
+    ↓
+所有平台发布完成 → ContentPiece 状态变为 published
+```
+
+**平台 API 配置**:
+- 支持 OAuth2 流程 (`/api/platform-oauth/callback`)
+- 支持手动配置 AppID/AppSecret
+- Token 自动刷新 (`/api/platform-config/[platform]/refresh`)
+
+### 9. 数据分析 (Analytics)
+
+**GET /api/analytics**:
+- 8 个并行 Prisma 查询 + 2 个原生 SQL
+- 内容总览: 总数、按状态分布、按平台分布
+- 质量趋势: 平均分数变化
+- 发布统计: 成功率、发布量
+- 近期活动: 最新 10 条内容
+- 热门项目: 按内容数量排序
+
+### 10. 外部集成 (Integration)
+
+**GeniLink Portal 对接**:
+- JWT Bearer 认证 (JWKS 验证 genilink.cn)
+- `GET /api/integration/summary` — 供 GeniLink 门户仪表板拉取内容统计数据
 
 ## 数据模型
 
@@ -263,34 +306,53 @@ interface Notification {
 
 ```
 User ────< WorkspaceMember >──── Workspace
-                                     │
-                                     │ has many
-                                     ├── Project
-                                     │    │
-                                     │    │ has many
-                                     │    ▼
-                                     │  ContentPiece
-                                     │    │
-                                     │    │ has many
-                                     │    ├── PlatformContent
-                                     │    │    │
-                                     │    │    │ has many
-                                     │    │    ▼
-                                     │    │  ReviewComment
-                                     │    │
-                                     │    ├── BrandVoice (workspace-level, optionally referenced by project/content)
-                                     │    └── AITemplate (workspace-level)
-                                     │
-                                     ├── Notification
-                                     │
-                                     ├── Invite
-                                     │
-                                     └── ContentSchedule
-                                          │
-                                          └── ContentPiece (one-to-one)
+  │                                   │
+  │                                   │ has many
+  │                                   ├── Project
+  │                                   │    │
+  │                                   │    │ has many
+  │                                   │    ▼
+  │                                   │  ContentPiece
+  │                                   │    │
+  │                                   │    ├── PlatformContent (@@unique [contentPieceId, platform])
+  │                                   │    │    └── PublishHistory
+  │                                   │    ├── ReviewComment
+  │                                   │    ├── ContentQuality (1:1)
+  │                                   │    ├── QualityHistory
+  │                                   │    ├── ContentSchedule (1:1)
+  │                                   │    └── BrandVoice? (可选关联)
+  │                                   │
+  │                                   ├── BrandVoice
+  │                                   │    ├── Project[] (默认品牌调性)
+  │                                   │    └── ContentPiece[] (内容级品牌调性)
+  │                                   │
+  │                                   ├── AITemplate
+  │                                   │
+  │                                   ├── WorkspaceInvite
+  │                                   │
+  │                                   ├── GenieSource
+  │                                   │
+  │                                   ├── PlatformApiConfig (@@unique [workspaceId, platform])
+  │                                   │
+  │                                   └── Notification
+  │
+  └── genilinkUserId? (GeniLink SSO 关联)
 ```
 
 ### 关键表结构
+
+**User**:
+```typescript
+{
+  id: string;
+  email: string;             // @unique
+  passwordHash: string;
+  name: string;
+  genilinkUserId?: string;   // @unique, GeniLink SSO
+  onboardingCompleted: boolean;
+  onboardingStep: string;
+}
+```
 
 **Workspace**:
 ```typescript
@@ -307,8 +369,10 @@ User ────< WorkspaceMember >──── Workspace
   id: string;
   workspaceId: string;
   name: string;
-  description?: string;
-  createdAt: DateTime;
+  clientName: string;
+  brandVoiceId?: string;       // 默认品牌调性
+  defaultAssigneeId?: string;
+  // @@unique([workspaceId, name])
 }
 ```
 
@@ -318,9 +382,12 @@ User ────< WorkspaceMember >──── Workspace
   id: string;
   projectId: string;
   title: string;
-  brief: string;              // JSON 序列化的 Brief
-  status: ContentStatus;
-  createdAt: DateTime;
+  type: string;                // "blog_post" 等
+  brief: string;               // JSON 序列化的 Brief (MediumText)
+  brandVoiceId?: string;
+  status: ContentStatus;       // draft/genie_draft/editing/review/...
+  reviewToken?: string;        // @unique
+  reviewExpiresAt?: DateTime;
 }
 ```
 
@@ -329,49 +396,65 @@ User ────< WorkspaceMember >──── Workspace
 {
   id: string;
   contentPieceId: string;
-  platform: Platform;
-  content: string;            // HTML 格式
-  status: ContentStatus;
+  platform: string;            // wechat/weibo/xiaohongshu/douyin
+  status: string;
+  content?: string;            // HTML 格式 (MediumText)
+  publishedUrl?: string;
+  // @@unique([contentPieceId, platform])
 }
 ```
 
-## API 设计
-
-### 错误格式标准化
-
-所有 API 错误遵循统一格式:
-```typescript
-{
-  error: {
-    type: ErrorType;
-    code: string;
-    message: string;
-    param?: string;
-    doc_url: string;
-  }
-}
-```
-
-### 响应格式
-
-**成功响应**:
+**GenieSource**:
 ```typescript
 {
   id: string;
-  // ... 资源字段
+  workspaceId: string;
+  url: string;
+  businessType?: string;
+  keyProducts?: string;        // JSON array (MediumText)
+  brandTone?: string;
+  targetAudience?: string;
+  recurringTopics?: string;    // JSON array (MediumText)
+  lastAnalyzedAt?: DateTime;
+  enabled: boolean;
+  // @@unique([workspaceId, url])
 }
 ```
 
-**列表响应**:
+**PlatformApiConfig**:
 ```typescript
-[
-  {
-    id: string;
-    // ... 资源字段
-    _count: { /* 关联计数 */ };
-    _lastReviewAction: { /* 最新审核 */ };
-  }
-]
+{
+  id: string;
+  workspaceId: string;
+  platform: string;
+  appId?: string;
+  appSecret?: string;
+  accessToken?: string;
+  refreshTokn?: string;
+  tokenExpiresAt?: DateTime;
+  extraConfig?: string;        // JSON (MediumText)
+  enabled: boolean;
+  // @@unique([workspaceId, platform])
+}
+```
+
+**ContentQuality**:
+```typescript
+{
+  id: string;
+  contentPieceId: string;      // @unique (1:1)
+  quality: number;             // 0-10
+  engagement: number;
+  brandVoice: number;
+  platformFit: number;
+  sentiment: number;
+  topicConsistency: number;
+  originality: number;
+  localMetrics?: string;       // JSON
+  suggestions?: string;        // JSON array
+  previousScores?: string;     // JSON
+  evaluationCount: number;
+}
 ```
 
 ## 前端架构
@@ -387,6 +470,11 @@ layout.tsx (根布局)
             ├── BriefForm (Brief 创建表单)
             ├── KanbanBoard (内容看板)
             ├── ContentEditor (TipTap 编辑器)
+            ├── CalendarClient (日历视图)
+            ├── QualityPanel (质量评估面板)
+            ├── SEOScorer (SEO 分析)
+            ├── AnalyticsDashboard (数据分析)
+            ├── GenieSourceManager (Genie 信息源管理)
             └── SettingsPage (设置页面)
 ```
 
@@ -415,34 +503,38 @@ layout.tsx (根布局)
 - `QualityPanel` — 质量评估面板
 - `SEOScorer` — SEO 分析组件
 - `ScheduleDialog` — 调度对话框
+- `AnalyticsDashboard` — 数据分析仪表板
 
 ## 安全考虑
 
 ### 认证
-- 密码使用 bcrypt 哈希
+- 密码使用 bcrypt 哈希 (12 rounds)
 - JWT Token 存储在 httpOnly cookie
 - Session 过期后自动登出
+- SSO 通过 JWKS 验证 JWT 签名
 
 ### 授权
-- 所有 API 路由检查 session
+- 所有 API 路由检查 session（除公开端点）
 - 工作区级别数据隔离
 - 项目归属验证
+- 角色检查: owner/admin 才能管理成员/邀请
 
 ### 输入验证
 - API 参数类型检查
 - Prisma 参数化查询（防 SQL 注入）
 - 内容长度限制
+- 平台凭证不暴露给前端（仅返回 `hasAccessToken: boolean`）
 
-### CORS
-- 同站请求（无需 CORS）
-- API 密钥管理（环境变量）
+### Cron 安全
+- `CRON_SECRET` Bearer token 验证
+- 乐观锁防止并发重复执行
 
 ## 性能优化
 
 ### 数据库
 - Prisma 查询优化（select, include）
-- 索引（id, workspaceId, projectId）
-- 连接池（better-sqlite3）
+- 索引（id, workspaceId, projectId, scheduledAt, status, evaluatedAt 等）
+- MySQL 8 连接池
 
 ### 前端
 - Next.js 自动代码分割
@@ -452,33 +544,52 @@ layout.tsx (根布局)
 ### AI 生成
 - 并行生成多平台内容
 - Mock 模式避免 API 调用
-- 错误重试机制
+- 错误重试机制（指数退避）
+
+### Analytics
+- 8 个并行 Prisma 查询
+- 原生 SQL 用于时间序列聚合
 
 ## 部署架构
 
 ### 开发环境
 ```
-本地机器 → SQLite → Next.js Dev Server → DeepSeek API (可选)
+本地机器 → MySQL 8 → Next.js Dev Server → DeepSeek API (可选)
 ```
 
 ### 生产环境
 ```
-用户 → CDN (Vercel) → Next.js Server → SQLite（当前实现）/ PostgreSQL（规划中） → DeepSeek API
-                                            ↓
-                                      Prisma ORM
+用户 → CDN (Vercel) → Next.js Server → MySQL 8 → DeepSeek API
+                              ↓
+                        Prisma ORM
 ```
 
 ### 环境变量
 ```bash
 # 必需
-DATABASE_URL=           # 当前默认使用 SQLite；迁移 PostgreSQL 时替换为对应连接字符串
+DATABASE_URL=           # MySQL 连接字符串
 NEXTAUTH_SECRET=        # JWT 签名密钥
 NEXTAUTH_URL=           # 生产域名
 
-# 可选
+# AI 服务
 DEEPSEEK_API_KEY=       # AI 服务密钥
 DEEPSEEK_BASE_URL=      # API 自定义端点
 MOCK_AI=                # Mock 模式开关
+
+# SSO
+GENILINK_SSO_CLIENT_ID=
+GENILINK_SSO_CLIENT_SECRET=
+GENILINK_SSO_WELL_KNOWN=
+
+# Cron
+CRON_SECRET=            # Cron job 认证密钥
+
+# Platform OAuth
+WECHAT_APP_ID=
+WECHAT_APP_SECRET=
+WEIBO_APP_KEY=
+WEIBO_APP_SECRET=
+# ... 各平台凭证
 ```
 
 ## 扩展点
@@ -488,7 +599,8 @@ MOCK_AI=                # Mock 模式开关
 1. 在 `src/types/index.ts` 添加平台类型
 2. 在 `src/lib/ai/prompts/` 创建 prompt builder
 3. 在 `src/types/index.ts` 的 `PLATFORM_CONFIG` 添加配置
-4. 更新 UI 中的平台选择器
+4. 在 `src/lib/platforms/` 添加平台发布适配器
+5. 更新 UI 中的平台选择器
 
 ### 添加新 AI 服务
 
@@ -500,7 +612,6 @@ MOCK_AI=                # Mock 模式开关
 ### Webhook 集成（计划中）
 
 ```typescript
-// 未来将支持 Webhook 通知
 interface WebhookEvent {
   type: "content.created" | "content.status_changed";
   data: ContentPiece;
@@ -523,6 +634,10 @@ interface WebhookEvent {
 ## 贡献者指南
 
 详见 [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+## API 文档
+
+详见 [API.md](./API.md)
 
 ## 许可证
 

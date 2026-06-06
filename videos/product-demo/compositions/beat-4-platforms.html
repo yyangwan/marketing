@@ -1,0 +1,461 @@
+<!--
+  Beat 4 — PLATFORM POWER
+  Duration: 10.06s (14.34–24.40s)
+  VO: "支持微信、微博、小红书、抖音四大平台。AI 匹配你的品牌语调，实时分析内容质量与 SEO 表现。"
+  Visual: Split frame — platform cards 2x2 grid (left 55%) + quality radar chart (right 45%).
+  Loaded via data-composition-src from root index.html.
+-->
+<template id="beat-4-template">
+  <div
+    data-composition-id="beat-4"
+    data-width="1920"
+    data-height="1080"
+    data-start="0"
+    data-duration="10.06"
+  >
+
+    <style>
+      /* ========================================
+         Scoped styles for Beat 4 — PLATFORM POWER
+         ======================================== */
+      [data-composition-id="beat-4"] {
+        --c-indigo: #4F46E5;
+        --c-dark: #111827;
+        --c-muted: #555d6b;
+        --c-border: #E5E7EB;
+        --c-canvas: #F9FAFB;
+        --c-white: #FFFFFF;
+        --c-success: #16A34A;
+        --c-amber: #D97706;
+        --c-blue: #2563EB;
+        --c-red: #DC2626;
+        --c-wechat: #07C160;
+        --c-weibo: #E6162D;
+        --c-xiaohongshu: #FE2C55;
+        --c-douyin: #161823;
+
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background-color: var(--c-canvas);
+        font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+        opacity: 0;
+      }
+
+      /* Indigo radial glow — ambient center */
+      .b4-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 800px;
+        height: 800px;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(79, 70, 229, 0.15) 0%,
+          rgba(79, 70, 229, 0.05) 40%,
+          transparent 70%
+        );
+        pointer-events: none;
+        will-change: opacity;
+      }
+
+      /* Split frame layout */
+      .b4-split {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 80px;
+        box-sizing: border-box;
+      }
+
+      .b4-left {
+        flex: 0 0 55%;
+        max-width: 55%;
+        padding-right: 40px;
+        box-sizing: border-box;
+      }
+
+      .b4-right {
+        flex: 0 0 45%;
+        max-width: 45%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Platform cards grid */
+      .b4-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 24px;
+      }
+
+      /* Individual platform card */
+      .b4-card {
+        background: var(--c-white);
+        border-radius: 12px;
+        padding: 28px 28px 28px 24px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+        will-change: transform, opacity;
+        opacity: 0;
+      }
+
+      /* Left border accent */
+      .b4-card-border {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        transform-origin: top center;
+        transform: scaleY(0);
+      }
+
+      .b4-card-border.wechat      { background-color: var(--c-wechat); }
+      .b4-card-border.weibo       { background-color: var(--c-weibo); }
+      .b4-card-border.xiaohongshu { background-color: var(--c-xiaohongshu); }
+      .b4-card-border.douyin      { background-color: var(--c-douyin); }
+
+      .b4-card-name {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--c-dark);
+        margin-bottom: 12px;
+        line-height: 1.2;
+      }
+
+      .b4-card-text {
+        font-size: 18px;
+        font-weight: 400;
+        color: var(--c-muted);
+        line-height: 1.6;
+      }
+
+      /* Radar chart container */
+      .b4-radar-wrap {
+        position: relative;
+        width: 100%;
+        max-width: 460px;
+      }
+
+      .b4-radar-wrap svg {
+        width: 100%;
+        height: auto;
+        overflow: visible;
+      }
+
+      /* Radar polygon fill */
+      .b4-radar-polygon {
+        fill: rgba(79, 70, 229, 0.15);
+        stroke: var(--c-indigo);
+        stroke-width: 2;
+        stroke-linejoin: round;
+      }
+
+      /* Radar grid lines */
+      .b4-radar-grid {
+        fill: none;
+        stroke: var(--c-border);
+        stroke-width: 1;
+      }
+
+      /* Radar axis lines */
+      .b4-radar-axis {
+        stroke: var(--c-border);
+        stroke-width: 1;
+      }
+
+      /* Radar score labels */
+      .b4-score-label {
+        font-family: 'Geist Mono', 'Courier New', monospace;
+        font-size: 18px;
+        font-weight: 600;
+        fill: var(--c-indigo);
+        opacity: 0;
+      }
+
+      /* Radar axis name labels */
+      .b4-axis-label {
+        font-family: 'Geist', sans-serif;
+        font-size: 18px;
+        font-weight: 500;
+        fill: var(--c-dark);
+      }
+
+      /* SEO score counter at bottom */
+      .b4-seo-score {
+        margin-top: 36px;
+        text-align: center;
+        opacity: 0;
+      }
+
+      .b4-seo-score-label {
+        font-size: 20px;
+        font-weight: 500;
+        color: var(--c-muted);
+      }
+
+      .b4-seo-score-value {
+        font-family: 'Geist Mono', 'Courier New', monospace;
+        font-size: 48px;
+        font-weight: 700;
+        color: var(--c-indigo);
+        line-height: 1.2;
+      }
+    </style>
+
+    <!-- Background: indigo radial glow -->
+    <div class="b4-glow"></div>
+
+    <!-- Split frame -->
+    <div class="b4-split">
+
+      <!-- LEFT: Platform cards grid -->
+      <div class="b4-left">
+        <div class="b4-grid">
+          <!-- WeChat -->
+          <div class="b4-card">
+            <div class="b4-card-border wechat"></div>
+            <div class="b4-card-name">微信</div>
+            <div class="b4-card-text">深度长文解读行业趋势<br>品牌故事系列连载中</div>
+          </div>
+          <!-- Weibo -->
+          <div class="b4-card">
+            <div class="b4-card-border weibo"></div>
+            <div class="b4-card-name">微博</div>
+            <div class="b4-card-text">热点追踪 #AI营销# #内容创作#<br>实时互动与粉丝运营</div>
+          </div>
+          <!-- Xiaohongshu -->
+          <div class="b4-card">
+            <div class="b4-card-border xiaohongshu"></div>
+            <div class="b4-card-name">小红书</div>
+            <div class="b4-card-text">生活方式种草笔记<br>产品测评与使用心得分享</div>
+          </div>
+          <!-- Douyin -->
+          <div class="b4-card">
+            <div class="b4-card-border douyin"></div>
+            <div class="b4-card-name">抖音</div>
+            <div class="b4-card-text">短视频脚本创意策划<br>热门话题挑战赛内容</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Radar chart + SEO score -->
+      <div class="b4-right">
+        <div class="b4-radar-wrap">
+          <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+            <!--
+              4-axis diamond radar chart
+              Axes: top (内容质量), right (互动预测), bottom (品牌匹配), left (平台适配)
+              Center: 200,200. Max radius: 160.
+              Vertices: top 200,40 | right 360,200 | bottom 200,360 | left 40,200
+            -->
+
+            <!-- Radar grid — concentric diamonds at 25%, 50%, 75%, 100% -->
+            <g class="b4-radar-grid">
+              <!-- 25% radius -->
+              <polygon points="200,160 240,200 200,240 160,200" />
+              <!-- 50% radius -->
+              <polygon points="200,120 280,200 200,280 120,200" />
+              <!-- 75% radius -->
+              <polygon points="200,80 320,200 200,320 80,200" />
+              <!-- 100% radius (outermost) -->
+              <polygon points="200,40 360,200 200,360 40,200" />
+            </g>
+
+            <!-- Axis lines from center to vertices -->
+            <line class="b4-radar-axis" x1="200" y1="200" x2="200" y2="40" />
+            <line class="b4-radar-axis" x1="200" y1="200" x2="360" y2="200" />
+            <line class="b4-radar-axis" x1="200" y1="200" x2="200" y2="360" />
+            <line class="b4-radar-axis" x1="200" y1="200" x2="40" y2="200" />
+
+            <!-- Data polygon — starts collapsed at center, animated via JS proxy -->
+            <polygon class="b4-radar-polygon" points="200,200 200,200 200,200 200,200" />
+
+            <!-- Axis name labels -->
+            <text class="b4-axis-label" x="200" y="22" text-anchor="middle">内容质量</text>
+            <text class="b4-axis-label" x="374" y="205" text-anchor="start">互动预测</text>
+            <text class="b4-axis-label" x="200" y="392" text-anchor="middle">品牌匹配</text>
+            <text class="b4-axis-label" x="26" y="205" text-anchor="end">平台适配</text>
+
+            <!-- Score labels beside each axis target point -->
+            <text class="b4-score-label" id="b4-score-0" x="218" y="56" text-anchor="start">0</text>
+            <text class="b4-score-label" id="b4-score-1" x="326" y="190" text-anchor="start">0</text>
+            <text class="b4-score-label" id="b4-score-2" x="218" y="376" text-anchor="start">0</text>
+            <text class="b4-score-label" id="b4-score-3" x="74" y="190" text-anchor="end">0</text>
+          </svg>
+        </div>
+
+        <!-- SEO score counter -->
+        <div class="b4-seo-score">
+          <div class="b4-seo-score-label">SEO 评分</div>
+          <div class="b4-seo-score-value" id="b4-seo-counter">0</div>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      (function () {
+        // Guard: only run once per composition load
+        if (window.__beat4Initialized) return;
+        window.__beat4Initialized = true;
+
+        // Ensure timeline registry exists
+        window.__timelines = window.__timelines || {};
+
+        var gsap = window.gsap;
+        if (!gsap) return;
+
+        var comp = document.querySelector('[data-composition-id="beat-4"]');
+        if (!comp) return;
+
+        var DURATION = 10.06;
+
+        // Create paused timeline and register it
+        var tl = gsap.timeline({ paused: true });
+        window.__timelines["beat-4"] = tl;
+
+        // Fade composition canvas in
+        tl.to(comp, { opacity: 1, duration: 0.01 }, 0);
+
+        // --- DOM references ---
+        var cards = comp.querySelectorAll('.b4-card');
+        var cardBorders = comp.querySelectorAll('.b4-card-border');
+        var radarPolygon = comp.querySelector('.b4-radar-polygon');
+        var scoreLabels = [
+          comp.querySelector('#b4-score-0'),
+          comp.querySelector('#b4-score-1'),
+          comp.querySelector('#b4-score-2'),
+          comp.querySelector('#b4-score-3')
+        ];
+        var seoCounterEl = comp.querySelector('#b4-seo-counter');
+        var seoScoreWrap = comp.querySelector('.b4-seo-score');
+        var glow = comp.querySelector('.b4-glow');
+
+        // --- Radar chart: 4-axis diamond ---
+        // Axes: top (内容质量 8.5), right (互动预测 7.2), bottom (品牌匹配 9.1), left (平台适配 8.8)
+        var cx = 200, cy = 200, maxR = 160;
+        var targetScores = [8.5, 7.2, 9.1, 8.8];
+
+        // Diamond vertices at full radius: top, right, bottom, left
+        var fullVertices = [
+          { x: cx, y: cy - maxR },      // top
+          { x: cx + maxR, y: cy },       // right
+          { x: cx, y: cy + maxR },       // bottom
+          { x: cx - maxR, y: cy }        // left
+        ];
+
+        // Target points at scored radius
+        var targetPoints = fullVertices.map(function (v, i) {
+          var ratio = targetScores[i] / 10;
+          return {
+            x: cx + (v.x - cx) * ratio,
+            y: cy + (v.y - cy) * ratio
+          };
+        });
+
+        // --- Platform cards entrance: staggered, scale + opacity ---
+        tl.fromTo(cards,
+          { scale: 0.85, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 0.6, ease: "power2.out", stagger: 0.25 },
+          0.3
+        );
+
+        // --- Platform card borders: scaleY 0 -> 1, staggered ---
+        tl.fromTo(cardBorders,
+          { scaleY: 0 },
+          { scaleY: 1, duration: 0.4, ease: "power2.out", stagger: 0.25 },
+          0.3
+        );
+
+        // --- Radar chart polygon animation via proxy ---
+        var radarProxy = { progress: 0 };
+        tl.fromTo(radarProxy,
+          { progress: 0 },
+          {
+            progress: 1,
+            duration: 1.5,
+            ease: "power2.out",
+            onUpdate: function () {
+              var p = radarProxy.progress;
+              var pts = [];
+              for (var i = 0; i < targetPoints.length; i++) {
+                var tx = targetPoints[i].x;
+                var ty = targetPoints[i].y;
+                var ix = cx + (tx - cx) * p;
+                var iy = cy + (ty - cy) * p;
+                pts.push(ix.toFixed(2) + ',' + iy.toFixed(2));
+              }
+              radarPolygon.setAttribute('points', pts.join(' '));
+            }
+          },
+          0.8
+        );
+
+        // --- Score labels: counter animation from 0 to target, staggered 0.3s ---
+        for (var s = 0; s < targetScores.length; s++) {
+          (function (idx) {
+            var proxy = { val: 0 };
+            tl.fromTo(proxy,
+              { val: 0 },
+              {
+                val: targetScores[idx],
+                duration: 1.0,
+                ease: "power2.out",
+                onUpdate: function () {
+                  scoreLabels[idx].textContent = proxy.val.toFixed(1);
+                }
+              },
+              1.1 + idx * 0.3
+            );
+            // Fade in the score label alongside the counter
+            tl.to(scoreLabels[idx], { opacity: 1, duration: 0.3, ease: "power1.out" }, 1.1 + idx * 0.3);
+          })(s);
+        }
+
+        // --- "SEO 评分: 92" counter animation ---
+        var seoProxy = { val: 0 };
+        tl.to(seoScoreWrap, { opacity: 1, duration: 0.3, ease: "power1.out" }, 1.5);
+        tl.fromTo(seoProxy,
+          { val: 0 },
+          {
+            val: 92,
+            duration: 1.0,
+            ease: "power1.out",
+            onUpdate: function () {
+              seoCounterEl.textContent = Math.round(seoProxy.val);
+            }
+          },
+          1.5
+        );
+
+        // --- Indigo glow: ambient pulse 12% -> 18% -> 12%, yoyo ---
+        // Each half-cycle = 2.0s. Full yoyo cycle = 4.0s.
+        // Beat duration 10.06s. Repeats = floor(10.06 / 4.0) = 2
+        var glowRepeat = 2;
+        tl.fromTo(glow,
+          { opacity: 0.12 },
+          { opacity: 0.18, duration: 2.0, ease: "sine.inOut", yoyo: true, repeat: glowRepeat },
+          0
+        );
+
+      })();
+    </script>
+
+  </div>
+</template>

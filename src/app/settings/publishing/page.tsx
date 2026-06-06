@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth/config";
+﻿import { auth } from "@/lib/auth/config";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { PublishingDashboardClient } from "@/components/publishing-dashboard-client";
@@ -43,7 +43,7 @@ export default async function PublishingSettingsPage() {
   return (
     <div>
       <h1 className="text-xl font-semibold text-foreground tracking-tight mb-6">
-        发布设置
+        鍙戝竷璁剧疆
       </h1>
 
       <PublishingDashboardClient
@@ -74,3 +74,4 @@ export default async function PublishingSettingsPage() {
     </div>
   );
 }
+

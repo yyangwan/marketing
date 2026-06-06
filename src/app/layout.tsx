@@ -3,7 +3,6 @@ import { Geist } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { auth } from "@/lib/auth/config";
-import { prisma } from "@/lib/db";
 import { FeedbackButton } from "@/components/feedback-button";
 import { initAnalytics } from "@/lib/analytics";
 import MobileLayout from "@/components/mobile-layout";
@@ -30,23 +29,8 @@ export default async function RootLayout({
 
   const session = await auth();
 
-  let workspaceName: string | null = null;
-  let projects: { id: string; name: string }[] = [];
-
-  if (session?.user?.workspaceId) {
-    const [workspace, projectsData] = await Promise.all([
-      prisma.workspace.findUnique({
-        where: { id: session.user.workspaceId },
-      }),
-      prisma.project.findMany({
-        where: { workspaceId: session.user.workspaceId },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, name: true },
-      }),
-    ]);
-    workspaceName = workspace?.name ?? null;
-    projects = projectsData;
-  }
+  const workspaceName = session?.user?.workspaceId ?? null;
+  const projects: { id: string; name: string }[] = [];
 
   if (!session) {
     return (

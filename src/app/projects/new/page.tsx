@@ -32,7 +32,7 @@ export default function NewProjectPage() {
         await fetch("/api/user/onboarding", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ step: "project" }),
+          body: JSON.stringify({ step: "brand-voice" }),
         });
         router.push("/onboarding");
       } else {

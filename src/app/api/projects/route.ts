@@ -1,79 +1,16 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { getServiceSession } from "@/lib/auth/service-auth";
-import { getCurrentWorkspace } from "@/lib/auth/workspace";
-import { getServiceWorkspace } from "@/lib/auth/service-context";
-import { ERROR_CODES, apiError, errors, responses } from "@/lib/errors";
 
 export async function GET() {
-  const session = await getServiceSession();
-  if (!session?.user?.id) {
-    return responses.unauthorized();
-  }
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
-  if (!ws) {
-    return responses.forbidden(errors.noWorkspace());
-  }
-
-  try {
-    const projects = await prisma.project.findMany({
-      where: { workspaceId: ws.workspaceId },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return NextResponse.json(projects);
-  } catch (error) {
-    console.error("Failed to fetch projects:", error);
-    return responses.serverError(
-      apiError("api_error", ERROR_CODES.DATABASE_ERROR, "Failed to fetch projects")
-    );
-  }
+  return NextResponse.json(
+    { error: "Projects are managed by GeniLink." },
+    { status: 410 }
+  );
 }
 
 export async function POST(req: Request) {
-  const session = await getServiceSession();
-  if (!session?.user?.id) {
-    return responses.unauthorized();
-  }
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
-  if (!ws) {
-    return responses.forbidden(errors.noWorkspace());
-  }
-
-  try {
-    const { name, clientName } = await req.json();
-
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return responses.badRequest(
-        errors.invalidParam("name", "Project name is required")
-      );
-    }
-
-    const project = await prisma.project.create({
-      data: {
-        name: name.trim(),
-        clientName: typeof clientName === "string" ? clientName.trim() : "",
-        workspaceId: ws.workspaceId,
-      },
-    });
-
-    return NextResponse.json(project);
-  } catch (error) {
-    if (String(error).includes("Unique constraint")) {
-      return responses.conflict(
-        apiError(
-          "invalid_request_error",
-          ERROR_CODES.VALIDATION_FAILED,
-          "A project with this name already exists in the workspace.",
-          { param: "name" }
-        )
-      );
-    }
-
-    console.error("Failed to create project:", error);
-    return responses.serverError(
-      apiError("api_error", ERROR_CODES.DATABASE_ERROR, "Failed to create project")
-    );
-  }
+  void req;
+  return NextResponse.json(
+    { error: "Projects are managed by GeniLink." },
+    { status: 410 }
+  );
 }

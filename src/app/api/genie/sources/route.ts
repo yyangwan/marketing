@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 /**
  * Genie Sources API
  * Phase 1E: Manage URL sources for auto-content generation
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
       return responses.unauthorized();
     }
 
-    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+    const ws = (await getServiceWorkspace()) ?? getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
       return responses.unauthorized();
     }
 
-    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+    const ws = (await getServiceWorkspace()) ?? getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }

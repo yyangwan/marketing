@@ -10,11 +10,20 @@ import { headers } from "next/headers";
  */
 export async function getServiceSession() {
   // Try NextAuth session first (browser requests)
-  const session = await auth();
-  if (session?.user?.id) return session;
+  try {
+    const session = await auth();
+    if (session?.user?.id) return session;
+  } catch {
+    // Fall through to header-based service auth.
+  }
 
   // Fallback: read headers injected by middleware from verified JWT
-  const hdrs = await headers();
+  let hdrs: Awaited<ReturnType<typeof headers>> | null = null;
+  try {
+    hdrs = await headers();
+  } catch {
+    return null;
+  }
   const userId = hdrs.get("x-genilink-user-id");
   if (!userId) return null;
 
@@ -24,6 +33,8 @@ export async function getServiceSession() {
       email: hdrs.get("x-genilink-email") ?? undefined,
       name: hdrs.get("x-genilink-name") ? decodeURIComponent(hdrs.get("x-genilink-name")!) : undefined,
       workspaceId: hdrs.get("x-genilink-workspace-id") ?? undefined,
+      projectId: hdrs.get("x-genilink-project-id") ?? undefined,
+      brandId: hdrs.get("x-genilink-brand-id") ?? undefined,
       role: hdrs.get("x-genilink-role") ?? undefined,
     },
     expires: new Date(Date.now() + 5 * 60 * 1000).toISOString(),

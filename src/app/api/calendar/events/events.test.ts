@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+﻿import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GET } from "./route";
 
 // Mock dependencies
@@ -292,7 +292,7 @@ describe("/api/calendar/events", () => {
 
       const data = await response.json();
       expect(data.length).toBe(1);
-      expect(data[0].contentPiece.project.workspaceId).toBe("ws1");
+      expect(data[0].contentPiece.workspaceId).toBe("ws1");
     });
 
     it("should return 500 on database error", async () => {
@@ -309,3 +309,4 @@ describe("/api/calendar/events", () => {
     });
   });
 });
+

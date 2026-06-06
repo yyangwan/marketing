@@ -1,0 +1,269 @@
+<!--
+  Beat 1 — HOOK
+  Duration: 3.19s (0.10–3.29s)
+  VO: "你的内容团队，值得更好的工作流。"
+  Visual: "工作流" slams in from below with rotation, horizontal rule draws, ghost columns drift, radial glow pulses.
+  Loaded via data-composition-src from root index.html.
+-->
+<template id="beat-1-template">
+  <div
+    data-composition-id="beat-1"
+    data-width="1920"
+    data-height="1080"
+    data-start="0"
+    data-duration="3.19"
+  >
+    <style>
+      /* ========================================
+         Scoped styles for Beat 1 — HOOK
+         ======================================== */
+      [data-composition-id="beat-1"] {
+        --c-indigo: #4F46E5;
+        --c-dark: #111827;
+        --c-muted: #6B7280;
+        --c-border: #E5E7EB;
+        --c-canvas: #F9FAFB;
+
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background-color: var(--c-canvas);
+        font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+
+        /* Dot grid background — 2px dots at 8% opacity, 40px spacing */
+        background-image: radial-gradient(circle, var(--c-dark) 1px, transparent 1px);
+        background-size: 40px 40px;
+        opacity: 0;
+      }
+
+      /* Indigo radial glow behind the word */
+      .b1-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 600px;
+        height: 600px;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(79, 70, 229, 0.25) 0%,
+          rgba(79, 70, 229, 0.08) 40%,
+          transparent 70%
+        );
+        pointer-events: none;
+        will-change: opacity;
+      }
+
+      /* Ghost kanban columns — thin vertical lines */
+      .b1-ghost-columns {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .b1-ghost-col {
+        position: absolute;
+        top: -40px;
+        width: 1px;
+        height: calc(100% + 80px);
+        background-color: var(--c-indigo);
+        opacity: 0.04;
+        will-change: transform;
+      }
+
+      /* Evenly space 10 ghost columns */
+      .b1-ghost-col:nth-child(1)  { left: 8.33%; }
+      .b1-ghost-col:nth-child(2)  { left: 17.5%; }
+      .b1-ghost-col:nth-child(3)  { left: 26.66%; }
+      .b1-ghost-col:nth-child(4)  { left: 35.83%; }
+      .b1-ghost-col:nth-child(5)  { left: 45%; }
+      .b1-ghost-col:nth-child(6)  { left: 55%; }
+      .b1-ghost-col:nth-child(7)  { left: 64.16%; }
+      .b1-ghost-col:nth-child(8)  { left: 73.33%; }
+      .b1-ghost-col:nth-child(9)  { left: 82.5%; }
+      .b1-ghost-col:nth-child(10) { left: 91.66%; }
+
+      /* Main text container — centered with flexbox */
+      .b1-center {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+
+      /* "工作流" text */
+      .b1-word {
+        font-family: 'Geist', sans-serif;
+        font-size: 140px;
+        font-weight: 700;
+        color: var(--c-indigo);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        will-change: transform, opacity;
+        opacity: 0;
+      }
+
+      /* Horizontal rule — SVG drawn line */
+      .b1-rule-wrap {
+        width: 40%;
+        height: 2px;
+        margin-top: 16px;
+        will-change: transform;
+      }
+
+      .b1-rule-wrap svg {
+        width: 100%;
+        height: 2px;
+        display: block;
+        overflow: visible;
+      }
+
+      .b1-rule-line {
+        stroke: var(--c-indigo);
+        stroke-width: 2;
+        fill: none;
+        vector-effect: non-scaling-stroke;
+      }
+
+      /* "v1.0" monospace label — top right */
+      .b1-version {
+        position: absolute;
+        top: 40px;
+        right: 48px;
+        font-family: 'Geist Mono', 'Courier New', monospace;
+        font-size: 18px;
+        font-weight: 400;
+        color: var(--c-indigo);
+        opacity: 0;
+        will-change: opacity;
+      }
+    </style>
+
+    <!-- Radial glow -->
+    <div class="b1-glow"></div>
+
+    <!-- Ghost kanban columns for parallax depth -->
+    <div class="b1-ghost-columns">
+      <div class="b1-ghost-col"></div>
+      <div class="b1-ghost-col"></div>
+      <div class="b1-ghost-col"></div>
+      <div class="b1-ghost-col"></div>
+      <div class="b1-ghost-col"></div>
+      <div class="b1-ghost-col"></div>
+      <div class="b1-ghost-col"></div>
+      <div class="b1-ghost-col"></div>
+      <div class="b1-ghost-col"></div>
+      <div class="b1-ghost-col"></div>
+    </div>
+
+    <!-- Centered content -->
+    <div class="b1-center">
+      <div class="b1-word">工作流</div>
+      <div class="b1-rule-wrap">
+        <svg viewBox="0 0 100 2" preserveAspectRatio="none">
+          <line class="b1-rule-line" x1="0" y1="1" x2="100" y2="1"
+                pathLength="1" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- Version label -->
+    <div class="b1-version">v1.0</div>
+
+    <script>
+      (function () {
+        // Guard: only run once per composition load
+        if (window.__beat1Initialized) return;
+        window.__beat1Initialized = true;
+
+        // Ensure timeline registry exists
+        window.__timelines = window.__timelines || {};
+
+        var comp = document.querySelector('[data-composition-id="beat-1"]');
+        if (!comp) return;
+
+        var word = comp.querySelector('.b1-word');
+        var ruleWrap = comp.querySelector('.b1-rule-wrap');
+        var ruleLine = comp.querySelector('.b1-rule-line');
+        var glow = comp.querySelector('.b1-glow');
+        var ghostCols = comp.querySelectorAll('.b1-ghost-col');
+        var version = comp.querySelector('.b1-version');
+
+        // Beat duration
+        var DURATION = 3.19;
+
+        // GSAP is loaded globally by the root composition loader
+        var gsap = window.gsap;
+        if (!gsap) return;
+
+        // Create paused timeline and register it
+        var tl = gsap.timeline({ paused: true });
+        window.__timelines["beat-1"] = tl;
+
+        // Fade the composition canvas in immediately
+        tl.to(comp, { opacity: 1, duration: 0.01 }, 0);
+
+        // --- "v1.0" label fade in ---
+        tl.to(version, { opacity: 0.6, duration: 0.3, ease: "power1.out" }, 0.1);
+
+        // --- "工作流" slam in from below with rotation ---
+        tl.fromTo(word,
+          { y: 80, rotate: -3, opacity: 0 },
+          { y: 0, rotate: 0, opacity: 1, duration: 0.6, ease: "power3.out" },
+          0.2
+        );
+
+        // --- Horizontal rule — SVG stroke draw (scaleX approach with transformOrigin) ---
+        tl.fromTo(ruleWrap,
+          { scaleX: 0 },
+          { scaleX: 1, duration: 0.4, ease: "power2.out", transformOrigin: "center center" },
+          0.5
+        );
+
+        // --- Radial glow pulse ---
+        // Pulse: 20% -> 28% -> 20%, yoyo true
+        // Beat duration 3.19s. Each full cycle = duration * 2.
+        // Calculate repeats: floor(3.19 / (0.6 * 2)) = floor(2.658) = 2 repeats
+        var glowRepeat = 2;
+        tl.fromTo(glow,
+          { opacity: 0.20 },
+          { opacity: 0.28, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: glowRepeat },
+          0
+        );
+
+        // --- Ghost columns continuous upward drift ---
+        // Drift y: -40px over beat duration, repeat once (not -1)
+        // Each column gets a slightly different duration for parallax effect
+        // Using seeded offsets (no Math.random)
+        var parallaxSpeeds = [1.0, 0.8, 1.2, 0.9, 1.1, 0.7, 1.0, 0.85, 1.15, 0.95];
+        for (var i = 0; i < ghostCols.length; i++) {
+          var col = ghostCols[i];
+          var speedFactor = parallaxSpeeds[i];
+          var driftDuration = DURATION * speedFactor;
+          // Calculate repeats so animation covers the full beat
+          // Total time = driftDuration * (repeat + 1). We need >= DURATION
+          var colRepeat = Math.max(1, Math.floor(DURATION / driftDuration));
+          tl.fromTo(col,
+            { y: 0 },
+            { y: -40, duration: driftDuration, ease: "none", repeat: colRepeat },
+            0
+          );
+        }
+
+      })();
+    </script>
+  </div>
+</template>

@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -21,7 +20,7 @@ export async function GET(req: Request) {
     return responses.unauthorized();
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await getServiceWorkspace()) ?? getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -67,7 +66,7 @@ export async function POST(req: Request) {
     return responses.unauthorized();
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await getServiceWorkspace()) ?? getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }

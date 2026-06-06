@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #f9fafb;
+        font-family: "Geist", sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="contentos-demo"
+      data-width="1920"
+      data-height="1080"
+      data-start="0"
+      data-duration="35"
+    >
+      <!-- Narration audio -->
+      <audio
+        id="narration"
+        src="narration.mp3"
+        data-start="0"
+        data-duration="34"
+        data-track-index="0"
+        data-volume="1"
+      ></audio>
+
+      <!-- Beat 1: Hook (0.00–3.19) -->
+      <div
+        id="beat-1-clip"
+        data-composition-id="beat-1"
+        data-composition-src="compositions/beat-1-hook.html"
+        data-start="0"
+        data-duration="3.19"
+        data-track-index="1"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+
+      <!-- Beat 2: Brand Intro (3.19–7.69) -->
+      <div
+        id="beat-2-clip"
+        data-composition-id="beat-2"
+        data-composition-src="compositions/beat-2-brand.html"
+        data-start="3.19"
+        data-duration="4.50"
+        data-track-index="1"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+
+      <!-- Beat 3: Workflow (7.69–14.34) -->
+      <div
+        id="beat-3-clip"
+        data-composition-id="beat-3"
+        data-composition-src="compositions/beat-3-workflow.html"
+        data-start="7.69"
+        data-duration="6.65"
+        data-track-index="1"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+
+      <!-- Beat 4: Platforms (14.34–24.40) -->
+      <div
+        id="beat-4-clip"
+        data-composition-id="beat-4"
+        data-composition-src="compositions/beat-4-platforms.html"
+        data-start="14.34"
+        data-duration="10.06"
+        data-track-index="1"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+
+      <!-- Beat 5: Publish (24.40–26.84) -->
+      <div
+        id="beat-5-clip"
+        data-composition-id="beat-5"
+        data-composition-src="compositions/beat-5-publish.html"
+        data-start="24.40"
+        data-duration="2.44"
+        data-track-index="1"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+
+      <!-- Beat 6: Team (26.84–29.34) -->
+      <div
+        id="beat-6-clip"
+        data-composition-id="beat-6"
+        data-composition-src="compositions/beat-6-team.html"
+        data-start="26.84"
+        data-duration="2.50"
+        data-track-index="1"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+
+      <!-- Beat 7: CTA (29.34–35.00) -->
+      <div
+        id="beat-7-clip"
+        data-composition-id="beat-7"
+        data-composition-src="compositions/beat-7-cta.html"
+        data-start="29.34"
+        data-duration="5.66"
+        data-track-index="1"
+        data-width="1920"
+        data-height="1080"
+      ></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+      window.__timelines["contentos-demo"] = tl;
+    </script>
+  </body>
+</html>

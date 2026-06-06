@@ -132,7 +132,7 @@ export function BrandVoiceClient({ workspaceId }: { workspaceId: string }) {
             await fetch("/api/user/onboarding", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ step: "brand-voice" }),
+              body: JSON.stringify({ step: "brief" }),
             });
             router.push("/onboarding");
             return;

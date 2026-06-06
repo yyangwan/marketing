@@ -1,0 +1,261 @@
+<template id="scene-3-template">
+<div data-composition-id="scene-3" data-width="1080" data-height="1920" data-start="0" data-duration="5">
+
+  <style>
+    [data-composition-id="scene-3"] {
+      --s3-canvas: #0B0F1A;
+      --s3-warning: #FF3B5C;
+      --s3-text: #F0F2F5;
+      --s3-muted: #8892A4;
+      --s3-border: #2A3050;
+
+      position: relative;
+      width: 1080px;
+      height: 1920px;
+      background: var(--s3-canvas);
+      overflow: hidden;
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* BG: Red radial pulse */
+    .s3-red-pulse {
+      position: absolute;
+      top: 35%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      border-radius: 50%;
+      background: radial-gradient(
+        circle,
+        rgba(255, 59, 92, 0.18) 0%,
+        rgba(255, 59, 92, 0.06) 40%,
+        transparent 70%
+      );
+      pointer-events: none;
+    }
+
+    /* BG: Broken page icons */
+    .s3-broken-page {
+      position: absolute;
+      width: 40px;
+      height: 50px;
+      border: 2px solid rgba(255,59,92,0.2);
+      border-radius: 4px;
+      opacity: 0.15;
+    }
+    .s3-broken-page:nth-child(1) { top: 180px; left: 80px; transform: rotate(-15deg); }
+    .s3-broken-page:nth-child(2) { top: 250px; right: 100px; transform: rotate(20deg); }
+    .s3-broken-page:nth-child(3) { top: 600px; left: 120px; transform: rotate(-8deg); }
+    .s3-broken-page:nth-child(4) { top: 500px; right: 80px; transform: rotate(12deg); }
+    .s3-broken-page:nth-child(5) { bottom: 400px; left: 160px; transform: rotate(5deg); }
+    .s3-broken-page:nth-child(6) { bottom: 500px; right: 140px; transform: rotate(-18deg); }
+
+    /* Red vignette overlay */
+    .s3-vignette {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(255,59,92,0.08) 100%);
+      pointer-events: none;
+    }
+
+    /* Step pill */
+    .s3-step-pill {
+      position: absolute;
+      top: 100px;
+      left: 60px;
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 24px;
+      background: rgba(255, 59, 92, 0.15);
+      border: 1px solid rgba(255, 59, 92, 0.3);
+      border-radius: 8px;
+      font-family: 'Geist Mono', monospace;
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--s3-warning);
+    }
+
+    /* Warning triangle (CSS) */
+    .s3-triangle {
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 0;
+      height: 0;
+      border-left: 60px solid transparent;
+      border-right: 60px solid transparent;
+      border-bottom: 100px solid var(--s3-warning);
+      filter: drop-shadow(0 0 30px rgba(255,59,92,0.5));
+    }
+    .s3-triangle-inner {
+      position: absolute;
+      top: 40px;
+      left: -16px;
+      font-size: 40px;
+      font-weight: 900;
+      color: var(--s3-canvas);
+    }
+
+    /* Headline */
+    .s3-headline {
+      position: absolute;
+      top: 35%;
+      left: 60px;
+      right: 60px;
+      text-align: center;
+      font-size: 90px;
+      font-weight: 900;
+      color: var(--s3-warning);
+      letter-spacing: -0.03em;
+      text-shadow: 0 0 40px rgba(255,59,92,0.4);
+    }
+
+    /* Body text */
+    .s3-body {
+      position: absolute;
+      top: 50%;
+      left: 60px;
+      right: 60px;
+      font-size: 34px;
+      font-weight: 400;
+      color: var(--s3-text);
+      line-height: 1.8;
+      text-align: center;
+    }
+
+    .s3-body em {
+      font-style: normal;
+      color: var(--s3-warning);
+      font-weight: 600;
+    }
+
+    /* Alert line decorators */
+    .s3-alert-line {
+      position: absolute;
+      height: 2px;
+      background: var(--s3-warning);
+      opacity: 0.3;
+    }
+    .s3-alert-line-top {
+      top: 180px;
+      left: 80px;
+      right: 80px;
+      transform: scaleX(0);
+      transform-origin: center;
+    }
+    .s3-alert-line-bottom {
+      bottom: 200px;
+      left: 80px;
+      right: 80px;
+      transform: scaleX(0);
+      transform-origin: center;
+    }
+  </style>
+
+  <!-- Red pulse -->
+  <div class="s3-red-pulse" id="s3-pulse"></div>
+
+  <!-- Broken pages -->
+  <div class="s3-broken-page" id="s3-bp1"></div>
+  <div class="s3-broken-page" id="s3-bp2"></div>
+  <div class="s3-broken-page" id="s3-bp3"></div>
+  <div class="s3-broken-page" id="s3-bp4"></div>
+  <div class="s3-broken-page" id="s3-bp5"></div>
+  <div class="s3-broken-page" id="s3-bp6"></div>
+
+  <!-- Vignette -->
+  <div class="s3-vignette"></div>
+
+  <!-- Step pill -->
+  <div class="s3-step-pill" id="s3-pill">第二</div>
+
+  <!-- Alert lines -->
+  <div class="s3-alert-line s3-alert-line-top" id="s3-line-top"></div>
+  <div class="s3-alert-line s3-alert-line-bottom" id="s3-line-bottom"></div>
+
+  <!-- Warning triangle -->
+  <div class="s3-triangle" id="s3-triangle">
+    <div class="s3-triangle-inner">!</div>
+  </div>
+
+  <!-- Headline -->
+  <div class="s3-headline" id="s3-headline">踩坑警告</div>
+
+  <!-- Body text -->
+  <div class="s3-body" id="s3-body">
+    别瞎冲！GEO有坑。<br>
+    比如堆砌AI关键词、乱搞结构化数据，<br>
+    被AI判定为<em>"作弊"</em>，直接拉黑，<br>
+    流量一夜归零，比被算法限流还惨。
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    var tl = gsap.timeline({ paused: true });
+
+    // 1. Triangle SLAMS in
+    tl.fromTo('#s3-triangle',
+      { scale: 0, opacity: 0 },
+      { scale: 1.2, opacity: 1, duration: 0.15, ease: 'expo.out' },
+      0.1
+    );
+    tl.to('#s3-triangle',
+      { scale: 1, duration: 0.2, ease: 'power2.out' },
+      0.25
+    );
+
+    // 2. Headline CRASHES from top
+    tl.fromTo('#s3-headline',
+      { y: -100, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.4, ease: 'back.out(1.7)' },
+      0.3
+    );
+
+    // 3. Body text cascades in (stagger per-line effect via y + opacity)
+    tl.fromTo('#s3-body',
+      { y: 40, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out' },
+      0.7
+    );
+
+    // 4. Broken pages scatter outward
+    tl.fromTo('#s3-bp1', { x: 0, y: 0, opacity: 0 }, { x: -30, y: -20, opacity: 0.15, duration: 0.4, ease: 'power2.out' }, 0.2);
+    tl.fromTo('#s3-bp2', { x: 0, y: 0, opacity: 0 }, { x: 30, y: -15, opacity: 0.15, duration: 0.4, ease: 'power2.out' }, 0.3);
+    tl.fromTo('#s3-bp3', { x: 0, y: 0, opacity: 0 }, { x: -20, y: 10, opacity: 0.15, duration: 0.4, ease: 'power2.out' }, 0.4);
+    tl.fromTo('#s3-bp4', { x: 0, y: 0, opacity: 0 }, { x: 25, y: 15, opacity: 0.15, duration: 0.4, ease: 'power2.out' }, 0.35);
+    tl.fromTo('#s3-bp5', { x: 0, y: 0, opacity: 0 }, { x: -15, y: 25, opacity: 0.15, duration: 0.4, ease: 'power2.out' }, 0.45);
+    tl.fromTo('#s3-bp6', { x: 0, y: 0, opacity: 0 }, { x: 20, y: 20, opacity: 0.15, duration: 0.4, ease: 'power2.out' }, 0.5);
+
+    // 5. Alert lines draw
+    tl.to('#s3-line-top', { scaleX: 1, duration: 0.4, ease: 'power2.out' }, 0.5);
+    tl.to('#s3-line-bottom', { scaleX: 1, duration: 0.4, ease: 'power2.out' }, 0.7);
+
+    // 6. Pill
+    tl.fromTo('#s3-pill',
+      { y: -20, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' },
+      0.15
+    );
+
+    // 7. Red pulse breathes — cycle ~1.5s, repeats = ceil(5/1.5)-1 = 2
+    tl.fromTo('#s3-pulse',
+      { scale: 1 },
+      { scale: 1.1, duration: 0.75, yoyo: true, repeat: 5, ease: 'sine.inOut' },
+      0
+    );
+
+    // 8. Triangle subtle pulse
+    tl.fromTo('#s3-triangle',
+      { filter: 'drop-shadow(0 0 30px rgba(255,59,92,0.4))' },
+      { filter: 'drop-shadow(0 0 50px rgba(255,59,92,0.7))', duration: 0.8, yoyo: true, repeat: 5, ease: 'sine.inOut' },
+      0.3
+    );
+
+    window.__timelines['scene-3'] = tl;
+  </script>
+
+</div>
+</template>

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+﻿import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GET } from "./route";
 
 // Mock the auth and workspace functions
@@ -95,11 +95,11 @@ describe("Local Quality API", () => {
       expect(data.localMetrics.readabilityScore).toBe(0);
       expect(data.overallScore).toBe(0);
       expect(data.sentiment.overall).toBe("neutral");
-      expect(data.suggestions).toContain("内容为空，无法分析");
+      expect(data.suggestions).toContain("鍐呭涓虹┖锛屾棤娉曞垎鏋?);
     });
 
     it("should calculate local metrics for valid content", async () => {
-      const testContent = "<p>这是一段测试内容。This is test content with some meaningful text for analysis.</p>";
+      const testContent = "<p>杩欐槸涓€娈垫祴璇曞唴瀹广€俆his is test content with some meaningful text for analysis.</p>";
 
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
@@ -136,8 +136,8 @@ describe("Local Quality API", () => {
         id: "test-id",
         project: { workspaceId: "test-workspace-id" },
         platformContents: [
-          { platform: "wechat", content: "<p>微信内容</p>" },
-          { platform: "weibo", content: "<p>微博内容更短</p>" },
+          { platform: "wechat", content: "<p>寰俊鍐呭</p>" },
+          { platform: "weibo", content: "<p>寰崥鍐呭鏇寸煭</p>" },
         ],
       });
 
@@ -153,7 +153,7 @@ describe("Local Quality API", () => {
     });
 
     it("should analyze sentiment correctly", async () => {
-      const positiveContent = "<p>这是一个非常开心和美好的日子！大家都很喜欢这个结果。</p>";
+      const positiveContent = "<p>杩欐槸涓€涓潪甯稿紑蹇冨拰缇庡ソ鐨勬棩瀛愶紒澶у閮藉緢鍠滄杩欎釜缁撴灉銆?/p>";
 
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
@@ -174,7 +174,7 @@ describe("Local Quality API", () => {
     });
 
     it("should analyze content structure", async () => {
-      const contentWithStructure = "<h1>标题</h1><p>第一段</p><h2>副标题</h2><p>第二段内容很长，包含更多的文字来进行结构分析测试。</p>";
+      const contentWithStructure = "<h1>鏍囬</h1><p>绗竴娈?/p><h2>鍓爣棰?/h2><p>绗簩娈靛唴瀹瑰緢闀匡紝鍖呭惈鏇村鐨勬枃瀛楁潵杩涜缁撴瀯鍒嗘瀽娴嬭瘯銆?/p>";
 
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
@@ -197,7 +197,7 @@ describe("Local Quality API", () => {
     });
 
     it("should extract keywords from content", async () => {
-      const contentWithKeywords = "<p>人工智能和机器学习是未来的发展方向。AI技术将改变世界。</p>";
+      const contentWithKeywords = "<p>浜哄伐鏅鸿兘鍜屾満鍣ㄥ涔犳槸鏈潵鐨勫彂灞曟柟鍚戙€侫I鎶€鏈皢鏀瑰彉涓栫晫銆?/p>";
 
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
@@ -223,7 +223,7 @@ describe("Local Quality API", () => {
     });
 
     it("should generate suggestions based on metrics", async () => {
-      const simpleContent = "简单的文本";
+      const simpleContent = "绠€鍗曠殑鏂囨湰";
 
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
@@ -267,3 +267,4 @@ describe("Local Quality API", () => {
     });
   });
 });
+

@@ -34,7 +34,10 @@ export async function middleware(req: NextRequest) {
       if (claims.email) requestHeaders.set("x-genilink-email", claims.email);
       if (claims.name) requestHeaders.set("x-genilink-name", encodeURIComponent(claims.name));
       if (claims.wid) requestHeaders.set("x-genilink-workspace-id", claims.wid);
+      if (claims.pid) requestHeaders.set("x-genilink-project-id", claims.pid);
+      if (claims.bid) requestHeaders.set("x-genilink-brand-id", claims.bid);
       if (claims.role) requestHeaders.set("x-genilink-role", claims.role);
+      if (claims.scope) requestHeaders.set("x-genilink-scope", claims.scope);
       return NextResponse.next({
         request: { headers: requestHeaders },
       });

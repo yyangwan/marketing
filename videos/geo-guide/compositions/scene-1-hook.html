@@ -1,0 +1,231 @@
+<template id="scene-1-template">
+<div data-composition-id="scene-1" data-width="1080" data-height="1920" data-start="0" data-duration="3">
+
+  <style>
+    [data-composition-id="scene-1"] {
+      --s1-canvas: #0B0F1A;
+      --s1-accent: #00D4AA;
+      --s1-text: #F0F2F5;
+      --s1-muted: #8892A4;
+      --s1-border: #2A3050;
+
+      position: relative;
+      width: 1080px;
+      height: 1920px;
+      background: var(--s1-canvas);
+      overflow: hidden;
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* BG: scrolling search result ghost lines */
+    .s1-search-line {
+      position: absolute;
+      left: 60px;
+      right: 60px;
+      height: 6px;
+      background: rgba(42, 48, 80, 0.5);
+      border-radius: 3px;
+    }
+    .s1-search-line:nth-child(1)  { top: 180px; width: 60%; }
+    .s1-search-line:nth-child(2)  { top: 210px; width: 80%; }
+    .s1-search-line:nth-child(3)  { top: 240px; width: 45%; }
+    .s1-search-line:nth-child(4)  { top: 290px; width: 55%; }
+    .s1-search-line:nth-child(5)  { top: 320px; width: 70%; }
+    .s1-search-line:nth-child(6)  { top: 350px; width: 40%; }
+    .s1-search-line:nth-child(7)  { top: 400px; width: 65%; }
+    .s1-search-line:nth-child(8)  { top: 430px; width: 50%; }
+    .s1-search-line:nth-child(9)  { top: 460px; width: 75%; }
+    .s1-search-line:nth-child(10) { top: 510px; width: 35%; }
+    .s1-search-line:nth-child(11) { top: 540px; width: 60%; }
+    .s1-search-line:nth-child(12) { top: 570px; width: 48%; }
+
+    /* BG: Radial glow */
+    .s1-radial-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 700px;
+      height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(
+        circle,
+        rgba(0, 212, 170, 0.20) 0%,
+        rgba(0, 212, 170, 0.08) 40%,
+        transparent 70%
+      );
+      pointer-events: none;
+    }
+
+    /* "2026" label top-right */
+    .s1-year-label {
+      position: absolute;
+      top: 80px;
+      right: 60px;
+      font-family: 'Geist Mono', monospace;
+      font-size: 24px;
+      font-weight: 500;
+      color: var(--s1-accent);
+      opacity: 0.7;
+      letter-spacing: 0.05em;
+    }
+
+    /* Top hairline rule */
+    .s1-rule-top {
+      position: absolute;
+      top: 140px;
+      left: 60px;
+      right: 60px;
+      height: 1px;
+      background: var(--s1-accent);
+      opacity: 0.3;
+      transform: scaleX(0);
+      transform-origin: left center;
+    }
+
+    /* Hero "GEO" */
+    .s1-hero-text {
+      position: absolute;
+      top: 42%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 200px;
+      font-weight: 900;
+      color: var(--s1-accent);
+      letter-spacing: -0.05em;
+      line-height: 1;
+      text-shadow: 0 0 60px rgba(0, 212, 170, 0.4);
+    }
+
+    /* Subtitle */
+    .s1-subtitle {
+      position: absolute;
+      top: 58%;
+      left: 60px;
+      right: 60px;
+      text-align: center;
+      font-size: 36px;
+      font-weight: 400;
+      color: var(--s1-text);
+      line-height: 1.5;
+    }
+
+    .s1-subtitle em {
+      font-style: normal;
+      color: var(--s1-accent);
+    }
+
+    /* Bottom rule */
+    .s1-rule-bottom {
+      position: absolute;
+      bottom: 120px;
+      left: 60px;
+      right: 60px;
+      height: 1px;
+      background: var(--s1-accent);
+      opacity: 0.3;
+      transform: scaleX(0);
+      transform-origin: right center;
+    }
+  </style>
+
+  <!-- Search result ghost lines (background) -->
+  <div id="s1-search-wrap">
+    <div class="s1-search-line"></div>
+    <div class="s1-search-line"></div>
+    <div class="s1-search-line"></div>
+    <div class="s1-search-line"></div>
+    <div class="s1-search-line"></div>
+    <div class="s1-search-line"></div>
+    <div class="s1-search-line"></div>
+    <div class="s1-search-line"></div>
+    <div class="s1-search-line"></div>
+    <div class="s1-search-line"></div>
+    <div class="s1-search-line"></div>
+    <div class="s1-search-line"></div>
+  </div>
+
+  <!-- Radial glow -->
+  <div class="s1-radial-glow" id="s1-glow"></div>
+
+  <!-- Year label -->
+  <div class="s1-year-label" id="s1-year">2026</div>
+
+  <!-- Top rule -->
+  <div class="s1-rule-top" id="s1-rule-top"></div>
+
+  <!-- Hero text -->
+  <div class="s1-hero-text" id="s1-hero">GEO</div>
+
+  <!-- Subtitle -->
+  <div class="s1-subtitle" id="s1-sub">
+    你的网站还没被AI<em>"看懂"</em>？<br>
+    那流量可真·凉透了！
+  </div>
+
+  <!-- Bottom rule -->
+  <div class="s1-rule-bottom" id="s1-rule-bottom"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    var tl = gsap.timeline({ paused: true });
+
+    // 1. Hero GEO SLAMS in (0.1s)
+    tl.fromTo('#s1-hero',
+      { scale: 0, opacity: 0 },
+      { scale: 1.1, opacity: 1, duration: 0.15, ease: 'expo.out' },
+      0.1
+    );
+    tl.to('#s1-hero',
+      { scale: 1, duration: 0.2, ease: 'power2.out' },
+      0.25
+    );
+
+    // 2. Subtitle fades up (0.4s)
+    tl.fromTo('#s1-sub',
+      { y: 30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out' },
+      0.4
+    );
+
+    // 3. Top rule draws in
+    tl.to('#s1-rule-top',
+      { scaleX: 1, duration: 0.4, ease: 'power2.out' },
+      0.3
+    );
+
+    // 4. Bottom rule draws in
+    tl.to('#s1-rule-bottom',
+      { scaleX: 1, duration: 0.4, ease: 'power2.out' },
+      0.5
+    );
+
+    // 5. Year label fade
+    tl.fromTo('#s1-year',
+      { opacity: 0 },
+      { opacity: 0.7, duration: 0.4, ease: 'power2.out' },
+      0.2
+    );
+
+    // 6. Search lines drift upward (ambient)
+    // Duration 3s, cycle ~2s. repeats = ceil(3/2) - 1 = 1
+    tl.fromTo('#s1-search-wrap',
+      { y: 0 },
+      { y: -60, duration: 1.5, yoyo: true, repeat: 1, ease: 'sine.inOut' },
+      0
+    );
+
+    // 7. Radial glow breathes
+    // repeats = ceil(3 / 1.0) - 1 = 2
+    tl.fromTo('#s1-glow',
+      { scale: 1 },
+      { scale: 1.08, duration: 1.0, yoyo: true, repeat: 2, ease: 'sine.inOut' },
+      0
+    );
+
+    window.__timelines['scene-1'] = tl;
+  </script>
+
+</div>
+</template>

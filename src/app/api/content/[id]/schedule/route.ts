@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+﻿import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -11,7 +11,7 @@ async function findWorkspaceContent(contentId: string, workspaceId: string) {
   return prisma.contentPiece.findFirst({
     where: {
       id: contentId,
-      project: { workspaceId },
+      workspaceId,
     },
     include: { schedules: true },
   });
@@ -24,7 +24,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     return responses.unauthorized();
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -46,7 +46,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     return responses.unauthorized();
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -108,7 +108,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
     return responses.unauthorized();
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -138,3 +138,4 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
     );
   }
 }
+

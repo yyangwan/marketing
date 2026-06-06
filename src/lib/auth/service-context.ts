@@ -1,24 +1,36 @@
 import { headers } from "next/headers";
-import { prisma } from "@/lib/db";
+
+export type ServiceWorkspaceContext = {
+  workspaceId: string;
+  projectId?: string;
+  brandId?: string;
+  userId: string;
+  role: string;
+  scope?: string;
+};
 
 /**
- * Get workspace context for service-to-service JWT requests.
- * Reads X-ContentOS-Project-Id header, looks up the project's workspaceId.
- * Returns null if not a service request or project not found.
+ * Get service-to-service context from verified JWT claims injected by middleware.
+ * 智创 no longer resolves workspace through a local Project row.
  */
-export async function getServiceWorkspace(): Promise<{
-  workspaceId: string;
-  role: string;
-} | null> {
-  const hdrs = await headers();
-  const projectId = hdrs.get("x-contentos-project-id");
-  if (!projectId) return null;
+export async function getServiceWorkspace(): Promise<ServiceWorkspaceContext | null> {
+  let hdrs: Awaited<ReturnType<typeof headers>> | null = null;
+  try {
+    hdrs = await headers();
+  } catch {
+    return null;
+  }
 
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { workspaceId: true },
-  });
-  if (!project) return null;
+  const userId = hdrs.get("x-genilink-user-id");
+  const workspaceId = hdrs.get("x-genilink-workspace-id");
+  if (!userId || !workspaceId) return null;
 
-  return { workspaceId: project.workspaceId, role: "owner" };
+  return {
+    userId,
+    workspaceId,
+    projectId: hdrs.get("x-genilink-project-id") ?? undefined,
+    brandId: hdrs.get("x-genilink-brand-id") ?? undefined,
+    role: hdrs.get("x-genilink-role") ?? "member",
+    scope: hdrs.get("x-genilink-scope") ?? undefined,
+  };
 }

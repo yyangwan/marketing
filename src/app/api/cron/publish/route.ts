@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getPlatformPublisher } from "@/lib/platform";
 import type { PlatformCredentials, PublishOptions } from "@/lib/platform/base";
@@ -73,7 +73,7 @@ export async function GET(req: Request) {
       try {
         const contentPiece = await prisma.contentPiece.findUnique({
           where: { id: claimed.contentId },
-          include: { project: true },
+          include: {},
         });
 
         if (!contentPiece) {
@@ -87,7 +87,7 @@ export async function GET(req: Request) {
           data: { status: "publishing" },
         });
 
-        const workspaceId = contentPiece.project.workspaceId;
+        const workspaceId = contentPiece.workspaceId;
 
         const platformContents = await prisma.platformContent.findMany({
           where: { contentPieceId: claimed.contentId },
@@ -299,3 +299,4 @@ async function publishWithRetry(
 
   return false;
 }
+

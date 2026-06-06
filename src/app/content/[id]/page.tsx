@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+﻿import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { ContentEditor } from "@/components/content-editor";
 import Link from "next/link";
@@ -14,7 +14,7 @@ export default async function ContentPage({
   const { id } = await params;
   const piece = await prisma.contentPiece.findUnique({
     where: { id },
-    include: { platformContents: true, project: true },
+    include: { platformContents: true },
   });
 
   if (!piece) notFound();
@@ -22,7 +22,7 @@ export default async function ContentPage({
   // Verify workspace ownership
   if (
     !session?.user?.workspaceId ||
-    piece.project.workspaceId !== session.user.workspaceId
+    piece.workspaceId !== session.user.workspaceId
   ) {
     notFound();
   }
@@ -37,14 +37,14 @@ export default async function ContentPage({
       <div className="mb-4">
         <Link href="/" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors duration-100">
           <ArrowLeft className="w-3.5 h-3.5" />
-          返回看板
+          杩斿洖鐪嬫澘
         </Link>
       </div>
 
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-foreground tracking-tight">{piece.title}</h1>
         <div className="mt-2 text-sm text-muted-foreground">
-          <span>核心要点：</span>
+          <span>Key points: </span>
           {brief.keyPoints?.join(" / ")}
         </div>
       </div>
@@ -62,3 +62,4 @@ export default async function ContentPage({
     </div>
   );
 }
+

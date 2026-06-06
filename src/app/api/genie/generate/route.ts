@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 /**
  * Genie Content Generation API
  * Phase 1E: Generate content ideas from analyzed sources
@@ -25,13 +24,14 @@ export async function POST(request: NextRequest) {
       return responses.unauthorized();
     }
 
-    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+    const ws = (await getServiceWorkspace()) ?? getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }
 
     const body = await request.json();
-    const { workspaceId: requestedWorkspaceId, projectId, count = 5, platforms } = body;
+    const { workspaceId: requestedWorkspaceId, projectId: requestedProjectId, count = 5, platforms } = body;
+    const projectId = requestedProjectId || ws.projectId;
 
     if (requestedWorkspaceId && requestedWorkspaceId !== ws.workspaceId) {
       return responses.forbidden(errors.workspaceMismatch());
@@ -39,18 +39,6 @@ export async function POST(request: NextRequest) {
 
     if (!projectId) {
       return responses.badRequest(errors.missingParam("projectId"));
-    }
-
-    // Validate project exists and belongs to workspace
-    const project = await prisma.project.findFirst({
-      where: {
-        id: projectId,
-        workspaceId: ws.workspaceId,
-      },
-    });
-
-    if (!project) {
-      return responses.notFound(errors.projectNotFound(projectId));
     }
 
     // Fetch all enabled Genie sources for the workspace
@@ -99,20 +87,13 @@ export async function POST(request: NextRequest) {
     const contentPieces = ideasToContentPieces(result.ideas, projectId);
 
     // Create ContentPiece records in database
-    const createdPieces = await prisma.contentPiece.createMany({
-      data: contentPieces.map((piece) => ({
-        ...piece,
-        // Remove metadata field from createMany as it's not in the schema
-        // We'll store extra info in the brief field
-      })),
-    });
-
-    // Actually, let me create them one by one to handle the metadata properly
-    // Since createMany doesn't support all field types
     for (const piece of contentPieces) {
       await prisma.contentPiece.create({
         data: {
+          workspaceId: ws.workspaceId,
           projectId: piece.projectId,
+          brandId: ws.brandId,
+          createdByUserId: session.user.id,
           title: piece.title,
           brief: piece.brief,
           type: piece.type,
@@ -147,7 +128,7 @@ export async function GET(request: NextRequest) {
       return responses.unauthorized();
     }
 
-    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+    const ws = (await getServiceWorkspace()) ?? getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }
@@ -159,25 +140,12 @@ export async function GET(request: NextRequest) {
       return responses.badRequest(errors.missingParam("projectId"));
     }
 
-    const project = await prisma.project.findFirst({
-      where: {
-        id: projectId,
-        workspaceId: ws.workspaceId,
-      },
-    });
-
-    if (!project) {
-      return responses.notFound(errors.projectNotFound(projectId));
-    }
-
     // Fetch all genie_draft content pieces for this project
     const genieDrafts = await prisma.contentPiece.findMany({
       where: {
         projectId,
         status: "genie_draft",
-        project: {
-          workspaceId: ws.workspaceId,
-        },
+        workspaceId: ws.workspaceId,
       },
       orderBy: {
         createdAt: "desc",

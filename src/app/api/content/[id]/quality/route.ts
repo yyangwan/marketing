@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+﻿import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -16,7 +16,7 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -25,10 +25,10 @@ export async function GET(
 
   const piece = await prisma.contentPiece.findUnique({
     where: { id },
-    include: { project: true },
+    include: {},
   });
 
-  if (!piece || piece.project.workspaceId !== ws.workspaceId) {
+  if (!piece || piece.workspaceId !== ws.workspaceId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -53,7 +53,7 @@ export async function POST(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -65,7 +65,6 @@ export async function POST(
   const piece = await prisma.contentPiece.findUnique({
     where: { id },
     include: {
-      project: { include: { brandVoice: true } },
       brandVoice: true,
       platformContents: {
         where: platform ? { platform } : undefined,
@@ -73,7 +72,7 @@ export async function POST(
     },
   });
 
-  if (!piece || piece.project.workspaceId !== ws.workspaceId) {
+  if (!piece || piece.workspaceId !== ws.workspaceId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -86,7 +85,7 @@ export async function POST(
   }
 
   const brief = JSON.parse(piece.brief);
-  const brandVoice = piece.brandVoice || piece.project.brandVoice;
+  const brandVoice = piece.brandVoice;
   const plainContent = platformContent.content.replace(/<[^>]*>/g, "");
 
   const prompt = [
@@ -162,3 +161,4 @@ export async function POST(
     );
   }
 }
+

@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+﻿import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -15,7 +15,7 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -42,7 +42,7 @@ export async function PUT(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -122,7 +122,7 @@ export async function DELETE(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -132,7 +132,7 @@ export async function DELETE(
     where: { id },
     include: {
       _count: {
-        select: { projects: true, contentPieces: true },
+        select: { contentPieces: true },
       },
     },
   });
@@ -142,7 +142,7 @@ export async function DELETE(
   }
 
   // RESTRICT: Cannot delete if in use
-  const usageCount = (existing._count.projects || 0) + (existing._count.contentPieces || 0);
+  const usageCount = existing._count.contentPieces || 0;
   if (usageCount > 0) {
     return NextResponse.json(
       {

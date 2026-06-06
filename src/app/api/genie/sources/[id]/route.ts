@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+﻿import { headers } from "next/headers";
 /**
  * Genie Source Detail API
  * Phase 1E: Individual source operations
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest, routeContext: RouteContext) {
       return responses.unauthorized();
     }
 
-    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+    const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }
@@ -78,7 +78,7 @@ export async function PUT(request: NextRequest, routeContext: RouteContext) {
       return responses.unauthorized();
     }
 
-    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+    const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }
@@ -125,7 +125,7 @@ export async function DELETE(request: NextRequest, routeContext: RouteContext) {
       return responses.unauthorized();
     }
 
-    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+    const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }
@@ -169,7 +169,7 @@ export async function POST(
       return responses.unauthorized();
     }
 
-    const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+    const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
     if (!ws) {
       return responses.forbidden(errors.noWorkspace());
     }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 
 const GENILINK_JWKS_URL =
   process.env.GENILINK_JWKS_URL || "https://genilink.cn/.well-known/jwks.json";
+const GENILINK_ISSUER = process.env.GENILINK_ISSUER || "https://app.genilink.cn";
 const SERVICE_AUDIENCE =
   process.env.GENILINK_AUDIENCE || "content.genilink.cn";
 
@@ -22,13 +23,12 @@ async function verifyIntegrationToken(request: NextRequest) {
 
   try {
     const { payload } = await jwtVerify(authHeader.substring(7), getJWKS(), {
-      issuer: "https://genilink.cn",
+      issuer: GENILINK_ISSUER,
       audience: SERVICE_AUDIENCE,
     });
     return {
       sub: payload.sub!,
-      email: payload.email as string | undefined,
-      name: payload.name as string | undefined,
+      workspaceId: payload.wid as string | undefined,
     };
   } catch {
     return null;
@@ -37,55 +37,22 @@ async function verifyIntegrationToken(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const claims = await verifyIntegrationToken(request);
-  if (!claims) {
+  if (!claims?.workspaceId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Find user by genilinkUserId
-  const user = await prisma.user.findFirst({
-    where: { genilinkUserId: claims.sub },
-  });
-
-  if (!user) {
-    return NextResponse.json({
-      totalContent: 0,
-      publishedCount: 0,
-      recentContent: [],
-      qualityAvg: null,
-    });
-  }
-
-  // Get workspace for the user
-  const membership = await prisma.workspaceMember.findFirst({
-    where: { userId: user.id },
-  });
-  if (!membership) {
-    return NextResponse.json({
-      totalContent: 0,
-      publishedCount: 0,
-      recentContent: [],
-      qualityAvg: null,
-    });
-  }
-
-  const workspaceId = membership.workspaceId;
-
-  // Run queries in parallel
+  const workspaceId = claims.workspaceId;
   const [totalContent, publishedContent, recentContent, qualityAgg] =
     await Promise.all([
-      prisma.contentPiece.count({
-        where: { project: { workspaceId } },
-      }),
-
+      prisma.contentPiece.count({ where: { workspaceId } }),
       prisma.platformContent.count({
         where: {
-          contentPiece: { project: { workspaceId } },
+          contentPiece: { workspaceId },
           status: "published",
         },
       }),
-
       prisma.contentPiece.findMany({
-        where: { project: { workspaceId } },
+        where: { workspaceId },
         include: {
           platformContents: {
             select: { platform: true },
@@ -96,11 +63,10 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
-
       prisma.contentQuality.aggregate({
         _avg: { quality: true },
         where: {
-          contentPiece: { project: { workspaceId } },
+          contentPiece: { workspaceId },
         },
       }),
     ]);
@@ -108,13 +74,14 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     totalContent,
     publishedCount: publishedContent,
-    recentContent: recentContent.map((c) => ({
-      id: c.id,
-      title: c.title,
-      platform: c.platformContents[0]?.platform || "unknown",
-      createdAt: c.createdAt.toISOString(),
+    recentContent: recentContent.map((content) => ({
+      id: content.id,
+      title: content.title,
+      projectId: content.projectId,
+      platform: content.platformContents[0]?.platform || "unknown",
+      createdAt: content.createdAt.toISOString(),
     })),
-    qualityAvg: qualityAgg._avg.quality
+    qualityAvg: qualityAgg._avg?.quality
       ? Math.round(qualityAgg._avg.quality)
       : null,
   });

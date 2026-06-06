@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+﻿import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   if (!session?.user?.id) {
     return responses.unauthorized();
   }
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -24,11 +24,10 @@ export async function GET(req: Request) {
 
   const pieces = await prisma.contentPiece.findMany({
     where: {
-      project: { workspaceId: ws.workspaceId },
+      workspaceId: ws.workspaceId,
       ...(projectId ? { projectId } : {}),
     },
     include: {
-      project: { select: { id: true, name: true } },
       platformContents: true,
       reviewComments: { orderBy: { createdAt: "desc" } },
     },
@@ -52,26 +51,18 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return responses.unauthorized();
   }
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
 
   try {
     const body = await req.json();
-    const { projectId, brandVoiceId, ...briefData } = body;
+    const { projectId: requestedProjectId, brandVoiceId, ...briefData } = body;
+    const projectId = requestedProjectId || ws.projectId;
 
     if (!projectId) {
       return responses.badRequest(errors.missingParam("projectId"));
-    }
-
-    // Verify project belongs to this workspace
-    const project = await prisma.project.findFirst({
-      where: { id: projectId, workspaceId: ws.workspaceId },
-      include: { brandVoice: true },
-    });
-    if (!project) {
-      return responses.notFound(errors.projectNotFound(projectId));
     }
 
     const brief: Brief = {
@@ -83,8 +74,7 @@ export async function POST(req: Request) {
       brandVoiceId: brandVoiceId || undefined,
     };
 
-    // Resolve brand voice: user-selected > project default
-    let effectiveBrandVoice = project.brandVoice || undefined;
+    let effectiveBrandVoice = undefined;
     if (brandVoiceId) {
       const selectedVoice = await prisma.brandVoice.findFirst({
         where: { id: brandVoiceId, workspaceId: ws.workspaceId },
@@ -96,7 +86,10 @@ export async function POST(req: Request) {
 
     const piece = await prisma.contentPiece.create({
       data: {
+        workspaceId: ws.workspaceId,
         projectId,
+        brandId: ws.brandId,
+        createdByUserId: session.user.id,
         title: brief.topic,
         type: "blog_post",
         brief: JSON.stringify(brief),
@@ -134,7 +127,7 @@ export async function POST(req: Request) {
 
     const result = await prisma.contentPiece.findUnique({
       where: { id: piece.id },
-      include: { platformContents: true, project: { select: { id: true, name: true } } },
+      include: { platformContents: true },
     });
 
     return NextResponse.json(result);
@@ -145,7 +138,8 @@ export async function POST(req: Request) {
     }
     const errorMessage = err instanceof Error ? err.message : String(err);
     return responses.serverError(
-      apiError("api_error", ERROR_CODES.INTERNAL_ERROR, `服务器内部错误: ${errorMessage}`)
+      apiError("api_error", ERROR_CODES.INTERNAL_ERROR, `鏈嶅姟鍣ㄥ唴閮ㄩ敊璇? ${errorMessage}`)
     );
   }
 }
+

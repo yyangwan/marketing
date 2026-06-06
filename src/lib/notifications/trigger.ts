@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+﻿import { prisma } from "@/lib/db";
 
 type NotificationType =
   | "content_review"
@@ -78,7 +78,7 @@ export async function notifyContentStatus(
 ) {
   const contentPiece = await prisma.contentPiece.findUnique({
     where: { id: contentPieceId },
-    include: { project: true },
+    include: {},
   });
 
   if (!contentPiece) {
@@ -90,21 +90,14 @@ export async function notifyContentStatus(
     return;
   }
 
-  const members = await prisma.workspaceMember.findMany({
-    where: { workspaceId },
-    select: { userId: true },
+  await createNotification({
+    userId: contentPiece.createdByUserId,
+    workspaceId,
+    type: payload.type,
+    title: payload.title,
+    message: payload.message,
+    link: `/content/${contentPieceId}`,
   });
-
-  for (const member of members) {
-    await createNotification({
-      userId: member.userId,
-      workspaceId,
-      type: payload.type,
-      title: payload.title,
-      message: payload.message,
-      link: `/content/${contentPieceId}`,
-    });
-  }
 }
 
 /**
@@ -145,3 +138,4 @@ export async function getUnreadCount(userId: string, workspaceId: string) {
     return 0;
   }
 }
+

@@ -19,7 +19,10 @@ export interface GeniLinkClaims {
   email?: string;
   name?: string;
   wid?: string;      // workspace ID
+  pid?: string;      // project ID
+  bid?: string;      // brand ID
   role?: string;
+  scope?: "workspace" | "project";
 }
 
 /**
@@ -36,7 +39,10 @@ export async function verifyGeniLinkToken(token: string): Promise<GeniLinkClaims
     email: payload.email as string | undefined,
     name: payload.name as string | undefined,
     wid: payload.wid as string | undefined,
+    pid: payload.pid as string | undefined,
+    bid: payload.bid as string | undefined,
     role: payload.role as string | undefined,
+    scope: payload.scope as "workspace" | "project" | undefined,
   };
 }
 

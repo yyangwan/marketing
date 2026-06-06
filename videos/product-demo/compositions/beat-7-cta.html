@@ -1,0 +1,240 @@
+<template id="beat-7-template">
+<div data-composition-id="beat-7" data-width="1920" data-height="1080" data-start="0" data-duration="5.66">
+
+  <style>
+    /* ========== Beat 7 — CTA / Resolve (scoped) ========== */
+    [data-composition-id="beat-7"] {
+      --b7-canvas: #F9FAFB;
+      --b7-primary: #4F46E5;
+      --b7-dark: #111827;
+      --b7-muted: #6B7280;
+      --b7-border: #E5E7EB;
+      --b7-white: #FFFFFF;
+
+      position: relative;
+      width: 1920px;
+      height: 1080px;
+      background: var(--b7-canvas);
+      overflow: hidden;
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* --- Radial glow behind brand name --- */
+    .b7-radial-glow {
+      position: absolute;
+      top: 28%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      border-radius: 50%;
+      background: radial-gradient(
+        circle,
+        rgba(79, 70, 229, 0.18) 0%,
+        rgba(79, 70, 229, 0.08) 40%,
+        transparent 70%
+      );
+      pointer-events: none;
+    }
+
+    /* --- Text area (upper 80%) --- */
+    .b7-text-area {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 80%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding-bottom: 40px;
+    }
+
+    /* --- Brand name --- */
+    .b7-brand-name {
+      font-size: 88px;
+      font-weight: 800;
+      color: var(--b7-dark);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .b7-brand-os {
+      color: var(--b7-primary);
+      text-shadow: 0 0 30px rgba(79, 70, 229, 0.4);
+    }
+
+    /* --- Tagline --- */
+    .b7-tagline {
+      margin-top: 24px;
+      font-size: 36px;
+      font-weight: 400;
+      color: var(--b7-muted);
+      line-height: 1.4;
+    }
+
+    /* --- Horizontal rule --- */
+    .b7-divider {
+      position: absolute;
+      top: 80%;
+      left: 0;
+      width: 100%;
+      height: 0;
+      border: none;
+      border-top: 2px solid rgba(79, 70, 229, 0.2);
+      transform-origin: center;
+      transform: scaleX(0);
+    }
+
+    /* --- Kanban strip (bottom 15%) --- */
+    .b7-kanban-strip {
+      position: absolute;
+      bottom: 7.5%;
+      left: 10%;
+      width: 80%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .b7-kanban-col {
+      width: 8px;
+      height: 32px;
+      background: var(--b7-white);
+      border: 1px solid var(--b7-border);
+      border-radius: 4px;
+      border-top: 2px solid var(--b7-border);
+      flex-shrink: 0;
+    }
+
+    .b7-kanban-col[data-color="indigo"]  { border-top-color: #4F46E5; }
+    .b7-kanban-col[data-color="gray"]     { border-top-color: #9CA3AF; }
+    .b7-kanban-col[data-color="amber"]    { border-top-color: #D97706; }
+    .b7-kanban-col[data-color="red"]      { border-top-color: #DC2626; }
+    .b7-kanban-col[data-color="green"]    { border-top-color: #16A34A; }
+    .b7-kanban-col[data-color="blue"]     { border-top-color: #2563EB; }
+
+    /* --- Fade-out wrapper --- */
+    .b7-fade-wrapper {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+
+  <!-- Everything inside the fade wrapper for the exit animation -->
+  <div class="b7-fade-wrapper" id="b7-fade-wrapper">
+
+    <!-- Radial glow -->
+    <div class="b7-radial-glow" id="b7-radial-glow"></div>
+
+    <!-- Text area -->
+    <div class="b7-text-area">
+      <div class="b7-brand-name" id="b7-brand-name">
+        Content<span class="b7-brand-os" id="b7-brand-os">OS</span>
+      </div>
+      <div class="b7-tagline" id="b7-tagline">让每一篇内容都精准到位</div>
+    </div>
+
+    <!-- Divider rule -->
+    <hr class="b7-divider" id="b7-divider">
+
+    <!-- Mini kanban strip — 10 columns evenly spaced -->
+    <div class="b7-kanban-strip" id="b7-kanban-strip">
+      <div class="b7-kanban-col" data-color="indigo"></div>
+      <div class="b7-kanban-col" data-color="indigo"></div>
+      <div class="b7-kanban-col" data-color="gray"></div>
+      <div class="b7-kanban-col" data-color="amber"></div>
+      <div class="b7-kanban-col" data-color="red"></div>
+      <div class="b7-kanban-col" data-color="green"></div>
+      <div class="b7-kanban-col" data-color="amber"></div>
+      <div class="b7-kanban-col" data-color="blue"></div>
+      <div class="b7-kanban-col" data-color="red"></div>
+      <div class="b7-kanban-col" data-color="green"></div>
+    </div>
+
+  </div><!-- /b7-fade-wrapper -->
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+      // Ensure global timeline registry
+      window.__timelines = window.__timelines || {};
+
+      var tl = gsap.timeline({
+        paused: true,
+        defaults: { ease: 'power2.out' }
+      });
+
+      // --- 1. "ContentOS" brand name entrance (at 0.2s) ---
+      tl.fromTo('#b7-brand-name',
+        { y: 16, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.6 },
+        0.2
+      );
+
+      // --- 2. "OS" glow pulse — ambient yoyo ---
+      // Beat duration is 5.66s, fade starts at 4.5s
+      // Pulse cycle: ~1.5s (0.75s each direction). Effective window: 0.2s-4.5s = 4.3s
+      // repeats = ceil(4.3 / 1.5) - 1 = 2
+      tl.fromTo('#b7-brand-os',
+        { textShadow: '0 0 30px rgba(79,70,229,0.3)' },
+        {
+          textShadow: '0 0 30px rgba(79,70,229,0.5)',
+          duration: 0.75,
+          yoyo: true,
+          repeat: 5,
+          ease: 'sine.inOut'
+        },
+        0.2
+      );
+
+      // --- 3. Horizontal rule scale-in (at 0.5s) ---
+      tl.fromTo('#b7-divider',
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.6 },
+        0.5
+      );
+
+      // --- 4. Tagline fade-in (at 0.7s) ---
+      tl.fromTo('#b7-tagline',
+        { opacity: 0 },
+        { opacity: 1, duration: 0.5 },
+        0.7
+      );
+
+      // --- 5. Mini kanban columns staggered entrance (at 1.0s) ---
+      tl.fromTo('.b7-kanban-col',
+        { y: 10, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.3, stagger: 0.05 },
+        1.0
+      );
+
+      // --- 6. Radial glow gentle pulse ---
+      // Window: 0s-4.5s. Cycle: ~2.0s (1.0s each half). repeats = ceil(4.5 / 1.0) - 1 = 3
+      tl.fromTo('#b7-radial-glow',
+        { opacity: 0.88 },
+        {
+          opacity: 1.22,
+          duration: 1.0,
+          yoyo: true,
+          repeat: 4,
+          ease: 'sine.inOut'
+        },
+        0
+      );
+
+      // --- 7. Final fade-out (at 4.5s, 1.0s duration) ---
+      // This IS the last beat — exit animation is allowed
+      tl.to('#b7-fade-wrapper',
+        { opacity: 0, filter: 'blur(10px)', duration: 1.0, ease: 'power2.in' },
+        4.5
+      );
+
+      // Register timeline
+      window.__timelines['beat-7'] = tl;
+  </script>
+
+</div>
+</template>

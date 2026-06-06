@@ -117,7 +117,28 @@
       "Bash(cat src/app/api/content/[id]/optimize-seo/route.ts)",
       "Bash(bun prisma:*)",
       "Bash(./node_modules/.bin/tsc --noEmit --pretty)",
-      "Bash(./node_modules/.bin/vitest run:*)"
+      "Bash(./node_modules/.bin/vitest run:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(pg_isready)",
+      "Bash(docker run:*)",
+      "Bash(ls:*)",
+      "Bash(gh run:*)",
+      "Bash(grep -oP '\\\\\\\\S+\\\\.tsx?\\\\b')",
+      "Bash(grep -oP '\\\\s+\\\\S+$')",
+      "Bash(grep -oP '[\\\\w/\\\\\\\\]+\\\\.tsx?\\\\b')",
+      "Bash(grep -v \"^--$\")",
+      "Bash(grep -v \"^\\\\s*$\")",
+      "Bash(grep -v \"no-explicit-any\\\\|no-unused-vars\\\\|^--$\\\\|^\\\\s*$\")",
+      "Bash(npx eslint:*)",
+      "Bash(npm search:*)",
+      "Bash(npm view:*)",
+      "Bash(bun ./prisma/seed.ts)",
+      "Bash(bun -e \"import ''dotenv/config''; console.log\\(process.env.DATABASE_URL?.substring\\(0, 30\\)\\)\")",
+      "Bash(bun -e \":*)",
+      "Bash(npx hyperframes:*)",
+      "Bash(pip install:*)",
+      "Bash(edge-tts --voice zh-CN-YunxiNeural --text \"你的内容团队，值得更好的工作流。ContentOS，一站式 AI 内容营销平台。从创意简报到 AI 生成，从人工精修到客户审核，十步流程一目了然。支持微信、微博、小红书、抖音四大平台。AI 匹配你的品牌语调，实时分析内容质量与 SEO 表现。一键发布，数据驱动。团队协作，高效交付。ContentOS，让每一篇内容都精准到位。\" --write-media narration.mp3)",
+      "Bash(edge-tts --voice zh-CN-YunxiNeural --text \"你的内容团队，值得更好的工作流。ContentOS，一站式 AI 内容营销平台。从创意简报到 AI 生成，从人工精修到客户审核，十步流程一目了然。支持微信、微博、小红书、抖音四大平台。AI 匹配你的品牌语调，实时分析内容质量与 SEO 表现。一键发布，数据驱动。团队协作，高效交付。ContentOS，让每一篇内容都精准到位。\" --write-subtitles transcript.vtt)"
     ]
   }
 }

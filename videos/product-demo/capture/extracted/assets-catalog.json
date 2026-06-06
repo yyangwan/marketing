@@ -1,0 +1,82 @@
+[
+  {
+    "url": "http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_10z625~._.js",
+    "type": "Other",
+    "contexts": [
+      "link[rel=\"preload\"]"
+    ],
+    "notes": null
+  },
+  {
+    "url": "http://localhost:3000/favicon.ico?favicon.0x3dzn~oxb6tn.ico",
+    "type": "Icon",
+    "contexts": [
+      "link[rel=\"icon\"]"
+    ],
+    "notes": null
+  },
+  {
+    "url": "http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.16t1db8_9y2o~.woff2",
+    "type": "Font",
+    "contexts": [
+      "link[rel=\"preload\"]"
+    ],
+    "notes": null
+  },
+  {
+    "url": "http://localhost:3000/media/8a480f0b521d4e75-s.06d3mdzz5bre_.woff2",
+    "type": "Font",
+    "contexts": [
+      "css url()"
+    ],
+    "notes": null
+  },
+  {
+    "url": "http://localhost:3000/media/7178b3e590c64307-s.11.cyxs5p-0z~.woff2",
+    "type": "Font",
+    "contexts": [
+      "css url()"
+    ],
+    "notes": null
+  },
+  {
+    "url": "http://localhost:3000/media/caa3a2e1cccd8315-s.p.16t1db8_9y2o~.woff2",
+    "type": "Font",
+    "contexts": [
+      "css url()"
+    ],
+    "notes": null
+  },
+  {
+    "url": "http://localhost:3000/__nextjs_font/geist-latin-ext.woff2",
+    "type": "Font",
+    "contexts": [
+      "css url()"
+    ],
+    "notes": null
+  },
+  {
+    "url": "http://localhost:3000/__nextjs_font/geist-mono-latin-ext.woff2",
+    "type": "Font",
+    "contexts": [
+      "css url()"
+    ],
+    "notes": null
+  },
+  {
+    "url": "http://localhost:3000/__nextjs_font/geist-latin.woff2",
+    "type": "Font",
+    "contexts": [
+      "css url()"
+    ],
+    "notes": null
+  },
+  {
+    "url": "http://localhost:3000/__nextjs_font/geist-mono-latin.woff2",
+    "type": "Font",
+    "contexts": [
+      "css url()"
+    ],
+    "notes": null
+  }
+]

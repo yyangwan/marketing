@@ -1,0 +1,337 @@
+<template id="scene-4-template">
+<div data-composition-id="scene-4" data-width="1080" data-height="1920" data-start="0" data-duration="7">
+
+  <style>
+    [data-composition-id="scene-4"] {
+      --s4-canvas: #0B0F1A;
+      --s4-accent: #00D4AA;
+      --s4-highlight: #FFBE0B;
+      --s4-surface: #161B2E;
+      --s4-text: #F0F2F5;
+      --s4-muted: #8892A4;
+      --s4-border: #2A3050;
+
+      position: relative;
+      width: 1080px;
+      height: 1920px;
+      background: var(--s4-canvas);
+      overflow: hidden;
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* BG: Soft radial glow */
+    .s4-bg-glow {
+      position: absolute;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 900px;
+      height: 900px;
+      border-radius: 50%;
+      background: radial-gradient(
+        circle,
+        rgba(0, 212, 170, 0.12) 0%,
+        rgba(0, 212, 170, 0.04) 40%,
+        transparent 70%
+      );
+      pointer-events: none;
+    }
+
+    /* BG: Ghost text */
+    .s4-ghost-text {
+      position: absolute;
+      top: 85%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 200px;
+      font-weight: 900;
+      color: var(--s4-accent);
+      opacity: 0.03;
+      letter-spacing: -0.05em;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    /* Step pill */
+    .s4-step-pill {
+      position: absolute;
+      top: 100px;
+      left: 60px;
+      display: inline-flex;
+      padding: 10px 24px;
+      background: rgba(0, 212, 170, 0.15);
+      border: 1px solid rgba(0, 212, 170, 0.3);
+      border-radius: 8px;
+      font-family: 'Geist Mono', monospace;
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--s4-accent);
+    }
+
+    /* Section title */
+    .s4-section-title {
+      position: absolute;
+      top: 190px;
+      left: 60px;
+      right: 60px;
+      font-size: 38px;
+      font-weight: 800;
+      color: var(--s4-text);
+      letter-spacing: -0.02em;
+    }
+
+    /* Steps container */
+    .s4-steps {
+      position: absolute;
+      top: 300px;
+      left: 60px;
+      right: 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Individual step card */
+    .s4-step-card {
+      position: relative;
+      background: var(--s4-surface);
+      border: 2px solid var(--s4-border);
+      border-radius: 16px;
+      padding: 36px 40px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      overflow: hidden;
+    }
+
+    .s4-step-num {
+      font-family: 'Geist Mono', monospace;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--s4-accent);
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .s4-step-text {
+      font-size: 40px;
+      font-weight: 700;
+      color: var(--s4-text);
+      letter-spacing: -0.02em;
+    }
+
+    /* Highlight bar behind step text */
+    .s4-highlight-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 190, 11, 0.15);
+      transform: scaleX(0);
+      transform-origin: left center;
+      pointer-events: none;
+    }
+
+    /* Arrow connector between cards */
+    .s4-arrow {
+      position: absolute;
+      left: 88px;
+      width: 3px;
+      height: 24px;
+      background: var(--s4-accent);
+      opacity: 0.4;
+    }
+    .s4-arrow-1 { top: calc(300px + 124px + 24px * 0); }
+    /* Arrows positioned dynamically via JS offsets */
+
+    /* Quote section */
+    .s4-quote {
+      position: absolute;
+      top: 72%;
+      left: 60px;
+      right: 60px;
+      font-size: 32px;
+      font-weight: 400;
+      color: var(--s4-text);
+      line-height: 1.8;
+      border-left: 3px solid var(--s4-accent);
+      padding-left: 24px;
+    }
+
+    .s4-quote em {
+      font-style: normal;
+      color: var(--s4-highlight);
+      font-weight: 600;
+    }
+
+    /* Connecting line top decoration */
+    .s4-deco-line {
+      position: absolute;
+      top: 260px;
+      left: 60px;
+      width: 200px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--s4-accent), transparent);
+      opacity: 0.3;
+      transform: scaleX(0);
+      transform-origin: left center;
+    }
+  </style>
+
+  <!-- BG glow -->
+  <div class="s4-bg-glow" id="s4-glow"></div>
+
+  <!-- Ghost text -->
+  <div class="s4-ghost-text" id="s4-ghost">GEO</div>
+
+  <!-- Step pill -->
+  <div class="s4-step-pill" id="s4-pill">第三</div>
+
+  <!-- Section title -->
+  <div class="s4-section-title" id="s4-title">真正能打的落地方案就三步</div>
+
+  <!-- Deco line -->
+  <div class="s4-deco-line" id="s4-deco-line"></div>
+
+  <!-- Steps -->
+  <div class="s4-steps">
+    <!-- Step 1 -->
+    <div class="s4-step-card" id="s4-card1">
+      <div class="s4-highlight-bar" id="s4-hl1"></div>
+      <div class="s4-step-num">01</div>
+      <div class="s4-step-text">内容净化</div>
+    </div>
+
+    <!-- Arrow 1→2 -->
+    <div class="s4-arrow" id="s4-arrow1" style="position:relative; left:88px;"></div>
+
+    <!-- Step 2 -->
+    <div class="s4-step-card" id="s4-card2">
+      <div class="s4-highlight-bar" id="s4-hl2"></div>
+      <div class="s4-step-num">02</div>
+      <div class="s4-step-text">语义关联</div>
+    </div>
+
+    <!-- Arrow 2→3 -->
+    <div class="s4-arrow" id="s4-arrow2" style="position:relative; left:88px;"></div>
+
+    <!-- Step 3 -->
+    <div class="s4-step-card" id="s4-card3">
+      <div class="s4-highlight-bar" id="s4-hl3"></div>
+      <div class="s4-step-num">03</div>
+      <div class="s4-step-text">用户意图匹配</div>
+    </div>
+  </div>
+
+  <!-- Quote -->
+  <div class="s4-quote" id="s4-quote">
+    内容说人话、语义要关联、紧跟用户真实提问。<br>
+    别整虚的，让AI觉得你<em>靠谱</em>，<br>
+    它才愿意把你推出去。
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    var tl = gsap.timeline({ paused: true });
+
+    // 1. Pill fades in
+    tl.fromTo('#s4-pill',
+      { y: -20, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' },
+      0.15
+    );
+
+    // 2. Section title slides in
+    tl.fromTo('#s4-title',
+      { x: -40, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.5, ease: 'power3.out' },
+      0.3
+    );
+
+    // 3. Deco line draws
+    tl.to('#s4-deco-line',
+      { scaleX: 1, duration: 0.4, ease: 'power2.out' },
+      0.5
+    );
+
+    // 4. Step 1 card scales in (t=0.8s)
+    tl.fromTo('#s4-card1',
+      { scale: 0.8, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.4)' },
+      0.8
+    );
+
+    // 5. Highlight 1 sweep — "叮" moment (t=1.3s)
+    tl.to('#s4-hl1',
+      { scaleX: 1, duration: 0.5, ease: 'power2.out' },
+      1.3
+    );
+
+    // 6. Arrow 1 fade in
+    tl.fromTo('#s4-arrow1',
+      { scaleY: 0, opacity: 0 },
+      { scaleY: 1, opacity: 0.4, duration: 0.3, ease: 'power2.out' },
+      1.8
+    );
+
+    // 7. Step 2 card scales in (t=2.1s)
+    tl.fromTo('#s4-card2',
+      { scale: 0.8, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.4)' },
+      2.1
+    );
+
+    // 8. Highlight 2 sweep — "叮" moment (t=2.6s)
+    tl.to('#s4-hl2',
+      { scaleX: 1, duration: 0.5, ease: 'power2.out' },
+      2.6
+    );
+
+    // 9. Arrow 2 fade in
+    tl.fromTo('#s4-arrow2',
+      { scaleY: 0, opacity: 0 },
+      { scaleY: 1, opacity: 0.4, duration: 0.3, ease: 'power2.out' },
+      3.1
+    );
+
+    // 10. Step 3 card scales in (t=3.4s)
+    tl.fromTo('#s4-card3',
+      { scale: 0.8, opacity: 0 },
+      { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.4)' },
+      3.4
+    );
+
+    // 11. Highlight 3 sweep — "叮" moment (t=3.9s)
+    tl.to('#s4-hl3',
+      { scaleX: 1, duration: 0.5, ease: 'power2.out' },
+      3.9
+    );
+
+    // 12. Quote fades up (t=4.5s)
+    tl.fromTo('#s4-quote',
+      { y: 30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out' },
+      4.5
+    );
+
+    // 13. BG glow breathes — cycle ~2s, repeats = ceil(7/2)-1 = 2
+    tl.fromTo('#s4-glow',
+      { scale: 1 },
+      { scale: 1.06, duration: 1.0, yoyo: true, repeat: 6, ease: 'sine.inOut' },
+      0
+    );
+
+    // 14. Ghost text drift — cycle ~3s, repeats = ceil(7/3)-1 = 1
+    tl.fromTo('#s4-ghost',
+      { x: -15 },
+      { x: 15, duration: 1.5, yoyo: true, repeat: 3, ease: 'sine.inOut' },
+      0
+    );
+
+    window.__timelines['scene-4'] = tl;
+  </script>
+
+</div>
+</template>

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
 vi.mock("@/lib/db", () => ({
@@ -292,3 +292,4 @@ describe("/api/cron/publish", () => {
     expect(notifyContentStatus).not.toHaveBeenCalled();
   });
 });
+

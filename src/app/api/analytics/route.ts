@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+﻿import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     return responses.unauthorized();
   }
 
-  const ws = (await headers()).get("x-contentos-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
   if (!ws) {
     return responses.forbidden(errors.noWorkspace());
   }
@@ -41,7 +41,7 @@ export async function GET(req: Request) {
       // Total content count in time range
       prisma.contentPiece.count({
         where: {
-          project: { workspaceId: ws.workspaceId },
+          workspaceId: ws.workspaceId,
           createdAt: { gte: startDate },
         },
       }),
@@ -50,7 +50,7 @@ export async function GET(req: Request) {
       prisma.contentPiece.groupBy({
         by: ["status"],
         where: {
-          project: { workspaceId: ws.workspaceId },
+          workspaceId: ws.workspaceId,
           createdAt: { gte: startDate },
         },
         _count: true,
@@ -61,7 +61,7 @@ export async function GET(req: Request) {
         by: ["platform"],
         where: {
           contentPiece: {
-            project: { workspaceId: ws.workspaceId },
+            workspaceId: ws.workspaceId,
           },
           createdAt: { gte: startDate },
         },
@@ -78,7 +78,7 @@ export async function GET(req: Request) {
         },
         where: {
           contentPiece: {
-            project: { workspaceId: ws.workspaceId },
+            workspaceId: ws.workspaceId,
           },
           evaluatedAt: { gte: startDate },
         },
@@ -99,7 +99,7 @@ export async function GET(req: Request) {
         by: ["status"],
         where: {
           contentPiece: {
-            project: { workspaceId: ws.workspaceId },
+            workspaceId: ws.workspaceId,
           },
           createdAt: { gte: startDate },
         },
@@ -109,26 +109,20 @@ export async function GET(req: Request) {
       // Recent content for activity feed
       prisma.contentPiece.findMany({
         where: {
-          project: { workspaceId: ws.workspaceId },
-        },
-        include: {
-          project: {
-            select: { name: true },
-          },
+          workspaceId: ws.workspaceId,
         },
         orderBy: { createdAt: "desc" },
         take: 10,
       }),
 
       // Top projects by content count in time range
-      prisma.project.findMany({
-        where: { workspaceId: ws.workspaceId },
-        include: {
-          contentPieces: {
-            where: { createdAt: { gte: startDate } },
-            select: { id: true },
-          },
+      prisma.contentPiece.groupBy({
+        by: ["projectId"],
+        where: {
+          workspaceId: ws.workspaceId,
+          createdAt: { gte: startDate },
         },
+        _count: true,
       }),
     ]);
 
@@ -138,9 +132,7 @@ export async function GET(req: Request) {
         DATE_FORMAT(\`createdAt\`, '%Y-%m-%d') as date,
         COUNT(*) as count
       FROM \`ContentPiece\`
-      WHERE \`projectId\` IN (
-        SELECT id FROM \`Project\` WHERE \`workspaceId\` = ${ws.workspaceId}
-      )
+      WHERE \`workspaceId\` = ${ws.workspaceId}
       AND \`createdAt\` >= ${startDate}
       GROUP BY DATE_FORMAT(\`createdAt\`, '%Y-%m-%d')
       ORDER BY date ASC
@@ -153,9 +145,7 @@ export async function GET(req: Request) {
         AVG(quality) as \`avgQuality\`
       FROM \`ContentQuality\`
       WHERE \`contentPieceId\` IN (
-        SELECT id FROM \`ContentPiece\` WHERE \`projectId\` IN (
-          SELECT id FROM \`Project\` WHERE \`workspaceId\` = ${ws.workspaceId}
-        )
+        SELECT id FROM \`ContentPiece\` WHERE \`workspaceId\` = ${ws.workspaceId}
       )
       AND \`evaluatedAt\` >= ${startDate}
       GROUP BY DATE_FORMAT(\`evaluatedAt\`, '%Y-%m-%d')
@@ -187,9 +177,9 @@ export async function GET(req: Request) {
     // Sort top projects by content count in time range
     const topProjects = topProjectsRaw
       .map((project) => ({
-        id: project.id,
-        name: project.name,
-        contentCount: project.contentPieces.length,
+        id: project.projectId,
+        name: project.projectId,
+        contentCount: project._count,
       }))
       .filter((p) => p.contentCount > 0)
       .sort((a, b) => b.contentCount - a.contentCount)
@@ -224,7 +214,7 @@ export async function GET(req: Request) {
         id: content.id,
         title: content.title,
         status: content.status,
-        projectName: content.project.name,
+        projectName: content.projectId,
         createdAt: content.createdAt,
       })),
       topProjects,
@@ -232,7 +222,8 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error("Failed to fetch analytics:", error);
     return responses.serverError(
-      apiError("api_error", ERROR_CODES.DATABASE_ERROR, "获取统计数据失败，请稍后重试")
+      apiError("api_error", ERROR_CODES.DATABASE_ERROR, "鑾峰彇缁熻鏁版嵁澶辫触锛岃绋嶅悗閲嶈瘯")
     );
   }
 }
+

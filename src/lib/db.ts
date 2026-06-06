@@ -1,14 +1,13 @@
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import pg from "pg";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 function createPrismaClient() {
-  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-  const adapter = new PrismaPg(pool);
+  const url = process.env.DATABASE_URL!.replace(/^mysql:/, "mariadb:");
+  const adapter = new PrismaMariaDb(url);
   return new PrismaClient({ adapter });
 }
 
