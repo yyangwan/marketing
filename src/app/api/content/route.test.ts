@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { GET } from "./route";
+import { GET, POST } from "./route";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     contentPiece: {
       findMany: vi.fn(),
+      create: vi.fn(),
     },
   },
 }));
@@ -57,11 +58,8 @@ describe("/api/content", () => {
         platform: "wechat",
       });
       expect(prisma.contentPiece.findMany).toHaveBeenCalledWith({
-        where: {
-          project: { workspaceId: "ws1" },
-        },
+        where: { workspaceId: "ws1" },
         include: {
-          project: { select: { name: true } },
           platformContents: {
             select: { platform: true },
             take: 1,
@@ -87,11 +85,10 @@ describe("/api/content", () => {
       expect(response.status).toBe(200);
       expect(prisma.contentPiece.findMany).toHaveBeenCalledWith({
         where: {
-          project: { workspaceId: "ws1" },
+          workspaceId: "ws1",
           schedules: { none: {} },
         },
         include: {
-          project: { select: { name: true } },
           platformContents: {
             select: { platform: true },
             take: 1,
@@ -113,11 +110,10 @@ describe("/api/content", () => {
       expect(response.status).toBe(200);
       expect(prisma.contentPiece.findMany).toHaveBeenCalledWith({
         where: {
-          project: { workspaceId: "ws1" },
+          workspaceId: "ws1",
           status: "published",
         },
         include: {
-          project: { select: { name: true } },
           platformContents: {
             select: { platform: true },
             take: 1,
@@ -207,4 +203,64 @@ describe("/api/content", () => {
       expect(data.error.code).toBe("database_error");
     });
   });
+
+  describe("POST - Create content", () => {
+    it("should create a content draft using the current project context", async () => {
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+      vi.mocked(getCurrentWorkspace).mockReturnValue({
+        workspaceId: "ws1",
+        projectId: "project-1",
+        brandId: "brand-1",
+        role: "member",
+      });
+
+      const mockCreated = {
+        id: "content-1",
+        title: "Launch plan",
+        workspaceId: "ws1",
+        projectId: "project-1",
+        platformContents: [{ platform: "wechat", status: "draft" }],
+      };
+      (prisma.contentPiece.create as any).mockResolvedValue(mockCreated);
+
+      const response = await POST(
+        {
+          json: async () => ({
+            topic: "Launch plan",
+            keyPoints: ["Point A", ""],
+            platforms: ["wechat", "unknown"],
+          }),
+        } as any
+      );
+
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({ id: "content-1" });
+      expect(prisma.contentPiece.create).toHaveBeenCalledWith({
+        data: {
+          workspaceId: "ws1",
+          projectId: "project-1",
+          brandId: "brand-1",
+          createdByUserId: "user1",
+          title: "Launch plan",
+          type: "blog_post",
+          brief: JSON.stringify({
+            topic: "Launch plan",
+            keyPoints: ["Point A"],
+            platforms: ["wechat"],
+            references: "",
+            notes: "",
+            templateId: undefined,
+            brandVoiceId: undefined,
+          }),
+          brandVoiceId: undefined,
+          status: "draft",
+          platformContents: {
+            create: [{ platform: "wechat", status: "draft" }],
+          },
+        },
+        include: { platformContents: true },
+      });
+    });
+  });
 });
+
