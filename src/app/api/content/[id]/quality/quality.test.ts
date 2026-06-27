@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { POST } from "./route";
+import { callLLM } from "@/lib/ai/client";
 
 // Custom matcher for date comparison
 expect.extend({
@@ -42,6 +43,7 @@ vi.mock("@/lib/db", () => ({
     },
     brandVoice: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
     },
     contentQuality: {
       upsert: vi.fn(),
@@ -135,6 +137,72 @@ describe("Content Quality API", () => {
 
       expect(data).toMatchDateObject(mockQuality);
       expect(prisma.contentQuality.upsert).toHaveBeenCalled();
+    });
+
+    it("should send project and product context to the LLM prompt", async () => {
+      const mockContent = {
+        id: "pc1",
+        contentPieceId: "cp1",
+        platform: "wechat",
+        title: "Product launch draft",
+        projectId: "proj1",
+        brandId: "brand1",
+        brief: JSON.stringify({
+          topic: "AI and Machine Learning",
+          keyPoints: ["Point 1", "Point 2"],
+          context: {
+            project: {
+              projectId: "proj1",
+              brandId: "brand1",
+              productName: "Marketing Platform",
+              productDescription: "A content marketing platform",
+              positioning: "Workflow automation",
+              targetCustomers: ["B2B teams"],
+            },
+          },
+        }),
+        brandVoiceId: null,
+        brandVoice: null,
+        project: {
+          id: "proj1",
+          workspaceId: "test-workspace-id",
+          brandVoiceId: null,
+          brandVoice: null,
+        },
+        platformContents: [
+          {
+            id: "pc1",
+            content: "Test content about AI and machine learning",
+          },
+        ],
+      };
+
+      (prisma.contentPiece.findUnique as any).mockResolvedValue(mockContent);
+      (prisma.contentQuality.upsert as any).mockResolvedValue({
+        id: "cq1",
+        contentPieceId: "cp1",
+        platform: "wechat",
+        quality: 8,
+        engagement: 7,
+        brandVoice: 8,
+        platformFit: 9,
+        suggestions: "Context aware",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const mockRequest = {
+        json: async () => ({}),
+      } as unknown as Request;
+
+      await POST(mockRequest, { params: Promise.resolve({ id: "pc1" }) } as any);
+
+      const prompt = vi.mocked(callLLM).mock.calls[0]?.[0] ?? "";
+      expect(prompt).toContain("内容上下文");
+      expect(prompt).toContain("内容标题: Product launch draft");
+      expect(prompt).toContain("项目ID: proj1");
+      expect(prompt).toContain("品牌ID: brand1");
+      expect(prompt).toContain("内容主题: AI and Machine Learning");
     });
 
     it("should include brand voice context in evaluation when available", async () => {

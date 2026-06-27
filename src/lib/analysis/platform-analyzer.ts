@@ -270,12 +270,17 @@ export function analyzeForPlatform(
  */
 export function getOptimizationPrompt(
   contentHtml: string,
-  platform: Platform
+  platform: Platform,
+  contextSection = ""
 ): string {
   const rules = getPlatformRules(platform);
   const analysis = analyzeForPlatform(contentHtml, platform);
 
   let prompt = rules.optimization.promptTemplate + "\n\n";
+
+  if (contextSection) {
+    prompt += `${contextSection}\n\n`;
+  }
 
   if (analysis.suggestions.length > 0) {
     prompt += "当前内容问题:\n";

@@ -1,10 +1,88 @@
-﻿import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { callLLM } from "@/lib/ai/client";
+import { buildContextPromptSection } from "@/lib/ai/prompts/context";
+import type { Brief } from "@/types";
+
+function parseBrief(briefText: string): Brief {
+  try {
+    return JSON.parse(briefText) as Brief;
+  } catch {
+    return {
+      topic: "",
+      keyPoints: [],
+      platforms: [],
+      references: "",
+      notes: "",
+    };
+  }
+}
+
+function buildContextSection(args: {
+  piece: {
+    title: string;
+    projectId: string;
+    brandId?: string | null;
+  };
+  platform: string;
+  workspaceBrandId?: string | null;
+  brief: Brief;
+  brandVoice: {
+    name: string;
+    description: string | null;
+    guidelines: string | null;
+  } | null;
+}): string {
+  const { piece, platform, workspaceBrandId, brief, brandVoice } = args;
+  const lines = [
+    "## 内容上下文",
+    `- 内容标题: ${piece.title}`,
+    `- 项目ID: ${piece.projectId}`,
+    `- 品牌ID: ${piece.brandId || workspaceBrandId || "未提供"}`,
+    `- 平台: ${platform}`,
+    `- 内容主题: ${brief.topic || "未提供"}`,
+    `- 核心要点: ${brief.keyPoints.length > 0 ? brief.keyPoints.join("、") : "未提供"}`,
+    brandVoice
+      ? `- 品牌声线: ${brandVoice.name}. ${brandVoice.description || ""} ${brandVoice.guidelines || ""}`.trim()
+      : "- 品牌声线: 未提供",
+  ];
+
+  const structuredContext = buildContextPromptSection(brief);
+  if (structuredContext) {
+    lines.push(structuredContext);
+  }
+
+  return lines.filter(Boolean).join("\n");
+}
+
+async function resolveBrandVoice(
+  piece: { brandVoice?: { name: string; description: string | null; guidelines: string | null } | null; brandId?: string | null },
+  workspaceId: string,
+  workspaceBrandId?: string | null
+) {
+  if (piece.brandVoice) {
+    return piece.brandVoice;
+  }
+
+  const brandId = piece.brandId ?? workspaceBrandId;
+  if (!brandId) {
+    return null;
+  }
+
+  return prisma.brandVoice.findFirst({
+    where: { workspaceId, brandId },
+  });
+}
+
+function getPieceWorkspaceId(piece: {
+  workspaceId?: string | null;
+  project?: { workspaceId?: string | null } | null;
+}) {
+  return piece.workspaceId ?? piece.project?.workspaceId ?? null;
+}
 
 // GET /api/content/[id]/quality - Get existing quality evaluation
 export async function GET(
@@ -16,7 +94,7 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await getServiceWorkspace()) ?? getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -28,7 +106,7 @@ export async function GET(
     include: {},
   });
 
-  if (!piece || piece.workspaceId !== ws.workspaceId) {
+  if (!piece || getPieceWorkspaceId(piece) !== ws.workspaceId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -53,7 +131,7 @@ export async function POST(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ws = (await headers()).get("x-genilink-project-id") ? await getServiceWorkspace() : getCurrentWorkspace(session);
+  const ws = (await getServiceWorkspace()) ?? getCurrentWorkspace(session);
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
@@ -72,7 +150,7 @@ export async function POST(
     },
   });
 
-  if (!piece || piece.workspaceId !== ws.workspaceId) {
+  if (!piece || getPieceWorkspaceId(piece) !== ws.workspaceId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -84,23 +162,28 @@ export async function POST(
     return NextResponse.json({ error: "No content to evaluate" }, { status: 400 });
   }
 
-  const brief = JSON.parse(piece.brief);
-  const brandVoice = piece.brandVoice;
+  const brief = parseBrief(piece.brief);
+  const brandVoice = await resolveBrandVoice(piece, ws.workspaceId, ws.brandId);
   const plainContent = platformContent.content.replace(/<[^>]*>/g, "");
+  const contextSection = buildContextSection({
+    piece,
+    platform: platformContent.platform,
+    workspaceBrandId: ws.brandId,
+    brief,
+    brandVoice,
+  });
 
   const prompt = [
     "You are a content quality reviewer.",
     "Score the content as integers from 0 to 10.",
+    contextSection,
     `Topic: ${brief.topic}`,
     `Key points: ${(brief.keyPoints || []).join(", ")}`,
-    brandVoice
-      ? `Brand voice: ${brandVoice.name}. ${brandVoice.description || ""} ${brandVoice.guidelines || ""}`
-      : "Brand voice: none provided.",
     `Platform: ${platformContent.platform}`,
     `Content: ${plainContent}`,
     "Return JSON only with this shape:",
     '{"quality":8,"engagement":7,"brandVoice":6,"platformFit":7,"suggestions":["Suggestion 1","Suggestion 2"]}',
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 
   try {
     const response = await callLLM(prompt);
@@ -161,4 +244,3 @@ export async function POST(
     );
   }
 }
-

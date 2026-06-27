@@ -88,10 +88,11 @@ function ensureHtmlFormat(content: string): string {
  */
 export async function optimizeForPlatform(
   contentHtml: string,
-  platform: Platform
+  platform: Platform,
+  contextSection = ""
 ): Promise<OptimizationResult> {
   // Build optimization prompt
-  const prompt = getOptimizationPrompt(contentHtml, platform);
+  const prompt = getOptimizationPrompt(contentHtml, platform, contextSection);
 
   try {
     // Call AI for optimization
