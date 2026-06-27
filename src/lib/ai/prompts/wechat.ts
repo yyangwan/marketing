@@ -1,4 +1,5 @@
 import type { Brief, BrandVoice } from "@/types";
+import { buildContextPromptSection } from "./context";
 
 export function buildWeChatPrompt(brief: Brief, brandVoice?: BrandVoice): string {
   const prompt = `你是一位专业的微信公众号内容创作者。请根据以下简报，撰写一篇高质量的微信公众号长文章。
@@ -8,6 +9,7 @@ export function buildWeChatPrompt(brief: Brief, brandVoice?: BrandVoice): string
 - 核心要点：${brief.keyPoints.join("、")}
 - 补充说明：${brief.notes || "无"}
 - 参考资料：${brief.references || "无"}
+${buildContextPromptSection(brief)}
 
 ## 写作要求
 1. 文章长度：1500-3000 字

@@ -14,6 +14,43 @@ export type ContentStatus =
 
 export type ContentType = "blog_post" | "social_post" | "video_script";
 
+export interface GenerationContext {
+  project?: {
+    projectId?: string;
+    brandId?: string;
+    productName?: string;
+    productDescription?: string;
+    positioning?: string;
+    targetCustomers?: string[];
+  };
+  boundaries?: {
+    mustMention?: string[];
+    avoidMention?: string[];
+    allowedClaims?: string[];
+    forbiddenClaims?: string[];
+    competitors?: string[];
+  };
+  insights?: {
+    businessType?: string;
+    keyProducts?: string[];
+    brandTone?: string;
+    targetAudience?: string;
+    recurringTopics?: string[];
+    contentThemes?: string[];
+    suggestedContentTypes?: string[];
+    sourceUrls?: string[];
+  };
+  idea?: {
+    title?: string;
+    angle?: string;
+    contentType?: string;
+    targetPlatform?: string;
+    estimatedWordCount?: number;
+    keywords?: string[];
+    reason?: string;
+  };
+}
+
 export interface Brief {
   topic: string;
   keyPoints: string[];
@@ -21,6 +58,7 @@ export interface Brief {
   references: string;
   notes: string;
   brandVoiceId?: string;
+  context?: GenerationContext;
 }
 
 // Phase 1C: Brand Voice System

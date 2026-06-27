@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { startTransition, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -8,6 +8,14 @@ import type { Platform, Brief, BrandVoice } from "@/types";
 import { PLATFORM_CONFIG } from "@/types";
 
 const ALL_PLATFORMS: Platform[] = ["wechat", "weibo", "xiaohongshu", "douyin"];
+
+function getCookieValue(name: string): string {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie
+    .split("; ")
+    .find((cookie) => cookie.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : "";
+}
 
 export function BriefForm({ projectId }: { projectId?: string }) {
   const router = useRouter();
@@ -26,23 +34,36 @@ export function BriefForm({ projectId }: { projectId?: string }) {
   const [loadingProjects, setLoadingProjects] = useState(!projectId);
 
   useEffect(() => {
+    if (projectId || selectedProjectId) return;
+    const cookieProjectId = getCookieValue("genilink-project");
+    if (cookieProjectId) {
+      startTransition(() => {
+        setSelectedProjectId(cookieProjectId);
+      });
+    }
+  }, [projectId, selectedProjectId]);
+
+  useEffect(() => {
     if (!projectId) {
       fetch("/api/projects")
-        .then((r) => r.json())
+        .then((r) => (r.ok ? r.json() : []))
         .then((data) => {
-          setProjects(data);
-          if (data.length > 0 && !selectedProjectId) {
-            setSelectedProjectId(data[0].id);
+          const projectList = Array.isArray(data) ? data : [];
+          setProjects(projectList);
+          if (projectList.length > 0 && !selectedProjectId) {
+            setSelectedProjectId(projectList[0].id);
           }
         })
+        .catch(() => setProjects([]))
         .finally(() => setLoadingProjects(false));
     }
   }, [projectId, selectedProjectId]);
 
   useEffect(() => {
     fetch("/api/brand-voices")
-      .then((r) => r.json())
-      .then((data) => setBrandVoices(data));
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setBrandVoices(Array.isArray(data) ? data : []))
+      .catch(() => setBrandVoices([]));
   }, []);
 
   const togglePlatform = (p: Platform) => {
@@ -115,10 +136,12 @@ export function BriefForm({ projectId }: { projectId?: string }) {
           <label className="block text-sm font-medium text-foreground mb-1">目标项目 *</label>
           {loadingProjects ? (
             <p className="text-sm text-muted-foreground">加载项目中...</p>
-          ) : projects.length === 0 ? (
+          ) : projects.length === 0 && !selectedProjectId ? (
             <p className="text-sm text-muted-foreground">
               请先<Link href="/projects/new" className="text-primary hover:underline">创建一个项目</Link>
             </p>
+          ) : projects.length === 0 ? (
+            <p className="text-sm text-muted-foreground">使用智链当前项目</p>
           ) : (
             <select
               value={selectedProjectId}

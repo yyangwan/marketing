@@ -118,6 +118,8 @@ export async function POST(request: NextRequest) {
         brandTone: analysis.insights.brandTone,
         targetAudience: analysis.insights.targetAudience,
         recurringTopics: JSON.stringify(analysis.insights.recurringTopics),
+        contentThemes: JSON.stringify(analysis.insights.contentThemes),
+        suggestedContentTypes: JSON.stringify(analysis.insights.suggestedContentTypes),
         lastAnalyzedAt: analysis.analyzedAt,
         enabled: true,
       },

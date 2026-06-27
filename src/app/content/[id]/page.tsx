@@ -1,8 +1,10 @@
 ﻿import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
+import { buildGeniLinkLoginUrl } from "@/lib/auth/genilink-login";
 import { ContentEditor } from "@/components/content-editor";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { ArrowLeft } from "lucide-react";
 
 export default async function ContentPage({
@@ -12,6 +14,16 @@ export default async function ContentPage({
 }) {
   const session = await auth();
   const { id } = await params;
+  if (!session?.user?.id) {
+    redirect(buildGeniLinkLoginUrl(`/content/${id}`));
+  }
+
+  const cookieStore = await cookies();
+  const workspaceId = session.user.workspaceId ?? cookieStore.get("genilink-workspace")?.value;
+  if (!workspaceId) {
+    redirect(buildGeniLinkLoginUrl(`/content/${id}`));
+  }
+
   const piece = await prisma.contentPiece.findUnique({
     where: { id },
     include: { platformContents: true },
@@ -20,10 +32,7 @@ export default async function ContentPage({
   if (!piece) notFound();
 
   // Verify workspace ownership
-  if (
-    !session?.user?.workspaceId ||
-    piece.workspaceId !== session.user.workspaceId
-  ) {
+  if (piece.workspaceId !== workspaceId) {
     notFound();
   }
 

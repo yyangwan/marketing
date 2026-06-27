@@ -1,7 +1,15 @@
+import { auth } from "@/lib/auth/config";
 import { KanbanBoard } from "@/components/kanban-board";
 import { OnboardingPrompt } from "@/components/onboarding-prompt";
+import { buildGeniLinkLoginUrl } from "@/lib/auth/genilink-login";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    redirect(buildGeniLinkLoginUrl("/"));
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-6 py-4 border-b border-border bg-card">

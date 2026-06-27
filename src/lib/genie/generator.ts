@@ -3,7 +3,10 @@
  * Phase 1E: Auto-generates content ideas based on analyzed sources
  */
 
+import type { Brief, GenerationContext, Platform } from "@/types";
 import type { BusinessInsights } from "./analyzer";
+
+export type { BusinessInsights } from "./analyzer";
 
 export interface ContentIdea {
   title: string;
@@ -284,12 +287,66 @@ function getMostCommon<T>(arr: T[]): T {
   return mostCommon;
 }
 
+const VALID_PLATFORMS = new Set<Platform>(["wechat", "weibo", "xiaohongshu", "douyin"]);
+
+function normalizeIdeaPlatform(platform: string | undefined): Platform {
+  return platform && VALID_PLATFORMS.has(platform as Platform)
+    ? (platform as Platform)
+    : "wechat";
+}
+
+function buildBriefFromIdea(
+  idea: ContentIdea,
+  context?: GenerationContext
+): Brief {
+  const platform = normalizeIdeaPlatform(idea.targetPlatform);
+  const sourceUrls = [
+    ...new Set([
+      ...(context?.insights?.sourceUrls ?? []),
+      ...(idea.sourceUrl ? [idea.sourceUrl] : []),
+    ]),
+  ];
+
+  return {
+    topic: idea.title,
+    keyPoints: [
+      idea.brief,
+      `内容类型：${idea.contentType}`,
+      `生成理由：${idea.reason}`,
+      ...(idea.keywords.length > 0 ? [`关键词：${idea.keywords.join("、")}`] : []),
+    ],
+    platforms: [platform],
+    references: idea.sourceUrl || sourceUrls.join("\n"),
+    notes: [
+      `目标平台：${idea.targetPlatform}`,
+      `预计字数：${idea.estimatedWordCount}`,
+    ].join("\n"),
+    context: {
+      ...context,
+      insights: {
+        ...context?.insights,
+        sourceUrls,
+      },
+      idea: {
+        title: idea.title,
+        angle: idea.brief,
+        contentType: idea.contentType,
+        targetPlatform: idea.targetPlatform,
+        estimatedWordCount: idea.estimatedWordCount,
+        keywords: idea.keywords,
+        reason: idea.reason,
+      },
+    },
+  };
+}
+
 /**
  * Converts ContentIdea to ContentPiece creation data
  */
 export function ideaToContentPiece(
   idea: ContentIdea,
-  projectId: string
+  projectId: string,
+  context?: GenerationContext
 ): {
   projectId: string;
   title: string;
@@ -298,10 +355,18 @@ export function ideaToContentPiece(
   status: string;
   metadata: Record<string, unknown>;
 } {
+  const brief = buildBriefFromIdea(idea, {
+    ...context,
+    project: {
+      ...context?.project,
+      projectId: context?.project?.projectId || projectId,
+    },
+  });
+
   return {
     projectId,
     title: idea.title,
-    brief: `${idea.brief}\n\n目标平台: ${idea.targetPlatform}\n预估字数: ${idea.estimatedWordCount}\n关键词: ${idea.keywords.join(", ")}\n生成理由: ${idea.reason}`,
+    brief: JSON.stringify(brief),
     type: idea.contentType,
     status: "genie_draft",
     metadata: {
@@ -319,7 +384,8 @@ export function ideaToContentPiece(
  */
 export function ideasToContentPieces(
   ideas: ContentIdea[],
-  projectId: string
+  projectId: string,
+  context?: GenerationContext
 ): Array<{
   projectId: string;
   title: string;
@@ -328,5 +394,5 @@ export function ideasToContentPieces(
   status: string;
   metadata: Record<string, unknown>;
 }> {
-  return ideas.map((idea) => ideaToContentPiece(idea, projectId));
+  return ideas.map((idea) => ideaToContentPiece(idea, projectId, context));
 }

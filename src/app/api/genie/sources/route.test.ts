@@ -86,6 +86,8 @@ describe("/api/genie/sources", () => {
         brandTone: "professional",
         targetAudience: "marketers",
         recurringTopics: ["automation"],
+        contentThemes: ["visibility analysis"],
+        suggestedContentTypes: ["how-to guide"],
       },
     } as never);
     (prisma.genieSource.create as any).mockResolvedValue({ id: "source-1" });
@@ -108,6 +110,8 @@ describe("/api/genie/sources", () => {
       data: expect.objectContaining({
         workspaceId: "ws-1",
         url: "https://example.com/source",
+        contentThemes: JSON.stringify(["visibility analysis"]),
+        suggestedContentTypes: JSON.stringify(["how-to guide"]),
       }),
     });
   });

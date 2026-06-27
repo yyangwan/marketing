@@ -2,11 +2,12 @@
 
 import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
+import { buildGeniLinkLoginUrl } from "@/lib/auth/genilink-login";
 
 export function SignOutButton() {
   return (
     <button
-      onClick={() => signOut({ callbackUrl: "/login" })}
+      onClick={() => signOut({ callbackUrl: buildGeniLinkLoginUrl("/") })}
       className="p-1.5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-100"
       title="退出登录"
     >

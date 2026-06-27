@@ -1,4 +1,5 @@
 import type { Brief, BrandVoice } from "@/types";
+import { buildContextPromptSection } from "./context";
 
 export function buildWeiboPrompt(brief: Brief, brandVoice?: BrandVoice): string {
   const prompt = `你是一位专业的微博内容创作者。请根据以下简报，撰写一条微博帖子。
@@ -7,6 +8,7 @@ export function buildWeiboPrompt(brief: Brief, brandVoice?: BrandVoice): string 
 - 主题：${brief.topic}
 - 核心要点：${brief.keyPoints.join("、")}
 - 补充说明：${brief.notes || "无"}
+${buildContextPromptSection(brief)}
 
 ## 写作要求
 1. 字数不超过 140 字（不含标签）

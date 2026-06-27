@@ -276,6 +276,8 @@ CREATE TABLE `GenieSource` (
   `brandTone` VARCHAR(191) NULL,
   `targetAudience` VARCHAR(191) NULL,
   `recurringTopics` TEXT NULL,
+  `contentThemes` TEXT NULL,
+  `suggestedContentTypes` TEXT NULL,
   `lastAnalyzedAt` DATETIME(3) NULL,
   `enabled` BOOLEAN NOT NULL DEFAULT true,
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),

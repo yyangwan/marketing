@@ -1,4 +1,6 @@
 ﻿import { auth } from "@/lib/auth/config";
+import { buildGeniLinkLoginUrl } from "@/lib/auth/genilink-login";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { PublishingDashboardClient } from "@/components/publishing-dashboard-client";
@@ -12,11 +14,15 @@ const ALL_PLATFORMS: Platform[] = ["douyin", "wechat", "weibo", "xiaohongshu"];
  */
 export default async function PublishingSettingsPage() {
   const session = await auth();
-  if (!session?.user?.workspaceId) {
-    redirect("/login");
+  if (!session?.user?.id) {
+    redirect(buildGeniLinkLoginUrl("/settings/publishing"));
   }
 
-  const workspaceId = session.user.workspaceId;
+  const cookieStore = await cookies();
+  const workspaceId = session.user.workspaceId ?? cookieStore.get("genilink-workspace")?.value;
+  if (!workspaceId) {
+    redirect(buildGeniLinkLoginUrl("/settings/publishing"));
+  }
 
   // Ensure all platforms have a config row
   for (const platform of ALL_PLATFORMS) {
@@ -50,7 +56,7 @@ export default async function PublishingSettingsPage() {
         workspaceId={workspaceId}
         platformConfigs={platformConfigs.map((config) => ({
           id: config.id,
-          platform: config.platform as any,
+          platform: config.platform as Platform,
           appId: config.appId,
           hasAppSecret: !!config.appSecret,
           hasRefreshToken: !!config.refreshTokn,
@@ -61,7 +67,7 @@ export default async function PublishingSettingsPage() {
         }))}
         publishHistory={publishHistory.map((h) => ({
           id: h.id,
-          platform: h.platform as any,
+          platform: h.platform as Platform,
           title: h.title,
           status: h.status as "success" | "failed" | "pending",
           publishedUrl: h.publishedUrl,
@@ -74,4 +80,3 @@ export default async function PublishingSettingsPage() {
     </div>
   );
 }
-

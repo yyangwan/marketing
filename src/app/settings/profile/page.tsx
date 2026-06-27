@@ -1,11 +1,12 @@
 import { auth } from "@/lib/auth/config";
+import { buildGeniLinkLoginUrl } from "@/lib/auth/genilink-login";
 import { redirect } from "next/navigation";
 import { ProfileClient } from "@/components/profile-client";
 
 export default async function ProfilePage() {
   const session = await auth();
   if (!session?.user?.id) {
-    redirect("/login");
+    redirect(buildGeniLinkLoginUrl("/settings/profile"));
   }
 
   return (

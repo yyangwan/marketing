@@ -13,6 +13,27 @@ import {
   ideasToContentPieces,
 } from "@/lib/genie/generator";
 import { errors, responses } from "@/lib/errors";
+import type { GenerationContext } from "@/types";
+
+function parseStringArray(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function firstValue(values: Array<string | null | undefined>): string | undefined {
+  return values.find((value): value is string => typeof value === "string" && value.trim().length > 0);
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values.filter((value) => value.trim().length > 0))];
+}
 
 /**
  * POST /api/genie/generate - Generate content ideas from sources
@@ -61,21 +82,42 @@ export async function POST(request: NextRequest) {
     const sourceData = sources.map((source) => ({
       insights: {
         businessType: source.businessType || "",
-        keyProducts: source.keyProducts
-          ? JSON.parse(source.keyProducts)
-          : [],
+        keyProducts: parseStringArray(source.keyProducts),
         brandTone: source.brandTone || "",
         targetAudience: source.targetAudience || "",
-        recurringTopics: source.recurringTopics
-          ? JSON.parse(source.recurringTopics)
-          : [],
-        contentThemes: source.recurringTopics
-          ? JSON.parse(source.recurringTopics)
-          : [], // Use recurring topics as themes for now
-        suggestedContentTypes: ["产品介绍", "使用教程", "用户故事"], // Default types
+        recurringTopics: parseStringArray(source.recurringTopics),
+        contentThemes: parseStringArray(source.contentThemes).length > 0
+          ? parseStringArray(source.contentThemes)
+          : parseStringArray(source.recurringTopics),
+        suggestedContentTypes: parseStringArray(source.suggestedContentTypes).length > 0
+          ? parseStringArray(source.suggestedContentTypes)
+          : ["产品介绍", "使用教程", "用户故事"],
       },
       url: source.url,
     }));
+
+    const generationContext: GenerationContext = {
+      project: {
+        projectId,
+        brandId: ws.brandId,
+      },
+      insights: {
+        businessType: firstValue(sourceData.map((source) => source.insights.businessType)),
+        keyProducts: unique(sourceData.flatMap((source) => source.insights.keyProducts)).slice(0, 8),
+        brandTone: firstValue(sourceData.map((source) => source.insights.brandTone)),
+        targetAudience: firstValue(sourceData.map((source) => source.insights.targetAudience)),
+        recurringTopics: unique(sourceData.flatMap((source) => source.insights.recurringTopics)).slice(0, 8),
+        contentThemes: unique(sourceData.flatMap((source) => source.insights.contentThemes)).slice(0, 8),
+        suggestedContentTypes: unique(sourceData.flatMap((source) => source.insights.suggestedContentTypes)).slice(0, 8),
+        sourceUrls: sources.map((source) => source.url),
+      },
+      boundaries: {
+        forbiddenClaims: [
+          "未在信息源或品牌资料中出现的产品功能",
+          "未经验证的客户案例、数据、价格、认证或排名",
+        ],
+      },
+    };
 
     // Generate content ideas
     const result = await generateContentIdeasFromSources(sourceData, {
@@ -84,7 +126,14 @@ export async function POST(request: NextRequest) {
     });
 
     // Convert ideas to ContentPiece creation data
-    const contentPieces = ideasToContentPieces(result.ideas, projectId);
+    const contentPieces = ideasToContentPieces(result.ideas, projectId, generationContext);
+
+    const brandVoice = ws.brandId
+      ? await prisma.brandVoice.findFirst({
+          where: { workspaceId: ws.workspaceId, brandId: ws.brandId },
+          orderBy: { updatedAt: "desc" },
+        })
+      : null;
 
     // Create ContentPiece records in database
     for (const piece of contentPieces) {
@@ -98,6 +147,7 @@ export async function POST(request: NextRequest) {
           brief: piece.brief,
           type: piece.type,
           status: "genie_draft",
+          brandVoiceId: brandVoice?.id || null,
         },
       });
     }

@@ -65,19 +65,12 @@ describe("/api/genie/generate", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(prisma.project.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "project-1",
-        workspaceId: "ws-1",
-      },
-    });
+    expect(prisma.project.findFirst).not.toHaveBeenCalled();
     expect(prisma.contentPiece.findMany).toHaveBeenCalledWith({
       where: {
         projectId: "project-1",
         status: "genie_draft",
-        project: {
-          workspaceId: "ws-1",
-        },
+        workspaceId: "ws-1",
       },
       orderBy: {
         createdAt: "desc",

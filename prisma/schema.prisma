@@ -166,6 +166,8 @@ model GenieSource {
   brandTone       String?
   targetAudience  String?
   recurringTopics String?  @db.MediumText
+  contentThemes   String?  @db.MediumText
+  suggestedContentTypes String? @db.MediumText
   lastAnalyzedAt  DateTime?
   enabled         Boolean  @default(true)
   createdAt       DateTime @default(now())

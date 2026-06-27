@@ -1,4 +1,5 @@
 import type { Brief, BrandVoice } from "@/types";
+import { buildContextPromptSection } from "./context";
 
 export function buildXiaohongshuPrompt(brief: Brief, brandVoice?: BrandVoice): string {
   const prompt = `你是一位专业的小红书种草博主。请根据以下简报，撰写一篇高质量的小红书笔记。
@@ -8,6 +9,7 @@ export function buildXiaohongshuPrompt(brief: Brief, brandVoice?: BrandVoice): s
 - 核心要点：${brief.keyPoints.join("、")}
 - 补充说明：${brief.notes || "无"}
 - 参考资料：${brief.references || "无"}
+${buildContextPromptSection(brief)}
 
 ## 写作要求
 1. 标题：15 字以内，必须包含吸睛关键词，可以使用 [] 或 emoji 增加吸引力

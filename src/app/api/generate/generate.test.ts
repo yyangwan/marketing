@@ -10,6 +10,18 @@ vi.mock("@/lib/auth/config", () => ({
   ),
 }));
 
+vi.mock("@/lib/auth/service-auth", () => ({
+  getServiceSession: vi.fn(() =>
+    Promise.resolve({
+      user: { id: "test-user-id", workspaceId: "test-workspace-id" },
+    })
+  ),
+}));
+
+vi.mock("@/lib/auth/service-context", () => ({
+  getServiceWorkspace: vi.fn(() => Promise.resolve(null)),
+}));
+
 vi.mock("@/lib/auth/workspace", () => ({
   getCurrentWorkspace: vi.fn(() => ({ workspaceId: "test-workspace-id" })),
 }));
@@ -18,6 +30,9 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     contentPiece: {
       findUnique: vi.fn(),
+    },
+    brandVoice: {
+      findFirst: vi.fn(),
     },
     platformContent: {
       upsert: vi.fn(),
@@ -74,9 +89,14 @@ describe("Generate API", () => {
   describe("POST /api/generate", () => {
     const mockContentPiece = {
       id: "cp1",
+      workspaceId: "test-workspace-id",
+      brandId: null,
       brief: JSON.stringify({
         topic: "AI and Machine Learning",
         keyPoints: ["Point 1", "Point 2"],
+        platforms: ["wechat"],
+        references: "",
+        notes: "",
       }),
       project: {
         id: "proj1",
@@ -85,6 +105,7 @@ describe("Generate API", () => {
         brandVoice: null,
       },
       brandVoice: null,
+      title: "AI and Machine Learning",
     };
 
     it("should generate content for wechat platform", async () => {
@@ -180,23 +201,20 @@ describe("Generate API", () => {
       );
     });
 
-    it("should fall back to project's brand voice when content piece has none", async () => {
+    it("should fall back to brand voice for the content brand when content piece has none", async () => {
       const mockWithProjectBrandVoice = {
         ...mockContentPiece,
-        project: {
-          ...mockContentPiece.project,
-          brandVoiceId: "bv1",
-          brandVoice: {
-            id: "bv1",
-            name: "Project Brand",
-            description: "Project brand description",
-            guidelines: "Project guidelines",
-            samples: '["sample1"]',
-          },
-        },
+        brandId: "brand-1",
       };
 
       (prisma.contentPiece.findUnique as any).mockResolvedValue(mockWithProjectBrandVoice);
+      (prisma.brandVoice.findFirst as any).mockResolvedValue({
+        id: "bv1",
+        name: "Project Brand",
+        description: "Project brand description",
+        guidelines: "Project guidelines",
+        samples: '["sample1"]',
+      });
       (prisma.platformContent.upsert as any).mockResolvedValue({
         id: "pc1",
         content: "Generated content with project brand voice",
@@ -240,10 +258,7 @@ describe("Generate API", () => {
     it("should return 404 when content piece belongs to different workspace", async () => {
       (prisma.contentPiece.findUnique as any).mockResolvedValue({
         ...mockContentPiece,
-        project: {
-          ...mockContentPiece.project,
-          workspaceId: "different-workspace-id",
-        },
+        workspaceId: "different-workspace-id",
       });
 
       const response = await POST({
@@ -289,12 +304,10 @@ describe("Generate API", () => {
     it("should pass brand voice to xiaohongshu prompt builder", async () => {
       const mockWithBrandVoice = {
         id: "cp1",
-        brief: JSON.stringify({ topic: "Test", keyPoints: [] }),
-        project: {
-          id: "proj1",
-          workspaceId: "test-workspace-id",
-          brandVoice: null,
-        },
+        workspaceId: "test-workspace-id",
+        brandId: null,
+        title: "Test",
+        brief: JSON.stringify({ topic: "Test", keyPoints: [], platforms: ["xiaohongshu"], references: "", notes: "" }),
         brandVoice: {
           id: "bv1",
           name: "Xiaohongshu Brand",
@@ -322,12 +335,10 @@ describe("Generate API", () => {
     it("should pass brand voice to douyin prompt builder", async () => {
       const mockWithBrandVoice = {
         id: "cp1",
-        brief: JSON.stringify({ topic: "Test", keyPoints: [] }),
-        project: {
-          id: "proj1",
-          workspaceId: "test-workspace-id",
-          brandVoice: null,
-        },
+        workspaceId: "test-workspace-id",
+        brandId: null,
+        title: "Test",
+        brief: JSON.stringify({ topic: "Test", keyPoints: [], platforms: ["douyin"], references: "", notes: "" }),
         brandVoice: {
           id: "bv1",
           name: "Douyin Brand",

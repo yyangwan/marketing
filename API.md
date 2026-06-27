@@ -101,6 +101,19 @@ Cookie: next-auth.session-token=<token>
 
 ---
 
+### GET `/api/auth/[...nextauth]`
+### POST `/api/auth/[...nextauth]`
+
+NextAuth v5 的统一处理入口，负责凭证登录、会话签发、CSRF、回调和 session 查询。
+**认证**: 无需，由 NextAuth 中间件处理
+
+**说明**:
+- `GET` 处理 OAuth / callback / session / CSRF 等标准 NextAuth 流程
+- `POST` 处理 credentials 登录和其他 NextAuth 提交动作
+- 该路由不定义业务请求体，具体 payload 由 NextAuth provider 决定
+
+---
+
 ### GET `/api/auth/sso/callback`
 
 GeniLink SSO 回调端点。

@@ -32,12 +32,15 @@ describe("ideaToContentPiece", () => {
     expect(result.title).toBe(idea.title);
     expect(result.type).toBe(idea.contentType);
     expect(result.status).toBe("genie_draft");
-    expect(result.brief).toContain("xiaohongshu");
-    expect(result.brief).toContain("800");
-    expect(result.brief).toContain("效率, 工具, 职场");
+    const brief = JSON.parse(result.brief);
+    expect(brief.topic).toBe(idea.title);
+    expect(brief.platforms).toEqual(["xiaohongshu"]);
+    expect(brief.notes).toContain("800");
+    expect(brief.context.idea.keywords).toEqual(["效率", "工具", "职场"]);
+    expect(brief.context.insights.sourceUrls).toEqual(["https://example.com/article"]);
   });
 
-  it("should include all metadata in brief", () => {
+  it("should include all metadata in structured brief context", () => {
     const idea = {
       title: "Test",
       brief: "Test brief",
@@ -49,11 +52,14 @@ describe("ideaToContentPiece", () => {
     };
 
     const result = ideaToContentPiece(idea, "project-123");
+    const brief = JSON.parse(result.brief);
 
-    expect(result.brief).toContain("目标平台: wechat");
-    expect(result.brief).toContain("预估字数: 1500");
-    expect(result.brief).toContain("关键词: test, keyword");
-    expect(result.brief).toContain("生成理由: Test reason");
+    expect(brief.platforms).toEqual(["wechat"]);
+    expect(brief.notes).toContain("目标平台：wechat");
+    expect(brief.context.project.projectId).toBe("project-123");
+    expect(brief.context.idea.estimatedWordCount).toBe(1500);
+    expect(brief.context.idea.keywords).toEqual(["test", "keyword"]);
+    expect(brief.context.idea.reason).toBe("Test reason");
   });
 });
 

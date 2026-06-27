@@ -1,4 +1,6 @@
 import { auth } from "@/lib/auth/config";
+import { buildGeniLinkLoginUrl } from "@/lib/auth/genilink-login";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Building, Sparkles, Send, Users, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -25,8 +27,14 @@ export default async function SettingsLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (!session?.user?.workspaceId) {
-    redirect("/login");
+  if (!session?.user?.id) {
+    redirect(buildGeniLinkLoginUrl("/settings"));
+  }
+
+  const cookieStore = await cookies();
+  const workspaceId = session.user.workspaceId ?? cookieStore.get("genilink-workspace")?.value;
+  if (!workspaceId) {
+    redirect(buildGeniLinkLoginUrl("/settings"));
   }
 
   return (

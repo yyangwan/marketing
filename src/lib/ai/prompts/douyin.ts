@@ -1,4 +1,5 @@
 import type { Brief, BrandVoice } from "@/types";
+import { buildContextPromptSection } from "./context";
 
 export function buildDouyinPrompt(brief: Brief, brandVoice?: BrandVoice): string {
   const prompt = `你是一位专业的抖音短视频脚本创作者。请根据以下简报，撰写一份抖音短视频脚本。
@@ -8,6 +9,7 @@ export function buildDouyinPrompt(brief: Brief, brandVoice?: BrandVoice): string
 - 核心要点：${brief.keyPoints.join("、")}
 - 补充说明：${brief.notes || "无"}
 - 参考资料：${brief.references || "无"}
+${buildContextPromptSection(brief)}
 
 ## 写作要求
 1. 总时长控制在 30-90 秒（按正常语速约 100-300 字）
