@@ -12,7 +12,7 @@ import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { buildContextPromptSection } from "@/lib/ai/prompts/context";
 import { optimizeForPlatform } from "@/lib/analysis/optimizer";
-import type { Brief } from "@/types";
+import type { Brief, Platform } from "@/types";
 
 function parseBrief(briefText: string): Brief {
   try {
@@ -116,6 +116,7 @@ export async function POST(
   try {
     const body = await req.json();
     const { platform, content } = body as { platform?: string; content?: string };
+    const platformValue = platform as Platform;
 
     if (!platform) {
       return NextResponse.json(
@@ -161,13 +162,13 @@ export async function POST(
     const brandVoice = await resolveBrandVoice(piece, ws.workspaceId, ws.brandId);
     const contextSection = buildContextSection({
       piece,
-      platform,
+      platform: platformValue,
       workspaceBrandId: ws.brandId,
       brief,
       brandVoice,
     });
 
-    const result = await optimizeForPlatform(sourceContent, platform, contextSection);
+    const result = await optimizeForPlatform(sourceContent, platformValue, contextSection);
 
     return NextResponse.json(result);
   } catch (error) {

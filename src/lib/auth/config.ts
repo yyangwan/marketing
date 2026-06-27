@@ -50,7 +50,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.name = token.name as string;
-        session.user.email = token.email as string | undefined;
+        if (token.email) {
+          session.user.email = token.email;
+        }
         session.user.workspaceId = token.workspaceId as string | undefined;
         session.user.role = token.role as string | undefined;
       }
