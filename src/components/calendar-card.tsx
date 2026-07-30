@@ -36,6 +36,7 @@ export default function CalendarCard({
 
   const date = new Date(scheduledAt);
   const timeStr = date.toLocaleTimeString("en-US", {
+    timeZone: "Asia/Shanghai",
     hour: "2-digit",
     minute: "2-digit",
   });

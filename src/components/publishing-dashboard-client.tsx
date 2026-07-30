@@ -421,12 +421,16 @@ export function PublishingDashboardClient({
                   <div>App ID: {config.appId || "未配置"}</div>
                   {config.lastRefreshedAt && (
                     <div>
-                      最后更新: {new Date(config.lastRefreshedAt).toLocaleString("zh-CN")}
+                      最后更新: {new Date(config.lastRefreshedAt).toLocaleString("zh-CN", {
+                        timeZone: "Asia/Shanghai",
+                      })}
                     </div>
                   )}
                   {config.tokenExpiresAt && (
                     <div>
-                      过期时间: {new Date(config.tokenExpiresAt).toLocaleString("zh-CN")}
+                      过期时间: {new Date(config.tokenExpiresAt).toLocaleString("zh-CN", {
+                        timeZone: "Asia/Shanghai",
+                      })}
                     </div>
                   )}
                 </div>
@@ -546,7 +550,9 @@ export function PublishingDashboardClient({
                   </td>
                   <td className="px-4 py-2">{entry.attemptCount}</td>
                   <td className="px-4 py-2 text-muted-foreground text-xs">
-                    {new Date(entry.createdAt).toLocaleString("zh-CN")}
+                    {new Date(entry.createdAt).toLocaleString("zh-CN", {
+                      timeZone: "Asia/Shanghai",
+                    })}
                   </td>
                   <td className="px-4 py-2">
                     {entry.publishedUrl && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatDate, formatDateTime, parseShanghaiDateTime } from "@/lib/dates";
 
 interface ScheduleDialogProps {
   isOpen: boolean;
@@ -32,12 +33,12 @@ export default function ScheduleDialog({
   // Default to tomorrow
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const defaultDate = tomorrow.toISOString().split("T")[0];
+  const defaultDate = formatDate(tomorrow);
 
   const handleSubmit = () => {
     if (!selectedDate) return;
 
-    const dateTime = new Date(`${selectedDate}T${selectedTime}`);
+    const dateTime = parseShanghaiDateTime(`${selectedDate}T${selectedTime}`);
     onSchedule(dateTime, selectedTime);
     onClose();
   };
@@ -68,7 +69,7 @@ export default function ScheduleDialog({
               type="date"
               value={selectedDate || defaultDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              min={new Date().toISOString().split("T")[0]}
+              min={formatDate(new Date())}
               className="w-full border rounded px-3 py-2"
             />
           </div>
@@ -102,7 +103,7 @@ export default function ScheduleDialog({
               <p className="text-sm text-gray-600">
                 计划发布时间：{" "}
                 <strong>
-                  {new Date(`${selectedDate}T${selectedTime}`).toLocaleString()}
+                  {formatDateTime(parseShanghaiDateTime(`${selectedDate}T${selectedTime}`))}
                 </strong>
               </p>
             </div>

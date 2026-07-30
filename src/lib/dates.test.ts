@@ -8,6 +8,7 @@ import {
   parseDate,
   addDays,
   formatRelativeTime,
+  parseShanghaiDateTime,
 } from "./dates";
 
 describe("Date Utilities", () => {
@@ -56,6 +57,18 @@ describe("Date Utilities", () => {
       const date = new Date(Date.UTC(2025, 0, 15, 23, 59, 0));
       const result = formatDateTime(date);
       expect(result).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    });
+
+    it("always displays in Asia/Shanghai", () => {
+      expect(formatDateTime(new Date("2026-07-29T23:50:25Z")))
+        .toBe("2026-07-30 07:50");
+    });
+  });
+
+  describe("parseShanghaiDateTime", () => {
+    it("converts a Beijing wall-clock value to UTC", () => {
+      expect(parseShanghaiDateTime("2026-07-30T07:50").toISOString())
+        .toBe("2026-07-29T23:50:00.000Z");
     });
   });
 

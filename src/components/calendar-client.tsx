@@ -407,7 +407,9 @@ export default function CalendarClient({
                 <strong>{selectedEvent.title}</strong>
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {new Date(selectedEvent.start).toLocaleString("zh-CN")}
+                {new Date(selectedEvent.start).toLocaleString("zh-CN", {
+                  timeZone: "Asia/Shanghai",
+                })}
               </p>
             </div>
           )}

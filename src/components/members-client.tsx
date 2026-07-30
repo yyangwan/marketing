@@ -257,7 +257,9 @@ export function MembersClient({
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-muted-foreground text-xs">
-                        {new Date(m.joinedAt).toLocaleDateString("zh-CN")}
+                        {new Date(m.joinedAt).toLocaleDateString("zh-CN", {
+                          timeZone: "Asia/Shanghai",
+                        })}
                       </td>
                       {isOwnerOrAdmin && (
                         <td className="px-4 py-2.5 text-right">
@@ -324,7 +326,9 @@ export function MembersClient({
                       {inv.isExpired ? (
                         <span className="text-red-600">已过期</span>
                       ) : (
-                        <>有效期至 {new Date(inv.expiresAt).toLocaleDateString("zh-CN")}</>
+                        <>有效期至 {new Date(inv.expiresAt).toLocaleDateString("zh-CN", {
+                          timeZone: "Asia/Shanghai",
+                        })}</>
                       )}
                     </p>
                   </div>

@@ -9,6 +9,12 @@ import { PLATFORM_CONFIG } from "@/types";
 import { toast } from "sonner";
 import { Link, Copy, Send, Calendar, X } from "lucide-react";
 import { OptimizationPanel } from "@/components/optimization-panel";
+import {
+  DISPLAY_TIME_ZONE,
+  formatDate,
+  formatDateTime,
+  parseShanghaiDateTime,
+} from "@/lib/dates";
 
 interface EditorProps {
   platforms: { platform: string; content: string; id: string; status: string }[];
@@ -64,7 +70,7 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
           if (data) {
             setCurrentSchedule(data);
             const date = new Date(data.scheduledAt);
-            setScheduleDate(date.toISOString().split('T')[0]);
+            setScheduleDate(formatDate(date));
             setScheduleTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
           }
         }
@@ -84,7 +90,7 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
 
     setScheduling(true);
     try {
-      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+      const scheduledAt = parseShanghaiDateTime(`${scheduleDate}T${scheduleTime}`);
       const res = await fetch(`/api/content/${contentPieceId}/schedule`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -96,7 +102,7 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
         setCurrentSchedule(data);
         setShowScheduleDialog(false);
         toast.success("日程已安排", {
-          description: `发布时间: ${scheduledAt.toLocaleString('zh-CN')}`,
+          description: `发布时间: ${formatDateTime(scheduledAt)}`,
         });
       } else {
         const err = await res.json();
@@ -311,6 +317,7 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
             <Calendar className="w-3.5 h-3.5" />
             <span>
               {new Date(currentSchedule.scheduledAt).toLocaleString('zh-CN', {
+                timeZone: DISPLAY_TIME_ZONE,
                 month: 'short',
                 day: 'numeric',
                 hour: '2-digit',
@@ -418,7 +425,7 @@ export function ContentEditor({ platforms, contentPieceId, initialReviewUrl }: E
                   type="date"
                   value={scheduleDate}
                   onChange={(e) => setScheduleDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={formatDate(new Date())}
                   className="w-full border rounded-md px-3 py-2"
                 />
               </div>

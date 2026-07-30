@@ -1,12 +1,13 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import { withUtcDatabaseTimezone } from "@/lib/database-time";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 function createPrismaClient() {
-  const url = process.env.DATABASE_URL!.replace(/^mysql:/, "mariadb:");
+  const url = withUtcDatabaseTimezone(process.env.DATABASE_URL!);
   const adapter = new PrismaMariaDb(url);
   return new PrismaClient({ adapter });
 }
