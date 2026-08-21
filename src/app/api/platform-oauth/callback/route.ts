@@ -5,6 +5,7 @@ import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { getPlatformAccessToken } from "@/lib/platform";
+import { getPlatformConfigKey } from "@/lib/platform/config-scope";
 
 /**
  * OAuth Callback Endpoint
@@ -44,14 +45,12 @@ export async function GET(req: Request) {
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
+  const configKey = getPlatformConfigKey(ws, session.user.id, platform);
 
   // Get existing platform config
   const config = await prisma.platformApiConfig.findUnique({
     where: {
-      workspaceId_platform: {
-        workspaceId: ws.workspaceId,
-        platform,
-      },
+      workspaceId_projectId_userId_platform: configKey,
     },
   });
 
@@ -90,10 +89,7 @@ export async function GET(req: Request) {
     // Update config with access token
     const updatedConfig = await prisma.platformApiConfig.update({
       where: {
-        workspaceId_platform: {
-          workspaceId: ws.workspaceId,
-          platform,
-        },
+        workspaceId_projectId_userId_platform: configKey,
       },
       data: {
         accessToken: tokenResult.accessToken,
@@ -175,14 +171,12 @@ export async function POST(req: Request) {
   if (!ws) {
     return NextResponse.json({ error: "no_workspace" }, { status: 403 });
   }
+  const configKey = getPlatformConfigKey(ws, session.user.id, platform);
 
   // Get existing platform config
   const config = await prisma.platformApiConfig.findUnique({
     where: {
-      workspaceId_platform: {
-        workspaceId: ws.workspaceId,
-        platform,
-      },
+      workspaceId_projectId_userId_platform: configKey,
     },
   });
 

@@ -117,7 +117,9 @@ describe("/api/cron/publish", () => {
     (prisma.contentPiece.findUnique as any).mockResolvedValue({
       id: "content1",
       title: "Launch update",
-      project: { workspaceId: "ws1" },
+      workspaceId: "ws1",
+      projectId: "project1",
+      createdByUserId: "user1",
     });
     (prisma.contentPiece.update as any).mockResolvedValue({});
     (prisma.platformContent.findMany as any).mockResolvedValue([
@@ -177,6 +179,16 @@ describe("/api/cron/publish", () => {
       "wechat",
       expect.objectContaining({ accessToken: "token-1" })
     );
+    expect(prisma.platformApiConfig.findUnique).toHaveBeenCalledWith({
+      where: {
+        workspaceId_projectId_userId_platform: {
+          workspaceId: "ws1",
+          projectId: "project1",
+          userId: "user1",
+          platform: "wechat",
+        },
+      },
+    });
     expect(publisher.publish).toHaveBeenCalledWith({
       title: "Launch update",
       content: "Hello world",
@@ -219,7 +231,9 @@ describe("/api/cron/publish", () => {
     (prisma.contentPiece.findUnique as any).mockResolvedValue({
       id: "content1",
       title: "Launch update",
-      project: { workspaceId: "ws1" },
+      workspaceId: "ws1",
+      projectId: "project1",
+      createdByUserId: "user1",
     });
     (prisma.contentPiece.update as any).mockResolvedValue({});
     (prisma.platformContent.findMany as any).mockResolvedValue([]);

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { PublishingDashboardClient } from "@/components/publishing-dashboard-client";
 import type { Platform } from "@/types";
+import { getPlatformConfigKey, getPlatformConfigScope } from "@/lib/platform/config-scope";
 
 const ALL_PLATFORMS: Platform[] = ["douyin", "wechat", "weibo", "xiaohongshu"];
 
@@ -23,19 +24,21 @@ export default async function PublishingSettingsPage() {
   if (!workspaceId) {
     redirect(buildGeniLinkLoginUrl("/settings/publishing"));
   }
+  const configContext = { workspaceId, projectId: workspaceId };
+  const configScope = getPlatformConfigScope(configContext, session.user.id);
 
   // Ensure all platforms have a config row
   for (const platform of ALL_PLATFORMS) {
     await prisma.platformApiConfig.upsert({
-      where: { workspaceId_platform: { workspaceId, platform } },
-      create: { workspaceId, platform },
+      where: { workspaceId_projectId_userId_platform: getPlatformConfigKey(configContext, session.user.id, platform) },
+      create: { ...configScope, platform },
       update: {},
     });
   }
 
   // Fetch platform configs
   const platformConfigs = await prisma.platformApiConfig.findMany({
-    where: { workspaceId },
+    where: configScope,
     orderBy: { platform: "asc" },
   });
 
