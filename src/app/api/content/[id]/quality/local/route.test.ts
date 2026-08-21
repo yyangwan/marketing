@@ -95,7 +95,7 @@ describe("Local Quality API", () => {
       expect(data.localMetrics.readabilityScore).toBe(0);
       expect(data.overallScore).toBe(0);
       expect(data.sentiment.overall).toBe("neutral");
-      expect(data.suggestions).toContain("鍐呭涓虹┖锛屾棤娉曞垎鏋?);
+      expect(data.suggestions).toContain("Content is empty and cannot be analyzed.");
     });
 
     it("should calculate local metrics for valid content", async () => {

@@ -5,7 +5,6 @@ import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
 import type { Platform } from "@/types";
-import { getPlatformOAuthUrl, getPlatformAccessToken } from "@/lib/platform";
 import { getPlatformConfigKey, getPlatformConfigScope } from "@/lib/platform/config-scope";
 
 /**
