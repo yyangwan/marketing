@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getPlatformConfigKey } from "@/lib/platform/config-scope";
 import { getPlatformPublisher } from "@/lib/platform";
 import type { PlatformCredentials, PublishOptions } from "@/lib/platform/base";
 import { notifyContentStatus } from "@/lib/notifications/trigger";
@@ -97,12 +98,13 @@ export async function GET(req: Request) {
         for (const platformContent of platformContents) {
           const platform = platformContent.platform as Platform;
 
-          const apiConfig = await prisma.platformApiConfig.findUnique({
-            where: {
-              workspaceId_platform: {
-                workspaceId,
-                platform,
-              },
+            const apiConfig = await prisma.platformApiConfig.findUnique({
+              where: {
+                workspaceId_projectId_userId_platform: getPlatformConfigKey(
+                  { workspaceId, projectId: contentPiece.projectId },
+                  contentPiece.createdByUserId,
+                  platform,
+                ),
             },
           });
 

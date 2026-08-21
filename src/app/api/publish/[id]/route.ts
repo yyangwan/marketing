@@ -1,6 +1,7 @@
 ﻿import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getPlatformConfigKey } from "@/lib/platform/config-scope";
 import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
@@ -44,10 +45,11 @@ export async function POST(
   // Get platform API configuration
   const apiConfig = await prisma.platformApiConfig.findUnique({
     where: {
-      workspaceId_platform: {
-        workspaceId: ws.workspaceId,
+      workspaceId_projectId_userId_platform: getPlatformConfigKey(
+        { workspaceId: ws.workspaceId, projectId: piece.projectId },
+        piece.createdByUserId,
         platform,
-      },
+      ),
     },
   });
 

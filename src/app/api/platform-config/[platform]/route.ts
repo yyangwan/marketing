@@ -6,6 +6,7 @@ import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
 import type { Platform } from "@/types";
 import { getPlatformOAuthUrl, getPlatformAccessToken } from "@/lib/platform";
+import { getPlatformConfigKey, getPlatformConfigScope } from "@/lib/platform/config-scope";
 
 /**
  * GET /api/platform-config/[platform]
@@ -26,13 +27,11 @@ export async function GET(
 
   const { platform } = await params;
   const validatedPlatform = platform as Platform;
+  const configKey = getPlatformConfigKey(ws, session.user.id, validatedPlatform);
 
   const config = await prisma.platformApiConfig.findUnique({
     where: {
-      workspaceId_platform: {
-        workspaceId: ws.workspaceId,
-        platform: validatedPlatform,
-      },
+      workspaceId_projectId_userId_platform: configKey,
     },
   });
 
@@ -74,6 +73,8 @@ export async function POST(
 
   const { platform } = await params;
   const validatedPlatform = platform as Platform;
+  const configKey = getPlatformConfigKey(ws, session.user.id, validatedPlatform);
+  const configScope = getPlatformConfigScope(ws, session.user.id);
 
   const body = await req.json();
   const { appId, appSecret, accessToken, refreshToken, enabled, extraConfig } = body;
@@ -91,14 +92,11 @@ export async function POST(
   try {
     const config = await prisma.platformApiConfig.upsert({
       where: {
-        workspaceId_platform: {
-          workspaceId: ws.workspaceId,
-          platform: validatedPlatform,
-        },
+        workspaceId_projectId_userId_platform: configKey,
       },
       create: {
-        workspaceId: ws.workspaceId,
-        platform: validatedPlatform,
+          ...configScope,
+          platform: validatedPlatform,
         appId: appId || null,
         appSecret: appSecret || null,
         accessToken: accessToken || null,
@@ -159,13 +157,11 @@ export async function DELETE(
 
   const { platform } = await params;
   const validatedPlatform = platform as Platform;
+  const configKey = getPlatformConfigKey(ws, session.user.id, validatedPlatform);
 
   await prisma.platformApiConfig.delete({
     where: {
-      workspaceId_platform: {
-        workspaceId: ws.workspaceId,
-        platform: validatedPlatform,
-      },
+      workspaceId_projectId_userId_platform: configKey,
     },
   });
 

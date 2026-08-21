@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
+import { getPlatformConfigKey } from "@/lib/platform/config-scope";
 import { getPlatformAccessToken } from "@/lib/platform";
 
 /**
@@ -27,14 +28,12 @@ export async function POST(
   }
 
   const { platform } = await params;
+  const configKey = getPlatformConfigKey(ws, session.user.id, platform);
 
   // Get platform config
   const config = await prisma.platformApiConfig.findUnique({
     where: {
-      workspaceId_platform: {
-        workspaceId: ws.workspaceId,
-        platform,
-      },
+      workspaceId_projectId_userId_platform: configKey,
     },
   });
 

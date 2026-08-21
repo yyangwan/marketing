@@ -181,6 +181,8 @@ model GenieSource {
 model PlatformApiConfig {
   id             String   @id @default(cuid())
   workspaceId    String
+  projectId      String   @default("")
+  userId         String   @default("")
   platform       String
   appId          String?  @map("app_id")
   appSecret      String?  @map("app_secret")
@@ -193,8 +195,9 @@ model PlatformApiConfig {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  @@unique([workspaceId, platform])
+  @@unique([workspaceId, projectId, userId, platform])
   @@index([workspaceId, enabled])
+  @@index([projectId, userId])
 }
 
 model PublishHistory {
