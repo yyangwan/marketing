@@ -17,6 +17,14 @@ runtime_env="/opt/marketing/.env"
 release_config="/opt/marketing/deploy/ecosystem.config.cjs"
 legacy_config="/opt/marketing/ecosystem.config.cjs"
 candidate_name="genilink-content-candidate"
+active_name="genilink-content"
+
+start_release() {
+  local target_release="$1"
+  pm2 delete "$active_name" >/dev/null 2>&1 || true
+  CONTENTOS_RELEASE_DIR="$target_release" \
+    pm2 start "$release_config" --only "$active_name" --update-env
+}
 
 if [[ ! "$release_sha" =~ ^[0-9a-f]{40}$ ]]; then
   echo "Invalid release SHA: $release_sha" >&2
@@ -67,12 +75,14 @@ if [[ -f "$active_file" ]]; then
   previous_release="$(<"$active_file")"
 fi
 
-CONTENTOS_RELEASE_DIR="$release_dir" \
-  pm2 startOrReload "$release_config" --only genilink-content --update-env
+start_release "$release_dir"
 
 active_ok=false
 for attempt in 1 2 3 4 5 6; do
-  if curl --fail --silent --show-error http://127.0.0.1:4002/ >/dev/null; then
+  active_pid="$(pm2 pid "$active_name")"
+  active_cwd="$(readlink -f "/proc/${active_pid}/cwd" 2>/dev/null || true)"
+  if [[ "$active_cwd" == "$release_dir" ]] && \
+    curl --fail --silent --show-error http://127.0.0.1:4002/ >/dev/null; then
     active_ok=true
     break
   fi
@@ -82,10 +92,10 @@ done
 if [[ "$active_ok" != true ]]; then
   echo "Active release failed health checks; restoring previous process" >&2
   if [[ -n "$previous_release" && -f "$previous_release/server.js" ]]; then
-    CONTENTOS_RELEASE_DIR="$previous_release" \
-      pm2 startOrReload "$release_config" --only genilink-content --update-env
+    start_release "$previous_release"
   elif [[ -f "$legacy_config" ]]; then
-    pm2 startOrReload "$legacy_config" --only genilink-content --update-env
+    pm2 delete "$active_name" >/dev/null 2>&1 || true
+    pm2 start "$legacy_config" --only "$active_name" --update-env
   fi
   exit 1
 fi
