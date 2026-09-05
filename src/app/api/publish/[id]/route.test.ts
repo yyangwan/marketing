@@ -104,8 +104,32 @@ describe("POST /api/publish/[id]", () => {
         accessToken: "fresh-token",
         tokenExpiresAt: new Date("2026-09-05T04:00:00Z"),
       }),
-      expect.objectContaining({ title: "Article title", content: "Article body" }),
+      expect.objectContaining({
+        title: "Article title",
+        content: "Article body",
+        images: ["http://localhost/wechat-default-cover.png"],
+      }),
     );
+  });
+
+  it("returns a platform publishing error without presenting it as a service outage", async () => {
+    vi.mocked(getWeChatClientCredentialToken).mockResolvedValue({ accessToken: "fresh-token", expiresIn: 7200 });
+    vi.mocked(publishToPlatform).mockResolvedValue({
+      success: false,
+      errorMessage: "微信公众号封面上传失败，请检查图片格式或接口权限后重试。",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/publish/platform-content-1", { method: "POST" }),
+      { params: Promise.resolve({ id: "platform-content-1" }) },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "PLATFORM_PUBLISH_FAILED",
+      needsAuth: false,
+      platform: "wechat",
+    });
   });
 
   it("returns a channel-specific authorization error when WeChat rejects the credentials", async () => {

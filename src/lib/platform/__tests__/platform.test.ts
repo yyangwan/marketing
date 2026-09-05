@@ -37,6 +37,8 @@ describe("Platform Publishers", () => {
     it("should obtain an access token with app credentials before publishing", async () => {
       const fetchMock = vi.spyOn(globalThis, "fetch")
         .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "fresh-token", expires_in: 7200 })))
+        .mockResolvedValueOnce(new Response(new Blob(["image"], { type: "image/png" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 0, errmsg: "ok", media_id: "cover-1" })))
         .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 0, errmsg: "ok", media_id: "draft-1" })))
         .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 0, errmsg: "ok" })));
       const publisher = new WeChatPublisher({
@@ -47,6 +49,7 @@ describe("Platform Publishers", () => {
       const result = await publisher.publish({
         title: "Test",
         content: "Test content",
+        images: ["http://localhost/wechat-default-cover.png"],
       });
 
       expect(result.success).toBe(true);
@@ -54,6 +57,24 @@ describe("Platform Publishers", () => {
         1,
         "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=test-app-id&secret=test-secret",
       );
+      expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost/wechat-default-cover.png");
+    });
+
+    it("should stop before draft creation when no cover image is available", async () => {
+      const fetchMock = vi.spyOn(globalThis, "fetch");
+      const publisher = new WeChatPublisher({
+        appId: "test-app-id",
+        appSecret: "test-secret",
+        accessToken: "test-token",
+      });
+
+      const result = await publisher.publish({ title: "Test", content: "Test content" });
+
+      expect(result).toEqual({
+        success: false,
+        errorMessage: "微信公众号发布需要封面图片。",
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 
