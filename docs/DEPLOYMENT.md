@@ -17,6 +17,7 @@ ContentOS 的生产发布由 `.github/workflows/ci.yml` 统一执行。生产目
 - `ECS_HOST`
 - `ECS_USER`
 - `ECS_SSH_PRIVATE_KEY`
+- `ECS_KNOWN_HOSTS`
 
 ## 安全约束
 
