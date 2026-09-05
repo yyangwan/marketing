@@ -156,15 +156,20 @@ export class WeChatPublisher extends BasePlatformPublisher {
       };
     }
 
-    // Upload images if provided
-    const mediaIds: string[] = [];
-    if (options.images && options.images.length > 0) {
-      for (const imageUrl of options.images) {
-        const mediaId = await this.uploadImage(imageUrl, accessToken);
-        if (mediaId) {
-          mediaIds.push(mediaId);
-        }
-      }
+    const coverImageUrl = options.images?.find(Boolean);
+    if (!coverImageUrl) {
+      return {
+        success: false,
+        errorMessage: "微信公众号发布需要封面图片。",
+      };
+    }
+
+    const coverMediaId = await this.uploadImage(coverImageUrl, accessToken);
+    if (!coverMediaId) {
+      return {
+        success: false,
+        errorMessage: "微信公众号封面上传失败，请检查图片格式或接口权限后重试。",
+      };
     }
 
     // Create article data
@@ -176,8 +181,8 @@ export class WeChatPublisher extends BasePlatformPublisher {
           digest: options.content.slice(0, 100),  // Brief description
           content: options.content,
           content_source_url: "",  // Original article URL
-          thumb_media_id: mediaIds[0] || "",  // Cover image
-          show_cover_pic: mediaIds.length > 0 ? 1 : 0,
+          thumb_media_id: coverMediaId,
+          show_cover_pic: 1,
           need_open_comment: 1,  // Enable comments
           only_fans_can_comment: 0,  // All users can comment
         },

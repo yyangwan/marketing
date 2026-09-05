@@ -9,7 +9,7 @@ import type { Platform, PublishResult } from "@/types";
 import { getWeChatClientCredentialToken, publishToPlatform } from "@/lib/platform";
 
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServiceSession();
@@ -118,7 +118,9 @@ export async function POST(
     const publishOptions = {
       title,
       content,
-      images: [], // Could be extended to include image uploads
+      images: platform === "wechat"
+        ? [new URL("/wechat-default-cover.png", req.url).toString()]
+        : [],
     };
 
     // Publish to the platform
@@ -188,13 +190,15 @@ export async function POST(
         },
       });
 
+      const needsAuth = result.needsAuth || false;
       return NextResponse.json(
         {
           error: result.errorMessage || "Publishing failed",
-          needsAuth: result.needsAuth || false,
+          code: needsAuth ? "PLATFORM_AUTH_REQUIRED" : "PLATFORM_PUBLISH_FAILED",
+          needsAuth,
           platform,
         },
-        { status: 500 }
+        { status: 400 }
       );
     }
   } catch (error) {
