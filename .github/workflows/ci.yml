@@ -91,7 +91,8 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.ECS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.ECS_HOST }} >> ~/.ssh/known_hosts
+          echo "${{ secrets.ECS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
       - name: 部署到服务器
         run: |
