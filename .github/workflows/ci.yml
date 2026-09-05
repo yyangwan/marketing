@@ -83,7 +83,6 @@ jobs:
             git pull --ff-only origin master
             npm ci
             npm exec -- prisma generate
-            npm exec -- prisma migrate deploy
             NODE_OPTIONS=--max-old-space-size=4096 npm run build
             pm2 restart genilink-content
             for attempt in 1 2 3 4 5 6; do
