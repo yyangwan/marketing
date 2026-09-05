@@ -17,11 +17,12 @@ export interface WeChatCredentials extends PlatformCredentials {
 }
 
 export interface WeChatMediaUploadResponse {
-  errcode: number;
-  errmsg: string;
-  type: string;
-  media_id: string;
-  created_at: number;
+  errcode?: number;
+  errmsg?: string;
+  type?: string;
+  media_id?: string;
+  created_at?: number;
+  url?: string;
 }
 
 export interface WeChatArticlePublishResponse {
@@ -130,11 +131,14 @@ export class WeChatPublisher extends BasePlatformPublisher {
 
       const data: WeChatMediaUploadResponse = await uploadResponse.json();
 
-      if (data.errcode === 0) {
+      if (data.media_id) {
         return data.media_id;
       }
 
-      console.error("WeChat image upload failed:", data.errmsg);
+      console.error(
+        "WeChat image upload failed:",
+        data.errmsg || `unexpected response (errcode: ${data.errcode ?? "missing"})`,
+      );
       return null;
     } catch (error) {
       console.error("WeChat image upload error:", error);
