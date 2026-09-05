@@ -26,9 +26,17 @@ export interface WeChatMediaUploadResponse {
 }
 
 export interface WeChatArticlePublishResponse {
-  errcode: number;
-  errmsg: string;
+  errcode?: number;
+  errmsg?: string;
   media_id?: string;
+}
+
+function formatWeChatFailure(
+  stage: "草稿创建" | "发布",
+  response: WeChatArticlePublishResponse,
+): string {
+  const detail = response.errmsg || `微信错误码 ${response.errcode ?? "未知"}`;
+  return `微信公众号${stage}失败：${detail}`;
 }
 
 export interface WeChatClientCredentialToken {
@@ -207,7 +215,7 @@ export class WeChatPublisher extends BasePlatformPublisher {
 
       const addData: WeChatArticlePublishResponse = await addResponse.json();
 
-      if (addData.errcode === 0) {
+      if (addData.media_id) {
         // Success - now publish the draft
         const publishUrl = `${this.getApiBaseUrl()}/freepublish/submit?access_token=${accessToken}`;
         const publishData = {
@@ -233,13 +241,13 @@ export class WeChatPublisher extends BasePlatformPublisher {
         } else {
           return {
             success: false,
-            errorMessage: `Publish failed: ${publishResult.errmsg}`,
+            errorMessage: formatWeChatFailure("发布", publishResult),
           };
         }
       } else {
         return {
           success: false,
-          errorMessage: `Draft creation failed: ${addData.errmsg}`,
+          errorMessage: formatWeChatFailure("草稿创建", addData),
         };
       }
     } catch (error) {

@@ -39,7 +39,7 @@ describe("Platform Publishers", () => {
         .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "fresh-token", expires_in: 7200 })))
         .mockResolvedValueOnce(new Response(new Blob(["image"], { type: "image/png" })))
         .mockResolvedValueOnce(new Response(JSON.stringify({ media_id: "cover-1", url: "https://example.com/cover" })))
-        .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 0, errmsg: "ok", media_id: "draft-1" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ media_id: "draft-1" })))
         .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 0, errmsg: "ok" })));
       const publisher = new WeChatPublisher({
         appId: "test-app-id",
