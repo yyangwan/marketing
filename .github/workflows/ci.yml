@@ -81,10 +81,10 @@ jobs:
             set -euo pipefail
             cd /opt/marketing
             git pull --ff-only origin master
-            bun install --frozen-lockfile
-            bunx prisma generate
-            bunx prisma migrate deploy
-            bun run build
+            npm ci
+            npm exec -- prisma generate
+            npm exec -- prisma migrate deploy
+            NODE_OPTIONS=--max-old-space-size=4096 npm run build
             pm2 restart genilink-content
             for attempt in 1 2 3 4 5 6; do
               curl --fail --silent --show-error http://127.0.0.1:4002/ >/dev/null && exit 0
