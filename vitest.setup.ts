@@ -40,6 +40,18 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/',
 }));
 
+// Route handlers call Next.js request APIs after service-auth was unified.
+// Unit tests run without a Next.js request store, so default to browser-session
+// behavior; route-specific tests can override these headers when needed.
+vi.mock('next/headers', () => ({
+  headers: vi.fn(async () => new Headers()),
+  cookies: vi.fn(async () => ({
+    get: vi.fn(),
+    set: vi.fn(),
+    delete: vi.fn(),
+  })),
+}));
+
 // Mock NextAuth
 vi.mock('@/lib/auth/config', () => ({
   auth: vi.fn(),

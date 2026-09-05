@@ -6,7 +6,7 @@ import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
 import type { Platform, PublishResult } from "@/types";
-import { publishToPlatform } from "@/lib/platform";
+import { getWeChatClientCredentialToken, publishToPlatform } from "@/lib/platform";
 
 export async function POST(
   _req: Request,
@@ -74,15 +74,42 @@ export async function POST(
     );
   }
 
-  // Check for valid credentials
-  if (!apiConfig.accessToken) {
+  let accessToken = apiConfig.accessToken;
+  let tokenExpiresAt = apiConfig.tokenExpiresAt;
+  const tokenExpiresSoon = tokenExpiresAt
+    ? tokenExpiresAt.getTime() <= Date.now() + 5 * 60 * 1000
+    : false;
+
+  if (
+    platform === "wechat" &&
+    (!accessToken || tokenExpiresSoon) &&
+    apiConfig.appId &&
+    apiConfig.appSecret
+  ) {
+    const token = await getWeChatClientCredentialToken(apiConfig.appId, apiConfig.appSecret);
+    if (token) {
+      accessToken = token.accessToken;
+      tokenExpiresAt = new Date(Date.now() + token.expiresIn * 1000);
+      await prisma.platformApiConfig.update({
+        where: { id: apiConfig.id },
+        data: {
+          accessToken,
+          tokenExpiresAt,
+          lastRefreshedAt: new Date(),
+        },
+      });
+    }
+  }
+
+  if (!accessToken) {
     return NextResponse.json(
       {
-        error: "No access token. Please authenticate with the platform.",
+        error: "发布平台授权不可用，请检查凭证或重新授权。",
+        code: "PLATFORM_AUTH_REQUIRED",
         needsAuth: true,
         platform,
       },
-      { status: 401 }
+      { status: 400 }
     );
   }
 
@@ -98,9 +125,9 @@ export async function POST(
     const result: PublishResult = await publishToPlatform(platform, {
       appId: apiConfig.appId || undefined,
       appSecret: apiConfig.appSecret || undefined,
-      accessToken: apiConfig.accessToken || undefined,
+      accessToken,
       refreshToken: apiConfig.refreshTokn || undefined,
-      tokenExpiresAt: apiConfig.tokenExpiresAt || undefined,
+      tokenExpiresAt: tokenExpiresAt || undefined,
     }, publishOptions);
 
     // Create publish history record

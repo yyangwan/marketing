@@ -56,7 +56,7 @@ describe("Local Quality API", () => {
     it("should return 404 for content in different workspace", async () => {
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "other-id",
-        project: { workspaceId: "other-workspace-id" },
+        workspaceId: "other-workspace-id",
         platformContents: [{ content: "test" }],
       });
 
@@ -80,7 +80,7 @@ describe("Local Quality API", () => {
     it("should return default metrics for empty content", async () => {
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
-        project: { workspaceId: "test-workspace-id" },
+        workspaceId: "test-workspace-id",
         platformContents: [{}], // Empty content
       });
 
@@ -103,7 +103,7 @@ describe("Local Quality API", () => {
 
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
-        project: { workspaceId: "test-workspace-id" },
+        workspaceId: "test-workspace-id",
         platformContents: [{ content: testContent }],
       });
 
@@ -134,7 +134,7 @@ describe("Local Quality API", () => {
     it("should analyze the requested platform content when platform is provided", async () => {
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
-        project: { workspaceId: "test-workspace-id" },
+        workspaceId: "test-workspace-id",
         platformContents: [
           { platform: "wechat", content: "<p>寰俊鍐呭</p>" },
           { platform: "weibo", content: "<p>寰崥鍐呭鏇寸煭</p>" },
@@ -157,7 +157,7 @@ describe("Local Quality API", () => {
 
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
-        project: { workspaceId: "test-workspace-id" },
+        workspaceId: "test-workspace-id",
         platformContents: [{ content: positiveContent }],
       });
 
@@ -178,7 +178,7 @@ describe("Local Quality API", () => {
 
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
-        project: { workspaceId: "test-workspace-id" },
+        workspaceId: "test-workspace-id",
         platformContents: [{ content: contentWithStructure }],
       });
 
@@ -201,7 +201,7 @@ describe("Local Quality API", () => {
 
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
-        project: { workspaceId: "test-workspace-id" },
+        workspaceId: "test-workspace-id",
         platformContents: [{ content: contentWithKeywords }],
       });
 
@@ -227,7 +227,7 @@ describe("Local Quality API", () => {
 
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
-        project: { workspaceId: "test-workspace-id" },
+        workspaceId: "test-workspace-id",
         platformContents: [{ content: simpleContent }],
       });
 
@@ -245,7 +245,7 @@ describe("Local Quality API", () => {
     it("should handle calculation errors gracefully", async () => {
       (prisma.contentPiece.findUnique as any).mockResolvedValueOnce({
         id: "test-id",
-        project: { workspaceId: "test-workspace-id" },
+        workspaceId: "test-workspace-id",
         platformContents: [{ content: "test" }],
       });
 

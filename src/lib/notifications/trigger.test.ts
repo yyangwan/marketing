@@ -104,22 +104,18 @@ describe("Notification Trigger Functions", () => {
       const mockContentPiece = {
         id: "c1",
         title: "Test Content",
-        project: { id: "p1" },
+        createdByUserId: "user1",
       };
-      const mockMembers = [
-        { userId: "user1" },
-        { userId: "user2" },
-      ];
 
       (prisma.contentPiece.findUnique as any).mockResolvedValue(mockContentPiece);
-      (prisma.workspaceMember.findMany as any).mockResolvedValue(mockMembers);
       (prisma.notification.create as any).mockResolvedValue({});
 
       await notifyContentStatus("c1", "review", "ws1");
 
-      expect(prisma.notification.create).toHaveBeenCalledTimes(2);
+      expect(prisma.notification.create).toHaveBeenCalledTimes(1);
       expect(prisma.notification.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
+          userId: "user1",
           type: "content_review",
           title: "Content ready for review",
           message: `"Test Content" is ready for review`,
@@ -131,7 +127,7 @@ describe("Notification Trigger Functions", () => {
       const mockContentPiece = {
         id: "c1",
         title: "Test Content",
-        project: { id: "p1" },
+        createdByUserId: "user1",
       };
       const mockMembers = [{ userId: "user1" }];
 
@@ -153,7 +149,7 @@ describe("Notification Trigger Functions", () => {
       const mockContentPiece = {
         id: "c1",
         title: "Test Content",
-        project: { id: "p1" },
+        createdByUserId: "user1",
       };
       const mockMembers = [{ userId: "user1" }];
 
@@ -175,7 +171,7 @@ describe("Notification Trigger Functions", () => {
       const mockContentPiece = {
         id: "c1",
         title: "Test Content",
-        project: { id: "p1" },
+        createdByUserId: "user1",
       };
       const mockMembers = [{ userId: "user1" }];
 

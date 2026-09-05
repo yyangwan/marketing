@@ -257,8 +257,7 @@ describe("Brand Voice Item API", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         _count: {
-          projects: 1,
-          contentPieces: 0,
+          contentPieces: 1,
         },
       };
 

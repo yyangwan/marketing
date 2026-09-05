@@ -11,6 +11,10 @@ import { DouyinPublisher, getDouyinOAuthUrl } from "../douyin";
 
 describe("Platform Publishers", () => {
   describe("WeChat Publisher", () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+    });
+
     it("should generate OAuth URL", () => {
       const url = getWeChatOAuthUrl("test-app-id", "https://example.com/callback", "test-state");
       expect(url).toContain("open.weixin.qq.com");
@@ -30,7 +34,11 @@ describe("Platform Publishers", () => {
       expect(publisher["credentials"]).toEqual(credentials);
     });
 
-    it("should return error when no access token", async () => {
+    it("should obtain an access token with app credentials before publishing", async () => {
+      const fetchMock = vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "fresh-token", expires_in: 7200 })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 0, errmsg: "ok", media_id: "draft-1" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 0, errmsg: "ok" })));
       const publisher = new WeChatPublisher({
         appId: "test-app-id",
         appSecret: "test-secret",
@@ -41,9 +49,11 @@ describe("Platform Publishers", () => {
         content: "Test content",
       });
 
-      expect(result.success).toBe(false);
-      expect(result.needsAuth).toBe(true);
-      expect(result.errorMessage).toContain("access token");
+      expect(result.success).toBe(true);
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        1,
+        "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=test-app-id&secret=test-secret",
+      );
     });
   });
 
