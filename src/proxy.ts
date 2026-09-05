@@ -65,6 +65,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/api/invites") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/static") ||
+    pathname === "/wechat-default-cover.png" ||
     pathname === "/login" ||
     pathname === "/register" ||
     pathname.startsWith("/invite") ||
