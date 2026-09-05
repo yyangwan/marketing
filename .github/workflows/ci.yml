@@ -58,6 +58,22 @@ jobs:
           MOCK_AI: 'true'
           DATABASE_URL: 'mysql://ci:ci@localhost:3306/ci'
 
+      - name: 打包生产制品
+        if: github.ref == 'refs/heads/master'
+        run: |
+          mkdir -p .next/standalone/.next
+          cp -r public .next/standalone/public
+          cp -r .next/static .next/standalone/.next/static
+          tar -C .next/standalone -czf contentos-release.tar.gz .
+
+      - name: 上传生产制品
+        if: github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v4
+        with:
+          name: contentos-release-${{ github.sha }}
+          path: contentos-release.tar.gz
+          retention-days: 1
+
   deploy:
     name: 部署到阿里云 ECS
     runs-on: ubuntu-latest
@@ -65,8 +81,10 @@ jobs:
     needs: quality
 
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
+      - name: 下载生产制品
+        uses: actions/download-artifact@v4
+        with:
+          name: contentos-release-${{ github.sha }}
 
       - name: 配置 SSH
         run: |
@@ -77,19 +95,16 @@ jobs:
 
       - name: 部署到服务器
         run: |
-          ssh ${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }} << 'ENDSSH'
+          scp -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+            contentos-release.tar.gz \
+            ${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }}:/tmp/contentos-${{ github.sha }}.tar.gz
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+            ${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }} \
+            "bash -s -- '${{ github.sha }}'" << 'ENDSSH'
             set -euo pipefail
             cd /opt/marketing
             git pull --ff-only origin master
-            npm ci
-            npm exec -- prisma generate
-            NODE_OPTIONS=--max-old-space-size=4096 npm run build
-            pm2 restart genilink-content
-            for attempt in 1 2 3 4 5 6; do
-              curl --fail --silent --show-error http://127.0.0.1:4002/ >/dev/null && exit 0
-              sleep 5
-            done
-            exit 1
+            bash deploy/deploy-release.sh "$1" "/tmp/contentos-$1.tar.gz"
           ENDSSH
 
       - name: 通知部署结果
