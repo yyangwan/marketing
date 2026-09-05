@@ -38,10 +38,8 @@ describe("/api/calendar/events", () => {
           contentPiece: {
             id: "c1",
             title: "Content 1",
-            project: {
-              id: "p1",
-              workspaceId: "ws1",
-            },
+            projectId: "p1",
+            workspaceId: "ws1",
           },
         },
       ];
@@ -63,18 +61,10 @@ describe("/api/calendar/events", () => {
             lte: new Date("2025-01-31"),
           },
           contentPiece: {
-            project: {
-              workspaceId: "ws1",
-            },
+            workspaceId: "ws1",
           },
         },
-        include: {
-          contentPiece: {
-            include: {
-              project: true,
-            },
-          },
-        },
+        include: { contentPiece: true },
         orderBy: { scheduledAt: "asc" },
       });
 
@@ -95,10 +85,8 @@ describe("/api/calendar/events", () => {
           contentPiece: {
             id: "c1",
             title: "Content 1",
-            project: {
-              id: "p1",
-              workspaceId: "ws1",
-            },
+            projectId: "p1",
+            workspaceId: "ws1",
           },
         },
       ];
@@ -120,25 +108,17 @@ describe("/api/calendar/events", () => {
             lte: new Date("2025-01-31"),
           },
           contentPiece: {
-            project: {
-              workspaceId: "ws1",
-              id: "p1",
-            },
+            workspaceId: "ws1",
+            projectId: "p1",
           },
         },
-        include: {
-          contentPiece: {
-            include: {
-              project: true,
-            },
-          },
-        },
+        include: { contentPiece: true },
         orderBy: { scheduledAt: "asc" },
       });
 
       const data = await response.json();
       expect(data.length).toBe(1);
-      expect(data[0].contentPiece.project.id).toBe("p1");
+      expect(data[0].contentPiece.projectId).toBe("p1");
     });
 
     it("should filter by status when status is provided", async () => {
@@ -151,7 +131,7 @@ describe("/api/calendar/events", () => {
           contentPiece: {
             id: "c1",
             title: "Content 1",
-            project: { workspaceId: "ws1" },
+            workspaceId: "ws1",
           },
         },
       ];
@@ -173,19 +153,11 @@ describe("/api/calendar/events", () => {
             lte: new Date("2025-01-31"),
           },
           contentPiece: {
-            project: {
-              workspaceId: "ws1",
-            },
+            workspaceId: "ws1",
             status: "published",
           },
         },
-        include: {
-          contentPiece: {
-            include: {
-              project: true,
-            },
-          },
-        },
+        include: { contentPiece: true },
         orderBy: { scheduledAt: "asc" },
       });
     });
@@ -251,9 +223,7 @@ describe("/api/calendar/events", () => {
           contentPiece: {
             id: "c2",
             title: "Content 2",
-            project: {
-              workspaceId: "ws1", // Same workspace
-            },
+            workspaceId: "ws1", // Same workspace
           },
         },
       ];
@@ -275,18 +245,10 @@ describe("/api/calendar/events", () => {
             lte: new Date("2025-01-31"),
           },
           contentPiece: {
-            project: {
-              workspaceId: "ws1",
-            },
+            workspaceId: "ws1",
           },
         },
-        include: {
-          contentPiece: {
-            include: {
-              project: true,
-            },
-          },
-        },
+        include: { contentPiece: true },
         orderBy: { scheduledAt: "asc" },
       });
 

@@ -143,6 +143,8 @@ describe("Brand Voices API", () => {
           guidelines: "Guidelines",
           samples: '["sample1"]',
           workspaceId: "test-workspace-id",
+          brandId: undefined,
+          createdByUserId: "test-user-id",
         },
       });
     });

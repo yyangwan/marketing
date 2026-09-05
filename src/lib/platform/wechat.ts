@@ -30,6 +30,39 @@ export interface WeChatArticlePublishResponse {
   media_id?: string;
 }
 
+export interface WeChatClientCredentialToken {
+  accessToken: string;
+  expiresIn: number;
+}
+
+export async function getWeChatClientCredentialToken(
+  appId: string,
+  appSecret: string,
+): Promise<WeChatClientCredentialToken | null> {
+  const url = new URL("https://api.weixin.qq.com/cgi-bin/token");
+  url.searchParams.set("grant_type", "client_credential");
+  url.searchParams.set("appid", appId);
+  url.searchParams.set("secret", appSecret);
+
+  try {
+    const response = await fetch(url.toString());
+    const data = await response.json();
+
+    if (!response.ok || data.errcode || !data.access_token) {
+      console.error("WeChat token refresh failed:", data.errmsg || response.statusText);
+      return null;
+    }
+
+    return {
+      accessToken: data.access_token,
+      expiresIn: Number(data.expires_in) || 7200,
+    };
+  } catch (error) {
+    console.error("WeChat token refresh error:", error);
+    return null;
+  }
+}
+
 export class WeChatPublisher extends BasePlatformPublisher {
   protected credentials: WeChatCredentials;
 
@@ -50,22 +83,24 @@ export class WeChatPublisher extends BasePlatformPublisher {
       return null;
     }
 
-    const url = `${this.getApiBaseUrl()}/token?grant_type=client_credential&appid=${this.credentials.appId}&secret=${this.credentials.appSecret}`;
+    const token = await getWeChatClientCredentialToken(
+      this.credentials.appId,
+      this.credentials.appSecret,
+    );
+    return token?.accessToken ?? null;
+  }
 
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
+  protected async refreshTokenIfNeeded(): Promise<string | null> {
+    if (this.credentials.accessToken) {
+      if (!this.credentials.tokenExpiresAt) return this.credentials.accessToken;
 
-      if (data.errcode) {
-        console.error("WeChat token refresh failed:", data.errmsg);
-        return null;
+      const refreshAt = Date.now() + 5 * 60 * 1000;
+      if (new Date(this.credentials.tokenExpiresAt).getTime() > refreshAt) {
+        return this.credentials.accessToken;
       }
-
-      return data.access_token;
-    } catch (error) {
-      console.error("WeChat token refresh error:", error);
-      return null;
     }
+
+    return this.refreshAccessToken();
   }
 
   /**

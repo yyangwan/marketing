@@ -11,7 +11,7 @@ import { XiaohongshuPublisher, getXiaohongshuOAuthUrl, getXiaohongshuAccessToken
 import { DouyinPublisher, getDouyinOAuthUrl, getDouyinAccessToken } from "./douyin";
 
 // Export all publishers
-export { WeChatPublisher, getWeChatOAuthUrl, getWeChatAccessToken } from "./wechat";
+export { WeChatPublisher, getWeChatOAuthUrl, getWeChatAccessToken, getWeChatClientCredentialToken } from "./wechat";
 export { WeiboPublisher, getWeiboOAuthUrl, getWeiboAccessToken } from "./weibo";
 export { XiaohongshuPublisher, getXiaohongshuOAuthUrl, getXiaohongshuAccessToken } from "./xiaohongshu";
 export { DouyinPublisher, getDouyinOAuthUrl, getDouyinAccessToken } from "./douyin";

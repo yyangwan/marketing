@@ -5,7 +5,7 @@ import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { getPlatformConfigKey } from "@/lib/platform/config-scope";
-import { getPlatformAccessToken } from "@/lib/platform";
+import { getPlatformAccessToken, getWeChatClientCredentialToken } from "@/lib/platform";
 
 /**
  * POST /api/platform-config/[platform]/refresh
@@ -51,12 +51,14 @@ export async function POST(
 
   try {
     // Get new access token
-    const tokenData = await getPlatformAccessToken(
-      platform as any,
-      config.appId,
-      config.appSecret,
-      code
-    );
+    const tokenData = platform === "wechat"
+      ? await getWeChatClientCredentialToken(config.appId, config.appSecret)
+      : await getPlatformAccessToken(
+          platform as any,
+          config.appId,
+          config.appSecret,
+          code
+        );
 
     if (!tokenData || !tokenData.accessToken) {
       return NextResponse.json(
@@ -66,8 +68,8 @@ export async function POST(
     }
 
     // Calculate expiry time
-    const expiresIn = tokenData.expiresIn || (30 * 24 * 60 * 60 * 1000); // Default 30 days
-    const tokenExpiresAt = new Date(Date.now() + expiresIn);
+    const expiresInSeconds = tokenData.expiresIn || (30 * 24 * 60 * 60); // Default 30 days
+    const tokenExpiresAt = new Date(Date.now() + expiresInSeconds * 1000);
 
     await prisma.platformApiConfig.update({
       where: { id: config.id },

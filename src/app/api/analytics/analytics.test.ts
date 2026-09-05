@@ -58,6 +58,10 @@ describe("Analytics API", () => {
           { status: "reviewing", _count: 8 },
           { status: "approved", _count: 12 },
           { status: "published", _count: 7 },
+        ])
+        .mockResolvedValueOnce([
+          { projectId: "p1", _count: 25 },
+          { projectId: "p2", _count: 17 },
         ]);
 
       (prisma.platformContent.groupBy as any).mockResolvedValue([
@@ -91,13 +95,8 @@ describe("Analytics API", () => {
           title: "Test Content 1",
           status: "published",
           createdAt: new Date(),
-          project: { name: "Project A" },
+          projectId: "p1",
         },
-      ]);
-
-      (prisma.project.findMany as any).mockResolvedValue([
-        { id: "p1", name: "Project A", contentPieces: Array(25).fill({ id: "x" }) },
-        { id: "p2", name: "Project B", contentPieces: Array(17).fill({ id: "y" }) },
       ]);
 
       (prisma.$queryRaw as any)
@@ -147,7 +146,7 @@ describe("Analytics API", () => {
 
       // Verify top projects
       expect(data.topProjects).toHaveLength(2);
-      expect(data.topProjects[0].name).toBe("Project A");
+      expect(data.topProjects[0].name).toBe("p1");
     });
 
     it("should support custom time range", async () => {
