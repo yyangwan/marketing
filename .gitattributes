@@ -1,1 +1,2 @@
 /deploy/*.sh text eol=lf
+/contracts/** text eol=lf
