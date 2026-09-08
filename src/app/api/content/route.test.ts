@@ -228,7 +228,7 @@ describe("/api/content", () => {
           json: async () => ({
             topic: "Launch plan",
             keyPoints: ["Point A", ""],
-            platforms: ["wechat", "unknown"],
+            platforms: ["wechat", "wechat", "weibo"],
           }),
         } as any
       );
@@ -246,7 +246,7 @@ describe("/api/content", () => {
           brief: JSON.stringify({
             topic: "Launch plan",
             keyPoints: ["Point A"],
-            platforms: ["wechat"],
+            platforms: ["wechat", "weibo"],
             references: "",
             notes: "",
             templateId: undefined,
@@ -255,11 +255,81 @@ describe("/api/content", () => {
           brandVoiceId: undefined,
           status: "draft",
           platformContents: {
-            create: [{ platform: "wechat", status: "draft" }],
+            create: [
+              { platform: "wechat", status: "draft" },
+              { platform: "weibo", status: "draft" },
+            ],
           },
         },
         include: { platformContents: true },
       });
+    });
+
+    it("should reject unsupported platforms with 422 instead of silently dropping them", async () => {
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+      vi.mocked(getCurrentWorkspace).mockReturnValue({
+        workspaceId: "ws1",
+        projectId: "project-1",
+        role: "member",
+      });
+
+      const response = await POST(
+        {
+          json: async () => ({
+            topic: "Launch plan",
+            platforms: ["wechat", "unknown"],
+          }),
+        } as any
+      );
+
+      expect(response.status).toBe(422);
+      const data = await response.json();
+      expect(data.error.code).toBe("PLATFORM_NOT_SUPPORTED");
+      expect(prisma.contentPiece.create).not.toHaveBeenCalled();
+    });
+
+    it("should reject missing platforms with 422 instead of defaulting to wechat", async () => {
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+      vi.mocked(getCurrentWorkspace).mockReturnValue({
+        workspaceId: "ws1",
+        projectId: "project-1",
+        role: "member",
+      });
+
+      const response = await POST(
+        {
+          json: async () => ({
+            topic: "Launch plan",
+          }),
+        } as any
+      );
+
+      expect(response.status).toBe(422);
+      const data = await response.json();
+      expect(data.error.code).toBe("PLATFORM_MISSING");
+      expect(prisma.contentPiece.create).not.toHaveBeenCalled();
+    });
+
+    it("should reject zhihu/toutiao with 422 (not implemented, no wechat fallback)", async () => {
+      vi.mocked(auth).mockResolvedValue({ user: { id: "user1" } } as never);
+      vi.mocked(getCurrentWorkspace).mockReturnValue({
+        workspaceId: "ws1",
+        projectId: "project-1",
+        role: "member",
+      });
+
+      const response = await POST(
+        {
+          json: async () => ({
+            topic: "Launch plan",
+            platforms: ["zhihu"],
+          }),
+        } as any
+      );
+
+      expect(response.status).toBe(422);
+      const data = await response.json();
+      expect(data.error.code).toBe("PLATFORM_NOT_SUPPORTED");
     });
   });
 });

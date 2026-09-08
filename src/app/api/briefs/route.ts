@@ -7,6 +7,7 @@ import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { generateForAllPlatforms } from "@/lib/ai/generator";
 import type { Brief } from "@/types";
 import { responses, errors, apiError, ERROR_CODES } from "@/lib/errors";
+import { parseSupportedPlatforms } from "@/lib/platforms/validate";
 import { LLMError } from "@/lib/ai/client";
 
 export async function GET(req: Request) {
@@ -65,10 +66,25 @@ export async function POST(req: Request) {
       return responses.badRequest(errors.missingParam("projectId"));
     }
 
+    // 平台严格校验（设计 §17.2）：不再默认 wechat，未携带或不支持一律 422。
+    const platformParse = parseSupportedPlatforms(briefData.platforms);
+    if (!platformParse.ok) {
+      return responses.unprocessable(
+        apiError(
+          "invalid_request_error",
+          platformParse.code,
+          platformParse.code === "PLATFORM_MISSING"
+            ? "缺少生成平台，请至少选择一个已支持的平台"
+            : `不支持的平台: ${platformParse.invalid.join(", ")}，当前支持 wechat/weibo/xiaohongshu/douyin`,
+          { param: "platforms" }
+        )
+      );
+    }
+
     const brief: Brief = {
       topic: briefData.topic,
       keyPoints: briefData.keyPoints || [],
-      platforms: briefData.platforms || ["wechat"],
+      platforms: platformParse.platforms,
       references: briefData.references || "",
       notes: briefData.notes || "",
       brandVoiceId: brandVoiceId || undefined,
