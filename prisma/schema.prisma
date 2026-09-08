@@ -221,3 +221,40 @@ model PublishHistory {
   @@index([status])
   @@index([createdAt])
 }
+
+// 智见建议 → 智创内容的持久化创作方案（设计 §8.6）。
+// JSON 一律 MediumText 字符串（仓库惯例），serde 见 src/lib/content-brief/serde.ts。
+model ContentBrief {
+  id                       String    @id @default(cuid())
+  workspaceId              String
+  projectId                String
+  createdByUserId          String
+  schemaVersion            Int       @default(1)
+  revision                 Int       @default(1)
+  status                   String    @default("baseline_ready") @db.VarChar(32)
+  sourceType               String    @default("visibility_suggestion") @db.VarChar(64)
+  sourceSuggestionId       String    @db.VarChar(191)
+  sourceHash               String    @db.VarChar(64)
+  sourceSnapshot           String    @db.MediumText
+  projectSnapshot          String    @db.MediumText
+  baselineBrief            String    @db.MediumText
+  refinedCandidate         String?   @db.MediumText
+  effectiveBrief           String    @db.MediumText
+  generationMeta           String    @db.MediumText
+  idempotencyKey           String    @db.VarChar(64)
+  idempotencyRequestHash   String    @db.VarChar(64)
+  refinementStatus         String    @default("queued") @db.VarChar(32)
+  refinementAttempts       Int       @default(0)
+  refinementNextAttemptAt  DateTime?
+  refinementLockedBy       String?   @db.VarChar(64)
+  refinementLockedUntil    DateTime?
+  refinementLastError      String?   @db.Text
+  confirmedAt              DateTime?
+  expiresAt                DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  @@unique([workspaceId, projectId, idempotencyKey])
+  @@index([workspaceId, projectId, sourceSuggestionId])
+  @@index([refinementStatus, refinementNextAttemptAt, refinementLockedUntil])
+}
