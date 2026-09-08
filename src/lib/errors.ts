@@ -191,6 +191,7 @@ export const responses = {
   badRequest: (error: ContentOSError) => ErrorResponse(error, 400),
   notFound: (error: ContentOSError) => ErrorResponse(error, 404),
   conflict: (error: ContentOSError) => ErrorResponse(error, 409),
+  unprocessable: (error: ContentOSError) => ErrorResponse(error, 422),
   rateLimit: (error: ContentOSError) => ErrorResponse(error, 429),
   serverError: (error: ContentOSError) => ErrorResponse(error, 500),
 };
