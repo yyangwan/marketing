@@ -253,8 +253,60 @@ model ContentBrief {
   expiresAt                DateTime?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
+  workflows                ContentWorkflow[]
 
   @@unique([workspaceId, projectId, idempotencyKey])
   @@index([workspaceId, projectId, sourceSuggestionId])
   @@index([refinementStatus, refinementNextAttemptAt, refinementLockedUntil])
+}
+
+// 内容创建工作流（设计 §8.6）：一个 Brief 修订 → 一个 ContentPiece + N 个平台运行。
+model ContentWorkflow {
+  id                     String   @id @default(cuid())
+  workspaceId            String
+  projectId              String
+  briefId                String
+  brief                  ContentBrief @relation(fields: [briefId], references: [id])
+  briefRevision          Int
+  briefSnapshot          String   @db.MediumText
+  contentPieceId         String?  @unique
+  usageOperationId       String   @unique @db.VarChar(191)
+  usageStatus            String   @default("reserved") @db.VarChar(32)
+  idempotencyKey         String   @db.VarChar(64)
+  idempotencyRequestHash String   @db.VarChar(64)
+  status                 String   @default("queued") @db.VarChar(32)
+  failureCode            String?  @db.VarChar(64)
+  failureMessage         String?  @db.Text
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  completedAt            DateTime?
+  runs                   ContentGenerationRun[]
+
+  @@unique([workspaceId, projectId, idempotencyKey])
+  @@index([workspaceId, projectId, status])
+  @@index([status])
+}
+
+// 平台生成运行（设计 §8.6/§12.4）：租约列支持 worker 条件领取与接管。
+model ContentGenerationRun {
+  id                String   @id @default(cuid())
+  workflowId        String
+  workflow          ContentWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  platform          String   @db.VarChar(32)
+  platformContentId String?
+  status            String   @default("queued") @db.VarChar(32)
+  attemptCount      Int      @default(0)
+  nextAttemptAt     DateTime?
+  lockedBy          String?  @db.VarChar(64)
+  lockedUntil       DateTime?
+  startedAt         DateTime?
+  completedAt        DateTime?
+  failureCode       String?  @db.VarChar(64)
+  failureMessage    String?  @db.Text
+  providerRequestId String?  @db.VarChar(191)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([workflowId, platform])
+  @@index([status, nextAttemptAt, lockedUntil])
 }

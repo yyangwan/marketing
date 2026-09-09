@@ -21,6 +21,8 @@ export interface CallLLMOptions {
   /** 请求整个生命周期的硬超时（毫秒）。 */
   timeoutMs?: number;
   responseFormat?: { type: "json_object" };
+  /** 外部取消信号（例如 worker 租约丢失时中止生成）。 */
+  signal?: AbortSignal;
 }
 
 export async function callLLM(
@@ -34,6 +36,11 @@ export async function callLLM(
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const onExternalAbort = () => controller.abort();
+  if (opts.signal) {
+    if (opts.signal.aborted) controller.abort();
+    else opts.signal.addEventListener("abort", onExternalAbort);
+  }
 
   try {
     const res = await fetch(`${DEEPSEEK_URL}/chat/completions`, {
@@ -73,6 +80,9 @@ export async function callLLM(
     throw err;
   } finally {
     clearTimeout(timer);
+    if (opts.signal) {
+      opts.signal.removeEventListener("abort", onExternalAbort);
+    }
   }
 }
 
