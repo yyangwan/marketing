@@ -17,6 +17,15 @@ vi.mock("@/lib/auth/workspace", () => ({
   getCurrentWorkspace: vi.fn(() => ({ workspaceId: "ws-1" })),
 }));
 
+vi.mock("@/lib/content-brief/refinement-worker", () => ({
+  runRefinementBatch: vi.fn().mockResolvedValue({
+    claimed: 0,
+    succeeded: 0,
+    fallback: 0,
+    retainedOnly: 0,
+  }),
+}));
+
 import { prisma } from "@/lib/db";
 import createBriefRequest from "../../../../contracts/fixtures/create-brief-request-valid.json";
 

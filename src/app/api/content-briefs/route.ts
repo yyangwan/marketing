@@ -11,6 +11,8 @@ import {
   buildBaselineBrief,
   evaluateContentEligibility,
 } from "@/lib/content-brief/baseline-generator";
+import { runRefinementBatch } from "@/lib/content-brief/refinement-worker";
+import { emitContentEvent } from "@/lib/observability/events";
 import { parseBrief } from "@/lib/content-brief/serde";
 import type {
   ContentCreationBriefV1,
@@ -158,6 +160,16 @@ export async function POST(req: Request) {
         refinementStatus: "queued",
       },
     });
+
+    emitContentEvent("content_brief.baseline_created", {
+      briefId: briefId,
+      suggestionId: request.sourceSnapshot.suggestionId,
+      ruleId: eligibility.ruleId,
+      requiresConfirmation: eligibility.requiresConfirmation,
+    });
+
+    // 机会性 kick：立即触发一次提炼批次，不阻塞响应（设计 §10 调度）。
+    void runRefinementBatch(`inline-${briefId.slice(-8)}`).catch(() => undefined);
 
     return NextResponse.json(
       {
