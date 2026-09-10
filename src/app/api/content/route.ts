@@ -4,17 +4,7 @@ import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { prisma } from "@/lib/db";
 import { ERROR_CODES, apiError, errors, responses } from "@/lib/errors";
-
-const DEFAULT_PLATFORM = "wechat";
-const VALID_PLATFORMS = new Set(["wechat", "weibo", "xiaohongshu", "douyin"]);
-
-function normalizePlatforms(value: unknown): string[] {
-  const raw = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
-  const platforms = raw.filter(
-    (item): item is string => typeof item === "string" && VALID_PLATFORMS.has(item)
-  );
-  return platforms.length > 0 ? [...new Set(platforms)] : [DEFAULT_PLATFORM];
-}
+import { parseSupportedPlatforms } from "@/lib/platforms/validate";
 
 // GET /api/content?workspaceId=xxx&status=draft&unscheduled=true
 export async function GET(req: NextRequest) {
@@ -125,7 +115,21 @@ export async function POST(req: NextRequest) {
       typeof body.title === "string" && body.title.trim().length > 0
         ? body.title.trim()
         : topic.slice(0, 80);
-    const platforms = normalizePlatforms(body.platforms ?? body.platform);
+    const platformParse = parseSupportedPlatforms(body.platforms ?? body.platform);
+    if (!platformParse.ok) {
+      // 平台严格校验（设计 §17.2）：不支持的值返回 422，禁止默认回退微信。
+      return responses.unprocessable(
+        apiError(
+          "invalid_request_error",
+          platformParse.code,
+          platformParse.code === "PLATFORM_MISSING"
+            ? "缺少生成平台，请至少选择一个已支持的平台"
+            : `不支持的平台: ${platformParse.invalid.join(", ")}，当前支持 wechat/weibo/xiaohongshu/douyin`,
+          { param: "platforms" }
+        )
+      );
+    }
+    const platforms = platformParse.platforms;
 
     const brief = {
       topic,

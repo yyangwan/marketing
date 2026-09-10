@@ -75,6 +75,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // 服务间与调度入口（CRON_SECRET / 共享密钥自验）：Bearer 不是 GeniLink JWT，
+  // 直接放行并剥离可伪造的 x-genilink-* 头，鉴权由各 handler 自行完成。
+  if (pathname.startsWith("/api/cron/") || pathname.startsWith("/api/internal/")) {
+    return NextResponse.next({
+      request: { headers: withoutGenilinkHeaders(request) },
+    });
+  }
+
   if (pathname.startsWith("/api/")) {
     const bearerToken = request.headers.get("authorization");
     if (bearerToken?.startsWith("Bearer ")) {
