@@ -36,19 +36,44 @@ describe("aggregateWorkflowStatus（设计 §9.2）", () => {
     expect(
       aggregateWorkflowStatus([
         { platform: "wechat", status: "succeeded" },
-        { platform: "xiaohongshu", status: "failed_retryable" },
         { platform: "weibo", status: "failed_terminal" },
+        { platform: "douyin", status: "cancelled" },
       ]),
-    ).toBe("partial"); // §10.6 示例：可重试失败计入聚合；重新排队后才回到 generating
+    ).toBe("partial");
   });
 
   it("all final failure → failed", () => {
     expect(
       aggregateWorkflowStatus([
         { platform: "wechat", status: "failed_terminal" },
-        { platform: "weibo", status: "failed_retryable" },
+        { platform: "weibo", status: "failed_terminal" },
       ]),
     ).toBe("failed");
+  });
+
+  it("failed_retryable is backoff-waiting, not terminal (R10)", () => {
+    // 退避等待的自动重试不算失败：工作流保持 generating，前端继续轮询。
+    expect(
+      aggregateWorkflowStatus([
+        { platform: "wechat", status: "succeeded" },
+        { platform: "xiaohongshu", status: "failed_retryable" },
+      ]),
+    ).toBe("generating");
+    expect(
+      aggregateWorkflowStatus([
+        { platform: "wechat", status: "failed_retryable" },
+        { platform: "weibo", status: "failed_retryable" },
+      ]),
+    ).toBe("generating");
+  });
+
+  it("all cancelled → cancelled", () => {
+    expect(
+      aggregateWorkflowStatus([
+        { platform: "wechat", status: "cancelled" },
+        { platform: "weibo", status: "cancelled" },
+      ]),
+    ).toBe("cancelled");
   });
 
   it("empty runs → queued", () => {

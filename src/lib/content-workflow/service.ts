@@ -89,6 +89,20 @@ export async function createWorkflow(
 ): Promise<{ replayed: boolean; view: WorkflowView }> {
   const { ctx, input, idempotencyKey, requestHash } = params;
 
+  // 幂等回放优先（评审 R4）：授权后先识别已有操作并返回原结果，
+  // 再做 Brief 版本等校验——否则旧请求重放会拿到 4xx，Portal 据此
+  // 误释放已受理工作流的额度预占。
+  const existing = await prisma.contentWorkflow.findFirst({
+    where: { workspaceId: ctx.workspaceId, projectId: ctx.projectId, idempotencyKey },
+    include: { runs: true },
+  });
+  if (existing) {
+    if (existing.idempotencyRequestHash !== requestHash) {
+      throw new WorkflowValidationError(409, "IDEMPOTENCY_KEY_REUSED", "相同幂等键已用于不同请求体");
+    }
+    return { replayed: true, view: toWorkflowView(existing) };
+  }
+
   // 平台严格校验（设计 §17.2）：契约层已挡，双保险。
   const platformParse = parseSupportedPlatforms(input.platforms);
   if (!platformParse.ok) {
@@ -137,18 +151,6 @@ export async function createWorkflow(
     }
   }
 
-  // 幂等回放。
-  const existing = await prisma.contentWorkflow.findFirst({
-    where: { workspaceId: ctx.workspaceId, projectId: ctx.projectId, idempotencyKey },
-    include: { runs: true },
-  });
-  if (existing) {
-    if (existing.idempotencyRequestHash !== requestHash) {
-      throw new WorkflowValidationError(409, "IDEMPOTENCY_KEY_REUSED", "相同幂等键已用于不同请求体");
-    }
-    return { replayed: true, view: toWorkflowView(existing) };
-  }
-
   const effective = parseBrief(brief.effectiveBrief);
   const projectSnapshot = parseProjectSnapshot(brief.projectSnapshot);
   if (!effective) {
@@ -187,6 +189,8 @@ export async function createWorkflow(
           briefId: input.briefId,
           briefRevision: brief.revision,
           briefSnapshot: JSON.stringify(effective),
+          // 契约允许 templateId（覆盖审计）：持久化用于追溯，v1 提示词未消费。
+          ...(input.templateId ? { templateId: input.templateId } : {}),
           contentPieceId: piece.id,
           usageOperationId: input.usageOperationId,
           usageStatus: "reserved",
@@ -204,10 +208,19 @@ export async function createWorkflow(
       });
 
       // Brief 进入 confirmed（记录确认时间与 revision）。
-      await tx.contentBrief.updateMany({
+      // 版本确认失败必须回滚整个创建事务（评审 R9）：读取后并发 PATCH
+      // 会让 count=0，此时不能继续提交 Piece/Workflow/Run。
+      const confirm = await tx.contentBrief.updateMany({
         where: { id: brief.id, revision: brief.revision },
         data: { status: "confirmed", confirmedAt: new Date() },
       });
+      if (confirm.count !== 1) {
+        throw new WorkflowValidationError(
+          409,
+          "BRIEF_VERSION_CONFLICT",
+          "创作方案已更新，请刷新后重试",
+        );
+      }
 
       return created;
     });
@@ -222,6 +235,7 @@ export async function createWorkflow(
 
     return { replayed: false, view: toWorkflowView(workflow) };
   } catch (err) {
+    if (err instanceof WorkflowValidationError) throw err;
     if (isUniqueConstraintError(err)) {
       const raced = await prisma.contentWorkflow.findFirst({
         where: { workspaceId: ctx.workspaceId, projectId: ctx.projectId, idempotencyKey },

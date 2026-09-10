@@ -77,6 +77,67 @@ function goodCandidate() {
   };
 }
 
+describe("链接白名单与事实可追溯（R5，gate-11/12）", () => {
+  it("rejects invented clients, certifications and links (评审复现用例)", () => {
+    const ctx = buildContext();
+    const candidate = goodCandidate();
+    candidate.notes =
+      "已获得权威认证，客户包括微软与阿里巴巴；参考 https://invented.example/case";
+
+    const result = validateRefinementCandidate(candidate, ctx);
+    expect(result.ok).toBe(false);
+    expect(result.violations).toContain("gate-11-unapproved-links");
+    expect(result.violations).toContain("gate-12-unverifiable-claims");
+  });
+
+  it("rejects links in any candidate text field, not only notes", () => {
+    const ctx = buildContext();
+    const candidate = goodCandidate();
+    candidate.outline[0].purpose = "详见 https://llm-invented.example/guide";
+
+    const result = validateRefinementCandidate(candidate, ctx);
+    expect(result.violations).toContain("gate-11-unapproved-links");
+  });
+
+  it("accepts links that exist in the source snapshot", () => {
+    const ctx = buildContext();
+    const candidate = goodCandidate();
+    // 来源快照中存在 https://example.com/audit 与 https://example.com/baike。
+    candidate.notes = "引用证据见 https://example.com/audit";
+
+    const result = validateRefinementCandidate(candidate, ctx);
+    expect(result.violations).not.toContain("gate-11-unapproved-links");
+  });
+
+  it("rejects client claims whose names do not appear in sources or project", () => {
+    const ctx = buildContext();
+    const candidate = goodCandidate();
+    candidate.notes = "客户包括某虚构集团";
+
+    const result = validateRefinementCandidate(candidate, ctx);
+    expect(result.violations).toContain("gate-12-unverifiable-claims");
+  });
+
+  it("accepts traceable claims naming the project product", () => {
+    const ctx = buildContext();
+    const candidate = goodCandidate();
+    // 产品关键词“品牌可见性”出现在项目快照中，可追溯。
+    candidate.notes = "围绕品牌可见性展开，不新增事实。";
+
+    const result = validateRefinementCandidate(candidate, ctx);
+    expect(result.violations).not.toContain("gate-12-unverifiable-claims");
+  });
+
+  it("rejects untraceable certification qualifiers even without client names", () => {
+    const ctx = buildContext();
+    const candidate = goodCandidate();
+    candidate.notes = "产品已获得国际认证";
+
+    const result = validateRefinementCandidate(candidate, ctx);
+    expect(result.violations).toContain("gate-12-unverifiable-claims");
+  });
+});
+
 describe("validateRefinementCandidate 十条质量门", () => {
   it("accepts a clean candidate", () => {
     const result = validateRefinementCandidate(goodCandidate(), buildContext());

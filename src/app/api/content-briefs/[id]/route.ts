@@ -4,7 +4,7 @@ import { getServiceSession } from "@/lib/auth/service-auth";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { apiError, responses } from "@/lib/errors";
-import { getIdempotencyKey } from "@/lib/contracts/hash";
+import { getIdempotencyKey, requestHash } from "@/lib/contracts/hash";
 import { validateBriefV1 } from "@/lib/contracts/validate";
 import { parseBrief } from "@/lib/content-brief/serde";
 import { evaluateContentEligibility } from "@/lib/content-brief/baseline-generator";
@@ -125,16 +125,19 @@ interface PatchBody {
 const SUPPORTED_FOR_SELECTION = new Set(["wechat", "weibo", "xiaohongshu", "douyin"]);
 
 /**
- * PATCH /api/content-briefs/[id] — 乐观锁编辑（设计 §10.4/§12.2）。
+ * PATCH /api/content-briefs/[id] — 乐观锁编辑（设计 §10.4/§12.2，评审 R8/R2）。
  * 可编辑字段：strategy 用户可见部分、editorial、selectedPlatforms、constraints.editable。
  * 项目归属、来源、constraints.locked、generationMeta 不可编辑。
+ * 幂等：同键同请求体重放首次结果；同键不同请求体 409。
+ * 编辑内容字段时取消尚未领取的 queued 提炼（用户编辑优先，避免对陈旧基线白耗模型调用）。
  */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await resolveContext();
   if ("error" in ctx) return ctx.error;
   const { id } = await params;
 
-  if (!getIdempotencyKey(req)) {
+  const idempotencyKey = getIdempotencyKey(req);
+  if (!idempotencyKey) {
     return responses.badRequest(
       apiError("invalid_request_error", "IDEMPOTENCY_KEY_REQUIRED", "缺少 Idempotency-Key 请求头"),
     );
@@ -156,6 +159,27 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return responses.conflict(
       apiError("invalid_request_error", "BRIEF_ARCHIVED", "创作方案已归档，不能编辑"),
     );
+  }
+
+  // 幂等重放（R8）：保存成功但响应丢失时，客户端同键重试应拿回首次结果，
+  // 而不是被乐观锁误报 409。同键不同请求体属于键滥用。
+  const patchHash = requestHash(body);
+  if (row.lastPatchKey === idempotencyKey) {
+    if (row.lastPatchHash !== patchHash) {
+      return responses.conflict(
+        apiError("invalid_request_error", "IDEMPOTENCY_KEY_REUSED", "相同幂等键已用于不同请求体"),
+      );
+    }
+    if (row.lastPatchResponse) {
+      try {
+        const replayed = JSON.parse(row.lastPatchResponse) as Record<string, unknown>;
+        return NextResponse.json({ ...replayed, meta: { replayed: true } });
+      } catch {
+        // 存储损坏则回退当前视图。
+      }
+    }
+    const fresh = await prisma.contentBrief.findFirst({ where: { id: row.id } });
+    return NextResponse.json({ data: view(fresh ?? row), meta: { replayed: true } });
   }
 
   const expectedRevision = body.expectedRevision;
@@ -214,16 +238,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     merged.platformPlan = plan;
   }
 
-  // 数组长度收敛到契约上限，防止编辑写入违约数据。
-  merged.editorial.titleCandidates = merged.editorial.titleCandidates.slice(
-    0,
-    BRIEF_LIMITS.titleCandidateMaxCount,
-  );
-  merged.editorial.keywords = merged.editorial.keywords.slice(0, BRIEF_LIMITS.keywordMaxCount);
-  merged.editorial.references = merged.editorial.references.slice(
-    0,
-    BRIEF_LIMITS.referenceMaxCount,
-  );
+  // §8.3：超限编辑直接 422（validateBriefV1），不再静默截断（评审覆盖审计）。
 
   const validation = validateBriefV1(merged);
   if (!validation.ok) {
@@ -239,6 +254,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   merged.updatedAt = new Date().toISOString();
 
   // 乐观锁：仅当 revision 仍是 expectedRevision 时写入（设计 §12.2）。
+  // 同步记录 PATCH 幂等键/哈希（R8），便于响应丢失后的同键重放。
   const update = await prisma.contentBrief.updateMany({
     where: {
       id: row.id,
@@ -252,6 +268,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       status: "ready",
       effectiveBrief: JSON.stringify(merged),
       generationMeta: JSON.stringify(merged.generationMeta),
+      lastPatchKey: idempotencyKey,
+      lastPatchHash: patchHash,
     },
   });
 
@@ -270,6 +288,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     );
   }
 
+  // 用户编辑了内容字段（R2）：取消尚未领取的 queued 提炼——其基线已过时，
+  // 继续提炼只会白耗一次模型调用且结果必然只被保留不发布。
+  if (body.editorial || body.strategy || body.constraints) {
+    await prisma.contentBrief
+      .updateMany({
+        where: { id: row.id, refinementStatus: "queued" },
+        data: { refinementStatus: "cancelled", refinementLockedBy: null, refinementLockedUntil: null },
+      })
+      .catch(() => undefined);
+  }
+
   const updated = await prisma.contentBrief.findFirst({ where: { id: row.id } });
-  return NextResponse.json({ data: view(updated ?? row) });
+  const responseBody = { data: view(updated ?? row) };
+  // 尽力保存首次响应（R8）：存失败只影响重放保真，不影响保存本身。
+  await prisma.contentBrief
+    .updateMany({
+      where: { id: row.id, lastPatchKey: idempotencyKey },
+      data: { lastPatchResponse: JSON.stringify(responseBody) },
+    })
+    .catch(() => undefined);
+  return NextResponse.json(responseBody);
 }

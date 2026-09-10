@@ -77,7 +77,7 @@ function params() {
 
 describe("createWorkflow", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("creates piece + runs + workflow snapshot in one transaction", async () => {
@@ -85,6 +85,8 @@ describe("createWorkflow", () => {
     (prisma.brandVoice.findFirst as any).mockResolvedValue(null);
     (prisma.aITemplate.findFirst as any).mockResolvedValue(null);
     (prisma.contentWorkflow.findFirst as any).mockResolvedValue(null);
+    // 事务内 Brief 版本确认成功（R9）。
+    (prisma.contentBrief.updateMany as any).mockResolvedValue({ count: 1 });
     (prisma.$transaction as any).mockImplementation(async (fn: (tx: unknown) => unknown) => {
       // 模拟事务内的创建链
       (prisma.contentPiece.create as any).mockResolvedValueOnce({
@@ -204,8 +206,63 @@ describe("createWorkflow", () => {
     });
   });
 
+  it("replays before revision validation so a stale replay cannot trigger release (R4)", async () => {
+    // 时序：工作流已受理（旧 key）→ 另一页面编辑 Brief（revision 前进）→ 原样重放。
+    // 幂等识别必须先于版本校验，返回原结果而不是 409。
+    (prisma.contentBrief.findFirst as any).mockResolvedValue(briefRow({ revision: 9 }));
+    (prisma.contentWorkflow.findFirst as any).mockResolvedValue({
+      id: "wf_existing",
+      briefId: "brief_1",
+      briefRevision: 3,
+      contentPieceId: "piece_1",
+      status: "generating",
+      usageOperationId: INPUT.usageOperationId,
+      idempotencyRequestHash: "b".repeat(64),
+      runs: [
+        { platform: "wechat", status: "generating", attemptCount: 1, failureCode: null, failureMessage: null },
+      ],
+    });
+
+    const result = await createWorkflow(params());
+    expect(result.replayed).toBe(true);
+    expect(result.view.id).toBe("wf_existing");
+    // 不做新的创建/确认。
+    expect(prisma.contentWorkflow.create).not.toHaveBeenCalled();
+    expect(prisma.contentBrief.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rolls back the creation transaction when the revision confirm loses the race (R9)", async () => {
+    (prisma.contentBrief.findFirst as any).mockResolvedValue(briefRow());
+    (prisma.brandVoice.findFirst as any).mockResolvedValue(null);
+    (prisma.contentWorkflow.findFirst as any).mockResolvedValue(null);
+    (prisma.$transaction as any).mockImplementation(async (fn: (tx: unknown) => unknown) => {
+      (prisma.contentPiece.create as any).mockResolvedValueOnce({
+        id: "piece_1",
+        platformContents: [{ id: "pc_w", platform: "wechat" }, { id: "pc_b", platform: "weibo" }],
+      });
+      (prisma.contentWorkflow.create as any).mockResolvedValueOnce({
+        id: "wf_1",
+        briefId: "brief_1",
+        briefRevision: 3,
+        contentPieceId: "piece_1",
+        status: "queued",
+        usageOperationId: INPUT.usageOperationId,
+        runs: [],
+      });
+      // 事务内版本确认失败：读取后被并发 PATCH。
+      (prisma.contentBrief.updateMany as any).mockResolvedValue({ count: 0 });
+      return fn(prisma);
+    });
+
+    await expect(createWorkflow(params())).rejects.toMatchObject({
+      status: 409,
+      code: "BRIEF_VERSION_CONFLICT",
+    });
+  });
+
   it("validates brand voice ownership", async () => {
     (prisma.contentBrief.findFirst as any).mockResolvedValue(briefRow());
+    (prisma.contentWorkflow.findFirst as any).mockResolvedValue(null);
     (prisma.brandVoice.findFirst as any).mockResolvedValue(null);
     const withVoice = params();
     (withVoice.input as { brandVoiceId?: string }).brandVoiceId = "voice_other_ws";

@@ -1,10 +1,14 @@
 /**
- * Brief 异步提炼 worker（设计 §7.2/§12.4）。
+ * Brief 异步提炼 worker（设计 §7.2/§12.4，评审 R1/R2）。
  *
+ * 提炼基线在入队时冻结（refinementBaseRevision + refinementBaseBrief）：
+ * 用户在领取前/重试间隔编辑不会成为提炼基线，也不会被提炼结果覆盖
+ * （发布条件是基线 revision，不一致时仅保留候选）。
  * 条件更新领取租约 → LLM（45s 硬超时）→ 十条质量门 →
- * 通过则按 revision 条件发布（用户已编辑时仅保留候选）；
- * LLM 临时错误退避重试 ≤2 次；质量门失败直接回退规则版。
- * 事实来源是数据库状态，浏览器断开不影响执行。
+ * 通过则按基线 revision 条件发布；LLM 临时错误退避重试 ≤2 次；
+ * 质量门失败直接回退规则版。事实来源是数据库状态，浏览器断开不影响执行。
+ * 租约过期的 running（进程重启/切换）重置 queued 重新提炼——提炼不产生
+ * 用户计费，重复调用模型是安全的，用户编辑保护由基线冻结保证。
  */
 
 import { prisma } from "@/lib/db";
@@ -23,6 +27,7 @@ import {
 import { getGenerationCapabilities } from "@/lib/platforms/capabilities";
 import { withJitter, leaseExpiresAt } from "@/lib/workers/lease";
 import { emitContentEvent } from "@/lib/observability/events";
+import { disabledBatchResult, isContentWorkflowDisabled } from "@/lib/content-workflow/switch";
 
 /** LLM 临时错误的最大尝试次数（首次 + 2 次重试）。 */
 const MAX_ATTEMPTS = 3;
@@ -42,6 +47,23 @@ function isRetryableLlmError(err: unknown): boolean {
     return err.statusCode === 408 || err.statusCode === 429 || err.statusCode >= 500;
   }
   return false;
+}
+
+/** 恢复租约过期的 running（R1）：重置 queued，等待正常领取。 */
+async function recoverExpiredRefinements(now: Date): Promise<number> {
+  const reset = await prisma.contentBrief.updateMany({
+    where: {
+      refinementStatus: "running",
+      refinementLockedUntil: { lt: now },
+    },
+    data: {
+      refinementStatus: "queued",
+      refinementLockedBy: null,
+      refinementLockedUntil: null,
+      refinementNextAttemptAt: now,
+    },
+  });
+  return reset.count;
 }
 
 async function claimNextBrief(workerId: string, now: Date) {
@@ -92,6 +114,7 @@ async function scheduleRetry(row: { id: string; refinementAttempts: number }, er
         refinementLockedBy: null,
         refinementLockedUntil: null,
         refinementLastError: err instanceof Error ? err.message.slice(0, 500) : String(err),
+        // 重试仍针对同一冻结基线：不更新 refinementBase* 字段。
       },
     });
     return "retry" as const;
@@ -121,9 +144,15 @@ async function processBrief(row: {
   sourceSnapshot: string;
   projectSnapshot: string;
   effectiveBrief: string;
+  baselineBrief: string;
+  refinementBaseRevision: number | null;
+  refinementBaseBrief: string | null;
   refinementAttempts: number;
 }): Promise<"succeeded" | "retained-only" | "retry" | "fallback"> {
-  const baseline = parseBrief(row.effectiveBrief);
+  // 提炼基线（R2）：优先入队时冻结的快照，旧行回退 effectiveBrief。
+  const baseRevision = row.refinementBaseRevision ?? row.revision;
+  const baseRaw = row.refinementBaseBrief ?? row.effectiveBrief;
+  const baseline = parseBrief(baseRaw);
   const snapshot = parseSourceSnapshot(row.sourceSnapshot);
   const projectSnapshot = parseProjectSnapshot(row.projectSnapshot);
   if (!baseline || !snapshot || !projectSnapshot) {
@@ -184,11 +213,12 @@ async function processBrief(row: {
     model: REFINEMENT_MODEL,
     promptVersion: REFINEMENT_PROMPT_VERSION,
   });
-  merged.revision = row.revision;
+  merged.revision = baseRevision;
 
-  // 条件发布：仅当 revision 未被用户编辑改变时生效（设计 §7.2）。
+  // 条件发布（R2）：仅当 revision 仍等于冻结基线时生效——用户在领取前或
+  // 重试间隔编辑过（revision 已前进）则只保留候选，绝不覆盖用户内容。
   const publish = await prisma.contentBrief.updateMany({
-    where: { id: row.id, revision: row.revision, status: { not: "archived" } },
+    where: { id: row.id, revision: baseRevision, status: { not: "archived" } },
     data: {
       effectiveBrief: JSON.stringify(merged),
       refinedCandidate: JSON.stringify(gate.candidate),
@@ -228,6 +258,17 @@ async function processBrief(row: {
 /** 领取并处理一批待提炼的 Brief；由 cron 路由或创建后的机会性 kick 调用。 */
 export async function runRefinementBatch(workerId: string): Promise<RefinementBatchResult> {
   const result: RefinementBatchResult = { claimed: 0, succeeded: 0, fallback: 0, retainedOnly: 0 };
+
+  // 停用开关（R7）：暂停领取，cron 与 inline kick 共同入口。
+  if (isContentWorkflowDisabled()) {
+    return disabledBatchResult(result);
+  }
+
+  try {
+    await recoverExpiredRefinements(new Date());
+  } catch (err) {
+    console.error("[refinement-worker] recovery failed", err);
+  }
 
   for (let i = 0; i < 5; i++) {
     const now = new Date();

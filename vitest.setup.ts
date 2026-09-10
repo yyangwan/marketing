@@ -75,6 +75,7 @@ vi.mock('@/lib/db', () => {
   // 事务 mock：以同一 prisma 对象作为 tx 执行。
   Object.assign(prisma, {
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn(prisma)),
+    $queryRaw: vi.fn(),
   });
   return { prisma };
 });

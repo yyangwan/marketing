@@ -13,6 +13,7 @@ import {
   WorkflowValidationError,
 } from "@/lib/content-workflow/service";
 import { runGenerationBatch } from "@/lib/content-workflow/worker";
+import { isContentWorkflowDisabled } from "@/lib/content-workflow/switch";
 
 /**
  * POST /api/content-workflows（设计 §10.5）
@@ -28,6 +29,14 @@ export async function POST(req: Request) {
   if (!ws || !ws.projectId) {
     return responses.forbidden(
       apiError("authentication_error", "no_workspace", "缺少工作区或项目上下文"),
+    );
+  }
+
+  // 故障停用（R7）：拒绝新提交（领取暂停见 worker 内开关，覆盖 cron 与 inline kick）。
+  if (isContentWorkflowDisabled()) {
+    return NextResponse.json(
+      apiError("api_error", "CONTENT_WORKFLOW_DISABLED", "内容功能维护中，请稍后重试"),
+      { status: 503 },
     );
   }
 

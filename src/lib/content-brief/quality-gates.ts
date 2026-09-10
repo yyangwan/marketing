@@ -1,10 +1,12 @@
 /**
- * LLM 提炼输出质量门（设计 §11.4）。
+ * LLM 提炼输出质量门（设计 §11.4，评审 R5）。
  *
  * 候选只能为 editable 范围（editorial + audience）提供值：
  * 不接受平台计划、约束、来源、生成元数据等越权字段；
  * 不允许复制内部来源原文、出现内部执行话术、
- * 新增来源中不存在的数字/价格/百分比，或偏离规则版的业务目标。
+ * 新增来源中不存在的数字/价格/百分比，或偏离规则版的业务目标；
+ * 不允许出现允许来源之外的任何链接（gate-11），
+ * 客户/认证/案例/合作等事实性声明必须可追溯到来源或项目语料（gate-12）。
  */
 
 import {
@@ -70,6 +72,91 @@ function extractNumbers(value: string): Set<string> {
   return new Set(tokens.map((t) => t.replace(/\s+/g, "")));
 }
 
+/** 提取文本中的 URL（gate-11 链接白名单）。 */
+const URL_PATTERN = /(https?:\/\/[^\s"'<>（）【】`]+|www\.[^\s"'<>（）【】`]+)/gi;
+
+function extractUrls(texts: string[]): Set<string> {
+  const out = new Set<string>();
+  for (const text of texts) {
+    for (const match of text.matchAll(URL_PATTERN)) {
+      const url = match[1].replace(/[。，、；：？！”』）]…]+$/g, "").toLowerCase();
+      if (url.length > 0) out.add(url);
+    }
+  }
+  return out;
+}
+
+/**
+ * 不可证实的声明检测语料（gate-12）：来源快照 + 项目快照 + 规则版全部
+ * 编辑字段的规范化拼接，声明句中的实体必须能在其中找到。
+ */
+function allowedClaimCorpus(ctx: QualityGateContext): string {
+  const project = ctx.projectSnapshot;
+  const baseline = ctx.baseline;
+  const parts = [
+    ...sourceTexts(ctx),
+    project.name,
+    project.industry ?? "",
+    project.productName ?? "",
+    project.productDescription ?? "",
+    ...project.productKeywords,
+    baseline.editorial.topic,
+    ...(baseline.editorial.titleCandidates ?? []),
+    ...baseline.editorial.outline.flatMap((s) => [s.heading, s.purpose]),
+    ...(baseline.editorial.keywords ?? []),
+    baseline.editorial.notes ?? "",
+    baseline.strategy.objective,
+    baseline.strategy.audience ?? "",
+  ].filter(Boolean);
+  return normalizeForOverlap(parts.join(" "));
+}
+
+/** 声明句标记：出现即认为该句在新增事实性声明，需要逐实体追溯。 */
+const CLAIM_SENTENCE_PATTERN =
+  /(客户包括|客户有|客户涵盖|合作伙伴|案例包括|案例有|服务过的?客户|认证|专利|资质|获奖|斩获|跻身)/;
+
+/** 声明限定词：本身必须可追溯（“权威认证”里的“权威”不允许凭空出现）。 */
+const CLAIM_QUALIFIER_PATTERN = /(权威|国际|官方|国家级|行业级|顶级|知名|头部|一线|领先)/g;
+
+/** 实体切分后的通用词，不作为待追溯实体。 */
+const GENERIC_CLAIM_WORDS = new Set([
+  "已获得", "获得", "包括", "涵盖", "多家", "众多", "等", "客户", "案例", "认证", "专利",
+  "资质", "奖项", "奖励", "合作", "伙伴", "权威", "国际", "官方", "国家级", "行业级",
+  "顶级", "知名", "头部", "一线", "领先", "公司", "企业", "品牌", "机构", "组织", "平台",
+  "行业", "市场", "产品", "服务", "用户", "参考", "如下", "以下",
+]);
+
+function extractClaimEntities(sentence: string): string[] {
+  const entities: string[] = [];
+  // 标记之后的片段按并列分隔符切分为实体（客户包括 A 与 B、C）。
+  const markerMatch = sentence.match(/(客户包括|客户有|客户涵盖|案例包括|案例有|合作伙伴|服务过的?客户)/);
+  const tail = markerMatch ? sentence.slice((markerMatch.index ?? 0) + markerMatch[1].length) : "";
+  for (const token of tail.split(/[、，,；;与和及还有]/)) {
+    const cleaned = token.trim();
+    if (cleaned.length >= 2 && !GENERIC_CLAIM_WORDS.has(cleaned)) entities.push(cleaned);
+  }
+  return entities;
+}
+
+function hasUnverifiableClaim(texts: string[], corpus: string): boolean {
+  for (const text of texts) {
+    for (const rawSentence of text.split(/[。！!？?\n；;]+/)) {
+      const sentence = rawSentence.trim();
+      if (!sentence || !CLAIM_SENTENCE_PATTERN.test(sentence)) continue;
+
+      // 限定词追溯：权威/国际/官方等必须出现在语料中。
+      for (const qualifier of sentence.match(CLAIM_QUALIFIER_PATTERN) ?? []) {
+        if (!corpus.includes(normalizeForOverlap(qualifier))) return true;
+      }
+      // 实体追溯：客户/案例清单里的名称必须出现在语料中。
+      for (const entity of extractClaimEntities(sentence)) {
+        if (!corpus.includes(normalizeForOverlap(entity))) return true;
+      }
+    }
+  }
+  return false;
+}
+
 /** 长度 ≥12 规范化字符的连续片段重叠检测。 */
 export function hasLongOverlap(a: string, b: string, minLength = 12): boolean {
   const na = normalizeForOverlap(a);
@@ -122,11 +209,15 @@ export function validateRefinementCandidate(
   }
 
   const candidate: RefinementCandidateV1 = {};
+  // §8.3：超限即违规（回退规则版），不得静默截断后继续（评审覆盖审计）。
+  const limitViolations: string[] = [];
   if (input.topic !== undefined) {
     if (typeof input.topic !== "string" || !input.topic.trim()) {
       return { ok: false, violations: ["gate-2-topic-outline"], candidate: null };
     }
-    candidate.topic = input.topic.trim().slice(0, BRIEF_LIMITS.topicMaxLength);
+    const topic = input.topic.trim();
+    if (topic.length > BRIEF_LIMITS.topicMaxLength) limitViolations.push("topic");
+    candidate.topic = topic;
   }
   if (input.audience !== undefined) {
     if (typeof input.audience !== "string" || input.audience.length > 500) {
@@ -138,25 +229,26 @@ export function validateRefinementCandidate(
     if (!isStringArray(input.titleCandidates)) {
       return { ok: false, violations: ["gate-1-structure"], candidate: null };
     }
-    candidate.titleCandidates = input.titleCandidates
-      .filter((t) => t.trim())
-      .slice(0, BRIEF_LIMITS.titleCandidateMaxCount)
-      .map((t) => t.trim().slice(0, BRIEF_LIMITS.titleCandidateMaxLength));
+    const titles = input.titleCandidates.map((t) => t.trim()).filter(Boolean);
+    if (titles.length > BRIEF_LIMITS.titleCandidateMaxCount) limitViolations.push("titleCandidates");
+    if (titles.some((t) => t.length > BRIEF_LIMITS.titleCandidateMaxLength)) limitViolations.push("titleCandidates");
+    candidate.titleCandidates = titles;
   }
   if (input.keywords !== undefined) {
     if (!isStringArray(input.keywords)) {
       return { ok: false, violations: ["gate-1-structure"], candidate: null };
     }
-    candidate.keywords = input.keywords
-      .filter((k) => k.trim())
-      .slice(0, BRIEF_LIMITS.keywordMaxCount)
-      .map((k) => k.trim().slice(0, BRIEF_LIMITS.keywordMaxLength));
+    const keywords = input.keywords.map((k) => k.trim()).filter(Boolean);
+    if (keywords.length > BRIEF_LIMITS.keywordMaxCount) limitViolations.push("keywords");
+    if (keywords.some((k) => k.length > BRIEF_LIMITS.keywordMaxLength)) limitViolations.push("keywords");
+    candidate.keywords = keywords;
   }
   if (input.notes !== undefined) {
     if (typeof input.notes !== "string") {
       return { ok: false, violations: ["gate-1-structure"], candidate: null };
     }
-    candidate.notes = input.notes.slice(0, BRIEF_LIMITS.notesMaxLength);
+    if (input.notes.length > BRIEF_LIMITS.notesMaxLength) limitViolations.push("notes");
+    candidate.notes = input.notes;
   }
   if (input.outline !== undefined) {
     if (
@@ -180,10 +272,11 @@ export function validateRefinementCandidate(
       ) {
         return { ok: false, violations: ["gate-2-topic-outline"], candidate: null };
       }
-      outline.push({
-        heading: record.heading.trim().slice(0, BRIEF_LIMITS.outlineHeadingMaxLength),
-        purpose: record.purpose.trim().slice(0, BRIEF_LIMITS.outlinePurposeMaxLength),
-      });
+      const heading = record.heading.trim();
+      const purpose = record.purpose.trim();
+      if (heading.length > BRIEF_LIMITS.outlineHeadingMaxLength) limitViolations.push("outline");
+      if (purpose.length > BRIEF_LIMITS.outlinePurposeMaxLength) limitViolations.push("outline");
+      outline.push({ heading, purpose });
     }
     candidate.outline = outline;
   }
@@ -233,6 +326,34 @@ export function validateRefinementCandidate(
     }
   }
 
+  // Gate 11（评审 R5）：候选所有文本字段中的链接必须来自允许来源
+  // （来源快照或规则版已存在的引用），模型不得补充任何新 URL。
+  const allCandidateTexts = [...candidateTexts(candidate), ...(candidate.keywords ?? []), candidate.audience ?? ""].filter(Boolean);
+  const allowedUrls = extractUrls([
+    ...sources,
+    ...ctx.snapshot.evidenceSources,
+    ...ctx.snapshot.actionSources,
+    ctx.baseline.editorial.topic,
+    ...(ctx.baseline.editorial.titleCandidates ?? []),
+    ...ctx.baseline.editorial.outline.flatMap((s) => [s.heading, s.purpose]),
+    ...(ctx.baseline.editorial.keywords ?? []),
+    ctx.baseline.editorial.notes ?? "",
+    ...ctx.baseline.editorial.references.map((r) => `${r.url} ${r.label ?? ""}`),
+  ]);
+  const candidateUrls = extractUrls(allCandidateTexts);
+  for (const url of candidateUrls) {
+    if (!allowedUrls.has(url)) {
+      violations.push("gate-11-unapproved-links");
+      break;
+    }
+  }
+
+  // Gate 12（评审 R5）：客户/认证/案例/合作等新声明必须可追溯——
+  // 声明句中的实体（公司名、限定词）必须出现在来源/项目/规则版语料中。
+  if (hasUnverifiableClaim(allCandidateTexts, allowedClaimCorpus(ctx))) {
+    violations.push("gate-12-unverifiable-claims");
+  }
+
   // Gate 9：主题与大纲之间不存在明显重复。
   if (candidate.outline) {
     const headings = candidate.outline.map((s) => normalizeForOverlap(s.heading));
@@ -264,5 +385,6 @@ export function validateRefinementCandidate(
     }
   }
 
-  return { ok: violations.length === 0, violations, candidate };
+  const allViolations = [...new Set([...limitViolations.map((f) => `gate-3-limit-${f}`), ...violations])];
+  return { ok: allViolations.length === 0, violations: allViolations, candidate };
 }

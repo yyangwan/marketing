@@ -20,7 +20,7 @@ async function callOnce(
   operationId: string,
   action: "commit" | "release",
   reason?: string,
-): Promise<Response> {
+): Promise<{ ok: boolean; status: number; body: unknown }> {
   const secret = getUsageCallbackSecret();
   if (!secret) {
     throw Object.assign(new Error("CONTENT_USAGE_CALLBACK_SECRET not configured"), {
@@ -30,7 +30,7 @@ async function callOnce(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    return await fetch(
+    const res = await fetch(
       `${getPortalBaseUrl()}/api/internal/content-usage/operations/${encodeURIComponent(
         operationId,
       )}/${action}`,
@@ -45,6 +45,10 @@ async function callOnce(
         signal: controller.signal,
       },
     );
+    // 响应体读取必须在超时窗口内完成（评审 R12）：只覆盖响应头会让
+    // 停滞的 body 无限期占用 worker 执行槽。
+    const body = (await res.json().catch(() => ({}))) as unknown;
+    return { ok: res.ok, status: res.status, body };
   } finally {
     clearTimeout(timer);
   }
@@ -59,7 +63,7 @@ async function callUsageOperation(
   for (let attempt = 0; attempt <= RETRIES; attempt++) {
     try {
       const res = await callOnce(operationId, action, reason);
-      const body = (await res.json().catch(() => ({}))) as {
+      const body = res.body as {
         data?: { status?: string };
         error?: { code?: string; message?: string };
       };

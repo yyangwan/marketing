@@ -19,6 +19,7 @@ vi.mock("@/lib/auth/workspace", () => ({
 }));
 
 vi.mock("@/lib/content-workflow/worker", () => ({
+  PROVIDER_RESULT_UNCONFIRMED: "PROVIDER_RESULT_UNCONFIRMED",
   runGenerationBatch: vi.fn().mockResolvedValue({
     claimed: 0,
     succeeded: 0,
@@ -28,7 +29,9 @@ vi.mock("@/lib/content-workflow/worker", () => ({
   }),
 }));
 
-function workflowRow(runs: Array<{ platform: string; status: string; id: string }>) {
+function workflowRow(
+  runs: Array<{ platform: string; status: string; id: string; failureCode?: string | null }>,
+) {
   return {
     id: "wf_1",
     workspaceId: "ws-1",
@@ -92,6 +95,26 @@ describe("POST /api/content-workflows/[id]/platforms/[platform]/retry（设计 �
     const res = await POST(postReq(), { params: PARAMS });
     expect(res.status).toBe(409);
     expect((await res.json()).error.code).toBe("RUN_NOT_RETRYABLE");
+  });
+
+  it("allows manual-confirm retry for provider-unconfirmed terminal runs (R1)", async () => {
+    (prisma.contentWorkflow.findFirst as any).mockResolvedValue(
+      workflowRow([
+        { id: "run_xhs", platform: "xiaohongshu", status: "failed_terminal", failureCode: "PROVIDER_RESULT_UNCONFIRMED" },
+      ] as never),
+    );
+    (prisma.contentGenerationRun.updateMany as any).mockResolvedValue({ count: 1 });
+    (prisma.contentGenerationRun.findMany as any).mockResolvedValue([
+      { platform: "xiaohongshu", status: "queued" },
+    ]);
+    (prisma.contentWorkflow.updateMany as any).mockResolvedValue({ count: 1 });
+
+    const res = await POST(postReq(), { params: PARAMS });
+    expect(res.status).toBe(202);
+    const requeue = (prisma.contentGenerationRun.updateMany as any).mock.calls[0][0];
+    expect(requeue.data.status).toBe("queued");
+    // 重跑前清掉旧的模型请求标记。
+    expect(requeue.data.providerRequestId).toBeNull();
   });
 
   it("requires an idempotency key", async () => {

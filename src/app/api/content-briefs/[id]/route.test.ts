@@ -118,6 +118,90 @@ describe("GET /api/content-briefs/[id]", () => {
   });
 });
 
+describe("PATCH idempotency replay (R8) and refinement cancel (R2)", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  function storedRow(overrides: Record<string, unknown> = {}) {
+    return buildRow({
+      revision: 2,
+      status: "ready",
+      lastPatchKey: "patch-key-1",
+      lastPatchHash: null, // 由用例按需覆盖
+      lastPatchResponse: null,
+      ...overrides,
+    });
+  }
+
+  it("replays the stored response when the same key+body retries after a lost response", async () => {
+    const { requestHash } = await import("@/lib/contracts/hash");
+    const body = { expectedRevision: 1, editorial: { topic: "更新后的主题" } };
+    const hash = requestHash(body);
+    // 行上已记录首次成功保存的键/哈希/响应。
+    (prisma.contentBrief.findFirst as any).mockResolvedValue(
+      storedRow({ lastPatchHash: hash, lastPatchResponse: JSON.stringify({ data: { id: "brief_1", revision: 2 } }) }),
+    );
+
+    const res = await PATCH(patchReq(body, { "idempotency-key": "patch-key-1" }), {
+      params: Promise.resolve({ id: "brief_1" }),
+    });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.meta.replayed).toBe(true);
+    expect(json.data.revision).toBe(2);
+    // 不做第二次写入，也不触发 409。
+    expect(prisma.contentBrief.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects the same key with a different body (409)", async () => {
+    const { requestHash } = await import("@/lib/contracts/hash");
+    (prisma.contentBrief.findFirst as any).mockResolvedValue(
+      storedRow({ lastPatchHash: requestHash({ expectedRevision: 1, editorial: { topic: "首次" } }) }),
+    );
+
+    const res = await PATCH(
+      patchReq({ expectedRevision: 1, editorial: { topic: "不同的请求体" } }, { "idempotency-key": "patch-key-1" }),
+      { params: Promise.resolve({ id: "brief_1" }) },
+    );
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error.code).toBe("IDEMPOTENCY_KEY_REUSED");
+  });
+
+  it("stores the patch key/hash and cancels queued refinement on editorial edits (R2)", async () => {
+    (prisma.contentBrief.findFirst as any).mockResolvedValue(buildRow());
+    (prisma.contentBrief.updateMany as any).mockResolvedValue({ count: 1 });
+
+    const res = await PATCH(
+      patchReq({ expectedRevision: 1, editorial: { topic: "用户编辑" } }, { "idempotency-key": "patch-key-9" }),
+      { params: Promise.resolve({ id: "brief_1" }) },
+    );
+    expect(res.status).toBe(200);
+
+    const updateCalls = (prisma.contentBrief.updateMany as any).mock.calls.map((c: any[]) => c[0]);
+    // 主写入携带幂等键与哈希。
+    const main = updateCalls.find((c) => c.data?.effectiveBrief !== undefined);
+    expect(main.data.lastPatchKey).toBe("patch-key-9");
+    expect(main.data.lastPatchHash).toBeDefined();
+    // queued 提炼被取消（用户编辑优先）。
+    const cancel = updateCalls.find((c) => c.data?.refinementStatus === "cancelled");
+    expect(cancel?.where).toMatchObject({ id: "brief_1", refinementStatus: "queued" });
+  });
+
+  it("does not cancel refinement for platform-only selection changes", async () => {
+    (prisma.contentBrief.findFirst as any).mockResolvedValue(buildRow());
+    (prisma.contentBrief.updateMany as any).mockResolvedValue({ count: 1 });
+
+    const res = await PATCH(
+      patchReq({ expectedRevision: 1, selectedPlatforms: ["wechat"] }, { "idempotency-key": "patch-key-10" }),
+      { params: Promise.resolve({ id: "brief_1" }) },
+    );
+    expect(res.status).toBe(200);
+    const updateCalls = (prisma.contentBrief.updateMany as any).mock.calls.map((c: any[]) => c[0]);
+    expect(updateCalls.find((c) => c.data?.refinementStatus === "cancelled")).toBeUndefined();
+  });
+});
+
 describe("PATCH /api/content-briefs/[id]", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -130,7 +214,8 @@ describe("PATCH /api/content-briefs/[id]", () => {
         : buildRow(),
     );
     (prisma.contentBrief.updateMany as any).mockImplementation(async (args: any) => {
-      written.value = args.data.effectiveBrief;
+      // 幂等键/响应存储等附带更新不含 effectiveBrief，不参与状态回放。
+      if (args.data?.effectiveBrief !== undefined) written.value = args.data.effectiveBrief;
       return { count: 1 };
     });
 

@@ -1,11 +1,11 @@
 /**
- * 工作流聚合状态（设计 §9.2 纯函数）：
+ * 工作流聚合状态（设计 §9.2 纯函数，评审 R10）：
  *
- * - 全部 succeeded → succeeded
- * - ≥1 成功且 ≥1 最终失败 → partial
- * - 全部最终失败 → failed
- * - 存在 queued/generating → generating
- * - 全部 cancelled → cancelled
+ * - 存在 queued/generating/failed_retryable → generating
+ *   （failed_retryable 是退避等待自动重试，不是终态；过早置 failed
+ *   会让前端停止轮询、指标失真）
+ * - 无待定运行后：全部 succeeded → succeeded；全部 cancelled → cancelled；
+ *   全部 failed_terminal → failed；混合终态 → partial
  */
 
 export interface RunStatusInput {
@@ -16,28 +16,14 @@ export interface RunStatusInput {
 export function aggregateWorkflowStatus(runs: RunStatusInput[]): string {
   if (runs.length === 0) return "queued";
 
-  const anyQueuedOrGenerating = runs.some(
-    (r) => r.status === "queued" || r.status === "generating",
+  const anyActive = runs.some(
+    (r) => r.status === "queued" || r.status === "generating" || r.status === "failed_retryable",
   );
-  if (anyQueuedOrGenerating) return "generating";
+  if (anyActive) return "generating";
 
-  const allSucceeded = runs.every((r) => r.status === "succeeded");
-  if (allSucceeded) return "succeeded";
-
-  const anySucceeded = runs.some((r) => r.status === "succeeded");
-  const anyFailed = runs.some(
-    (r) => r.status === "failed_retryable" || r.status === "failed_terminal",
-  );
-  if (anySucceeded && anyFailed) return "partial";
-
-  const allFailed = runs.every(
-    (r) => r.status === "failed_retryable" || r.status === "failed_terminal",
-  );
-  if (allFailed) return "failed";
-
-  const allCancelled = runs.every((r) => r.status === "cancelled");
-  if (allCancelled) return "cancelled";
-
+  if (runs.every((r) => r.status === "succeeded")) return "succeeded";
+  if (runs.every((r) => r.status === "cancelled")) return "cancelled";
+  if (runs.every((r) => r.status === "failed_terminal")) return "failed";
   return "partial";
 }
 

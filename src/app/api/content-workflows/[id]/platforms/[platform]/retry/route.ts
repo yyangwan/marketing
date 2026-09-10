@@ -7,7 +7,8 @@ import { getServiceWorkspace } from "@/lib/auth/service-context";
 import { apiError, responses } from "@/lib/errors";
 import { getIdempotencyKey } from "@/lib/contracts/hash";
 import { aggregateWorkflowStatus } from "@/lib/content-workflow/status";
-import { runGenerationBatch } from "@/lib/content-workflow/worker";
+import { runGenerationBatch, PROVIDER_RESULT_UNCONFIRMED } from "@/lib/content-workflow/worker";
+import { isContentWorkflowDisabled } from "@/lib/content-workflow/switch";
 import { emitContentEvent } from "@/lib/observability/events";
 
 /**
@@ -31,6 +32,14 @@ export async function POST(
   if (!ws || !ws.projectId) {
     return responses.forbidden(
       apiError("authentication_error", "no_workspace", "缺少工作区或项目上下文"),
+    );
+  }
+
+  // 故障停用（R7）：暂停期间不接受人工重试（kick 也会因 worker 开关空转）。
+  if (isContentWorkflowDisabled()) {
+    return NextResponse.json(
+      apiError("api_error", "CONTENT_WORKFLOW_DISABLED", "内容功能维护中，请稍后重试"),
+      { status: 503 },
     );
   }
 
@@ -65,7 +74,10 @@ export async function POST(
       apiError("invalid_request_error", "RUN_ALREADY_SUCCEEDED", "该平台已生成成功，不能覆盖"),
     );
   }
-  if (run.status !== "failed_retryable") {
+  // 人工确认状态（R1）：供应商结果不确定的终态失败，由人工重试确认重跑；
+  // 其余 failed_terminal（如数据错误）仍需管理员处理，不开放自助重试。
+  const needsManualConfirm = run.status === "failed_terminal" && run.failureCode === PROVIDER_RESULT_UNCONFIRMED;
+  if (run.status !== "failed_retryable" && !needsManualConfirm) {
     return responses.conflict(
       apiError(
         "invalid_request_error",
@@ -76,12 +88,18 @@ export async function POST(
   }
 
   const requeue = await prisma.contentGenerationRun.updateMany({
-    where: { id: run.id, status: "failed_retryable" },
+    where: {
+      id: run.id,
+      status: run.status,
+      ...(needsManualConfirm ? { failureCode: PROVIDER_RESULT_UNCONFIRMED } : {}),
+    },
     data: {
       status: "queued",
       nextAttemptAt: null,
       failureCode: null,
       failureMessage: null,
+      // 重跑前清掉旧的请求标记：新一轮调用会写入新的 providerRequestId。
+      providerRequestId: null,
     },
   });
 

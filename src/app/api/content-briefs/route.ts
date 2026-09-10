@@ -12,6 +12,7 @@ import {
   evaluateContentEligibility,
 } from "@/lib/content-brief/baseline-generator";
 import { runRefinementBatch } from "@/lib/content-brief/refinement-worker";
+import { isContentWorkflowDisabled } from "@/lib/content-workflow/switch";
 import { emitContentEvent } from "@/lib/observability/events";
 import { parseBrief } from "@/lib/content-brief/serde";
 import type {
@@ -73,6 +74,14 @@ export async function POST(req: Request) {
   const projectId = ws.projectId;
   if (!projectId) {
     return responses.badRequest(apiError("invalid_request_error", "missing_parameter", "缺少项目上下文", { param: "projectId" }));
+  }
+
+  // 故障停用（R7）：拒绝新提交。
+  if (isContentWorkflowDisabled()) {
+    return NextResponse.json(
+      apiError("api_error", "CONTENT_WORKFLOW_DISABLED", "内容功能维护中，请稍后重试"),
+      { status: 503 },
+    );
   }
 
   const idempotencyKey = getIdempotencyKey(req);
@@ -158,6 +167,9 @@ export async function POST(req: Request) {
         idempotencyKey,
         idempotencyRequestHash: hash,
         refinementStatus: "queued",
+        // 提炼基线冻结（R2）：入队时的 revision 与内容，用户编辑不改变本次提炼目标。
+        refinementBaseRevision: 1,
+        refinementBaseBrief: JSON.stringify(baseline),
       },
     });
 

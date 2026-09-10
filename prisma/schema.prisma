@@ -249,6 +249,13 @@ model ContentBrief {
   refinementLockedBy       String?   @db.VarChar(64)
   refinementLockedUntil    DateTime?
   refinementLastError      String?   @db.Text
+  // 提炼基线冻结（评审 R2）：入队时的 revision 与内容快照，用户后续编辑不影响本次提炼基线。
+  refinementBaseRevision   Int?
+  refinementBaseBrief      String?   @db.MediumText
+  // PATCH 幂等重放（评审 R8）：记录最近一次保存的键/请求哈希/首次响应。
+  lastPatchKey             String?   @db.VarChar(64)
+  lastPatchHash            String?   @db.VarChar(64)
+  lastPatchResponse        String?   @db.MediumText
   confirmedAt              DateTime?
   expiresAt                DateTime?
   createdAt                DateTime  @default(now())
@@ -269,6 +276,8 @@ model ContentWorkflow {
   brief                  ContentBrief @relation(fields: [briefId], references: [id])
   briefRevision          Int
   briefSnapshot          String   @db.MediumText
+  // 契约允许携带 templateId（评审覆盖审计）：持久化用于追溯；v1 生成提示词尚未消费。
+  templateId             String?  @db.VarChar(64)
   contentPieceId         String?  @unique
   usageOperationId       String   @unique @db.VarChar(191)
   usageStatus            String   @default("reserved") @db.VarChar(32)

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { runRefinementBatch } from "./refinement-worker";
 import { buildBaselineBrief } from "./baseline-generator";
 import { callLLMJson, LLMError } from "@/lib/ai/client";
+import { getGenerationCapabilities } from "@/lib/platforms/capabilities";
 import type {
   ProjectSnapshotV1,
   VisibilitySuggestionSnapshotV1,
@@ -95,12 +96,23 @@ const goodCandidateOutput = {
 
 describe("runRefinementBatch", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     vi.spyOn(global.Date, "now").mockReturnValue(FIXED_NOW.getTime());
+    // resetAllMocks 会清掉 vi.mock factory 里设置的实现，这里恢复。
+    vi.mocked(getGenerationCapabilities).mockResolvedValue({
+      schemaVersion: 1,
+      platforms: { wechat: { enabled: true, maxConcurrent: 2 } },
+    });
   });
+
+  /** 恢复查询（R1）无过期 running。 */
+  function noExpiredRunning() {
+    (prisma.contentBrief.updateMany as any).mockResolvedValueOnce({ count: 0 });
+  }
 
   it("claims via conditional update and publishes the refined brief", async () => {
     (prisma.contentBrief.findFirst as any).mockResolvedValueOnce(queuedRow()).mockResolvedValueOnce(null);
+    noExpiredRunning();
     (prisma.contentBrief.updateMany as any).mockResolvedValue({ count: 1 });
     vi.mocked(callLLMJson).mockResolvedValue(goodCandidateOutput as never);
 
@@ -109,15 +121,15 @@ describe("runRefinementBatch", () => {
     expect(result.claimed).toBe(1);
     expect(result.succeeded).toBe(1);
 
-    // 领取：条件更新置 running + 租约
-    const claimCall = (prisma.contentBrief.updateMany as any).mock.calls[0][0];
+    // 领取：条件更新置 running + 租约（calls[0] 是恢复查询）
+    const claimCall = (prisma.contentBrief.updateMany as any).mock.calls[1][0];
     expect(claimCall.where.id).toBe("brief_1");
     expect(claimCall.where.refinementStatus).toBe("queued");
     expect(claimCall.data.refinementStatus).toBe("running");
     expect(claimCall.data.refinementLockedBy).toBe("worker-1");
 
-    // 发布：条件更新 where revision
-    const publishCall = (prisma.contentBrief.updateMany as any).mock.calls[1][0];
+    // 发布：条件更新 where revision（冻结基线 revision，R2）
+    const publishCall = (prisma.contentBrief.updateMany as any).mock.calls[2][0];
     expect(publishCall.where).toMatchObject({ id: "brief_1", revision: 1 });
     const published = JSON.parse(publishCall.data.effectiveBrief);
     expect(published.editorial.topic).toBe(goodCandidateOutput.topic);
@@ -128,8 +140,9 @@ describe("runRefinementBatch", () => {
 
   it("retains the candidate without publishing when the user edited meanwhile", async () => {
     (prisma.contentBrief.findFirst as any).mockResolvedValueOnce(queuedRow()).mockResolvedValueOnce(null);
-    // 第一次 updateMany：claim 成功；第二次：条件发布 count=0（revision 已变）；第三次：保留候选。
+    // 恢复无过期 → claim 成功 → 条件发布 count=0（revision 已变）→ 保留候选。
     (prisma.contentBrief.updateMany as any)
+      .mockResolvedValueOnce({ count: 0 })
       .mockResolvedValueOnce({ count: 1 })
       .mockResolvedValueOnce({ count: 0 })
       .mockResolvedValueOnce({ count: 1 });
@@ -138,7 +151,7 @@ describe("runRefinementBatch", () => {
     const result = await runRefinementBatch("worker-1");
 
     expect(result.retainedOnly).toBe(1);
-    const retainCall = (prisma.contentBrief.updateMany as any).mock.calls[2][0];
+    const retainCall = (prisma.contentBrief.updateMany as any).mock.calls[3][0];
     expect(retainCall.data.refinementStatus).toBe("succeeded");
     expect(retainCall.data.effectiveBrief).toBeUndefined();
     expect(retainCall.data.refinedCandidate).toBeDefined();
@@ -146,6 +159,7 @@ describe("runRefinementBatch", () => {
 
   it("falls back without retry when quality gates fail", async () => {
     (prisma.contentBrief.findFirst as any).mockResolvedValueOnce(queuedRow()).mockResolvedValueOnce(null);
+    noExpiredRunning();
     (prisma.contentBrief.updateMany as any).mockResolvedValue({ count: 1 });
     vi.mocked(callLLMJson).mockResolvedValue({
       topic: "餐饮行业数字化转型白皮书（2026）",
@@ -160,7 +174,7 @@ describe("runRefinementBatch", () => {
     const result = await runRefinementBatch("worker-1");
 
     expect(result.fallback).toBe(1);
-    const fallbackCall = (prisma.contentBrief.updateMany as any).mock.calls[1][0];
+    const fallbackCall = (prisma.contentBrief.updateMany as any).mock.calls[2][0];
     expect(fallbackCall.data.refinementStatus).toBe("fallback");
     expect(fallbackCall.data.refinementLastError).toContain("gate-");
   });
@@ -169,19 +183,21 @@ describe("runRefinementBatch", () => {
     (prisma.contentBrief.findFirst as any)
       .mockResolvedValueOnce(queuedRow({ refinementAttempts: 0 }))
       .mockResolvedValueOnce(null);
+    noExpiredRunning();
     (prisma.contentBrief.updateMany as any).mockResolvedValue({ count: 1 });
     vi.mocked(callLLMJson).mockRejectedValue(new LLMError("timeout", 408));
 
     const result = await runRefinementBatch("worker-1");
     expect(result.claimed).toBe(1);
 
-    const retryCall = (prisma.contentBrief.updateMany as any).mock.calls[1][0];
+    const retryCall = (prisma.contentBrief.updateMany as any).mock.calls[2][0];
     expect(retryCall.data.refinementStatus).toBe("queued");
     expect(retryCall.data.refinementAttempts).toBe(1);
     expect(retryCall.data.refinementNextAttemptAt).toBeInstanceOf(Date);
 
     // 已达上限（第 3 次）→ fallback
     vi.clearAllMocks();
+    noExpiredRunning();
     (prisma.contentBrief.findFirst as any)
       .mockResolvedValueOnce(queuedRow({ refinementAttempts: 2 }))
       .mockResolvedValueOnce(null);
@@ -190,17 +206,18 @@ describe("runRefinementBatch", () => {
 
     const exhausted = await runRefinementBatch("worker-1");
     expect(exhausted.fallback).toBe(1);
-    const fallbackCall = (prisma.contentBrief.updateMany as any).mock.calls[1][0];
+    const fallbackCall = (prisma.contentBrief.updateMany as any).mock.calls[2][0];
     expect(fallbackCall.data.refinementStatus).toBe("fallback");
   });
 
   it("does not retry on invalid JSON (output problem)", async () => {
     (prisma.contentBrief.findFirst as any).mockResolvedValueOnce(queuedRow()).mockResolvedValueOnce(null);
+    noExpiredRunning();
     (prisma.contentBrief.updateMany as any).mockResolvedValue({ count: 1 });
     vi.mocked(callLLMJson).mockRejectedValue(new LLMError("invalid json", 422));
 
     const result = await runRefinementBatch("worker-1");
-    const fallbackCall = (prisma.contentBrief.updateMany as any).mock.calls[1][0];
+    const fallbackCall = (prisma.contentBrief.updateMany as any).mock.calls[2][0];
     expect(result.fallback).toBe(1);
     expect(fallbackCall.data.refinementStatus).toBe("fallback");
   });
@@ -211,8 +228,55 @@ describe("runRefinementBatch", () => {
     expect(result).toEqual({ claimed: 0, succeeded: 0, fallback: 0, retainedOnly: 0 });
   });
 
+  it("refines the frozen base, not the user-edited brief, when edited before claim (R2)", async () => {
+    // 用户在 worker 领取前把 revision 编辑到 2；提炼基线仍是入队时冻结的 revision 1。
+    const userEdited = JSON.parse(baselineJson());
+    userEdited.editorial.topic = "用户改过的主题";
+    (prisma.contentBrief.findFirst as any)
+      .mockResolvedValueOnce(
+        queuedRow({
+          revision: 2,
+          effectiveBrief: JSON.stringify(userEdited),
+          refinementBaseRevision: 1,
+          refinementBaseBrief: baselineJson(),
+        }),
+      )
+      .mockResolvedValueOnce(null);
+    noExpiredRunning();
+    (prisma.contentBrief.updateMany as any).mockResolvedValue({ count: 1 });
+    vi.mocked(callLLMJson).mockResolvedValue(goodCandidateOutput as never);
+
+    const result = await runRefinementBatch("worker-1");
+
+    // 提示词以冻结基线为输入，不包含用户临时编辑的主题。
+    const promptArg = vi.mocked(callLLMJson).mock.calls[0]?.[0] as string;
+    expect(promptArg).not.toContain("用户改过的主题");
+
+    // 发布条件是基线 revision（1）而非当前 revision（2）→ 条件失败 → 仅保留候选。
+    const publishCall = (prisma.contentBrief.updateMany as any).mock.calls.find(
+      (c: any[]) => c[0]?.data?.effectiveBrief !== undefined,
+    );
+    expect(publishCall?.[0]?.where?.revision).toBe(1);
+  });
+
+  it("requeues expired running refinements after a crash (R1)", async () => {
+    // 恢复查询命中 2 条过期 running。
+    (prisma.contentBrief.updateMany as any).mockResolvedValueOnce({ count: 2 });
+    // 领取阶段无候选。
+    (prisma.contentBrief.findFirst as any).mockResolvedValue(null);
+
+    const result = await runRefinementBatch("worker-1");
+
+    const recoveryCall = (prisma.contentBrief.updateMany as any).mock.calls[0][0];
+    expect(recoveryCall.where).toMatchObject({ refinementStatus: "running" });
+    expect(recoveryCall.data.refinementStatus).toBe("queued");
+    expect(result.claimed).toBe(0);
+    expect(vi.mocked(callLLMJson)).not.toHaveBeenCalled();
+  });
+
   it("loses the race gracefully when another worker claims first", async () => {
     (prisma.contentBrief.findFirst as any).mockResolvedValueOnce(queuedRow()).mockResolvedValueOnce(null);
+    noExpiredRunning();
     (prisma.contentBrief.updateMany as any).mockResolvedValue({ count: 0 });
     vi.mocked(callLLMJson).mockResolvedValue(goodCandidateOutput as never);
 
