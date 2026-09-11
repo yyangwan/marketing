@@ -76,6 +76,86 @@ describe("Platform Publishers", () => {
       });
       expect(fetchMock).not.toHaveBeenCalled();
     });
+
+    it("should keep the draft media id and guide manual publish when freepublish is unauthorized (48001)", async () => {
+      // 生产 2026-09-11 实际时序：token ✓ 封面 ✓ 草稿 ✓，freepublish/submit 返回 48001。
+      const fetchMock = vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(new Response(new Blob(["image"], { type: "image/png" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ media_id: "cover-1" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ media_id: "draft-1" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 48001, errmsg: "api unauthorized rid: test-rid" })));
+      const publisher = new WeChatPublisher({
+        appId: "test-app-id",
+        appSecret: "test-secret",
+        accessToken: "test-token",
+      });
+
+      const result = await publisher.publish({
+        title: "Test",
+        content: "Test content",
+        images: ["http://localhost/wechat-default-cover.png"],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.draftMediaId).toBe("draft-1");
+      expect(result.errorMessage).toContain("api unauthorized");
+      expect(result.errorMessage).toContain("草稿箱");
+      expect(result.errorMessage).toContain("mp.weixin.qq.com");
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    it("should update the existing draft instead of creating another one on retry", async () => {
+      const fetchMock = vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(new Response(new Blob(["image"], { type: "image/png" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ media_id: "cover-1" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 0, errmsg: "ok" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 0, errmsg: "ok" })));
+      const publisher = new WeChatPublisher({
+        appId: "test-app-id",
+        appSecret: "test-secret",
+        accessToken: "test-token",
+      });
+
+      const result = await publisher.publish({
+        title: "Test v2",
+        content: "Updated content",
+        images: ["http://localhost/wechat-default-cover.png"],
+        existingDraftMediaId: "draft-1",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.platformPostId).toBe("draft-1");
+      const draftUpdateCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/draft/update"));
+      expect(draftUpdateCall).toBeDefined();
+      expect(JSON.stringify(draftUpdateCall?.[1]?.body)).toContain("draft-1");
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/draft/add"))).toBe(false);
+    });
+
+    it("should fall back to draft/add when the existing draft no longer exists", async () => {
+      const fetchMock = vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(new Response(new Blob(["image"], { type: "image/png" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ media_id: "cover-1" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 40007, errmsg: "invalid media_id" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ media_id: "draft-2" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ errcode: 48001, errmsg: "api unauthorized rid: r" })));
+      const publisher = new WeChatPublisher({
+        appId: "test-app-id",
+        appSecret: "test-secret",
+        accessToken: "test-token",
+      });
+
+      const result = await publisher.publish({
+        title: "Test",
+        content: "Test content",
+        images: ["http://localhost/wechat-default-cover.png"],
+        existingDraftMediaId: "draft-deleted",
+      });
+
+      expect(result.success).toBe(false);
+      // 原草稿已删除：回退新建，草稿 id 换成新的，不再指向失效的 draft-deleted。
+      expect(result.draftMediaId).toBe("draft-2");
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/draft/add"))).toBe(true);
+    });
   });
 
   describe("Weibo Publisher", () => {

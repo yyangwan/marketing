@@ -114,6 +114,17 @@ export async function POST(
   }
 
   try {
+    // 重试防孤儿草稿（评审后改进）：上次尝试已创建的公众号草稿直接复用更新。
+    const lastDraft = await prisma.publishHistory.findFirst({
+      where: {
+        platformContentId: id,
+        platform,
+        platformPostId: { not: null },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { platformPostId: true },
+    });
+
     // Prepare publish options
     const publishOptions = {
       title,
@@ -121,6 +132,7 @@ export async function POST(
       images: platform === "wechat"
         ? [new URL("/wechat-default-cover.png", req.url).toString()]
         : [],
+      existingDraftMediaId: platform === "wechat" ? lastDraft?.platformPostId ?? undefined : undefined,
     };
 
     // Publish to the platform
@@ -133,6 +145,7 @@ export async function POST(
     }, publishOptions);
 
     // Create publish history record
+    // 失败但草稿已创建时保留 platformPostId（草稿 media_id），下次重试复用而非再建新草稿。
     await prisma.publishHistory.create({
       data: {
         workspaceId: ws.workspaceId,
@@ -142,7 +155,7 @@ export async function POST(
         content,
         status: result.success ? "success" : "failed",
         publishedUrl: result.publishedUrl || null,
-        platformPostId: result.platformPostId || null,
+        platformPostId: result.platformPostId || result.draftMediaId || null,
         errorMessage: result.errorMessage || null,
         lastAttemptAt: new Date(),
         completedAt: result.success ? new Date() : null,
@@ -197,6 +210,8 @@ export async function POST(
           code: needsAuth ? "PLATFORM_AUTH_REQUIRED" : "PLATFORM_PUBLISH_FAILED",
           needsAuth,
           platform,
+          // 草稿已保存到公众号草稿箱：前端可据此展示"手动发布"引导而非纯失败。
+          draftSaved: Boolean(result.draftMediaId),
         },
         { status: 400 }
       );

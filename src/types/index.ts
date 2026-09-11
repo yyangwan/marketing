@@ -341,6 +341,8 @@ export interface PublishResult {
   platformPostId?: string;
   errorMessage?: string;
   needsAuth?: boolean;  // True if authentication is required
+  /** 草稿已创建但发布失败时保留草稿 media_id（与 lib/platform/base.ts 保持同步）。 */
+  draftMediaId?: string;
 }
 
 // Platform OAuth callback types

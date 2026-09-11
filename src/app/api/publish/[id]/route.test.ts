@@ -34,6 +34,7 @@ vi.mock("@/lib/db", () => ({
     publishHistory: {
       create: vi.fn(),
       updateMany: vi.fn(),
+      findFirst: vi.fn(),
     },
   },
 }));
@@ -77,6 +78,8 @@ describe("POST /api/publish/[id]", () => {
     } as never);
     vi.mocked(prisma.platformContent.update).mockResolvedValue({ id: "platform-content-1" } as never);
     vi.mocked(prisma.platformContent.findMany).mockResolvedValue([{ status: "published" }] as never);
+    vi.mocked(prisma.publishHistory.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.publishHistory.create).mockResolvedValue({ id: "history-1" } as never);
   });
 
   it("obtains and persists a WeChat client-credential token before publishing", async () => {
@@ -130,6 +133,54 @@ describe("POST /api/publish/[id]", () => {
       needsAuth: false,
       platform: "wechat",
     });
+  });
+
+  it("keeps the WeChat draft media id in history when freepublish is unauthorized", async () => {
+    // 生产 2026-09-11 实际时序：草稿已建，freepublish 48001。
+    vi.mocked(getWeChatClientCredentialToken).mockResolvedValue({ accessToken: "fresh-token", expiresIn: 7200 });
+    vi.mocked(publishToPlatform).mockResolvedValue({
+      success: false,
+      draftMediaId: "draft-1",
+      errorMessage: "微信公众号发布失败：api unauthorized rid: test。该公众号尚未完成微信认证…",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/publish/platform-content-1", { method: "POST" }),
+      { params: Promise.resolve({ id: "platform-content-1" }) },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "PLATFORM_PUBLISH_FAILED",
+      draftSaved: true,
+    });
+    // 失败记录仍保留草稿 media_id，供下次重试复用（防孤儿草稿）。
+    expect(prisma.publishHistory.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "failed",
+          platformPostId: "draft-1",
+        }),
+      }),
+    );
+  });
+
+  it("reuses the previous draft media id on retry instead of creating a new draft", async () => {
+    vi.mocked(getWeChatClientCredentialToken).mockResolvedValue({ accessToken: "fresh-token", expiresIn: 7200 });
+    vi.mocked(prisma.publishHistory.findFirst).mockResolvedValue({ platformPostId: "draft-1" } as never);
+    vi.mocked(publishToPlatform).mockResolvedValue({ success: true, platformPostId: "draft-1" });
+
+    const response = await POST(
+      new Request("http://localhost/api/publish/platform-content-1", { method: "POST" }),
+      { params: Promise.resolve({ id: "platform-content-1" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(publishToPlatform).toHaveBeenCalledWith(
+      "wechat",
+      expect.anything(),
+      expect.objectContaining({ existingDraftMediaId: "draft-1" }),
+    );
   });
 
   it("returns a channel-specific authorization error when WeChat rejects the credentials", async () => {

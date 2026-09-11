@@ -36,7 +36,15 @@ function formatWeChatFailure(
   response: WeChatArticlePublishResponse,
 ): string {
   const detail = response.errmsg || `微信错误码 ${response.errcode ?? "未知"}`;
-  return `微信公众号${stage}失败：${detail}`;
+  const base = `微信公众号${stage}失败：${detail}`;
+  // 48001 = api unauthorized：账号未获得该接口权限（发布/草稿需完成微信认证）。
+  if (response.errcode === 48001 && stage === "发布") {
+    return `${base}。该公众号尚未完成微信认证，无自动发布权限；文章已保存到公众号草稿箱，可前往 mp.weixin.qq.com 手动发布`;
+  }
+  if (response.errcode === 48001) {
+    return `${base}。该公众号未获得微信接口权限，需完成微信认证后重试`;
+  }
+  return base;
 }
 
 export interface WeChatClientCredentialToken {
@@ -201,53 +209,76 @@ export class WeChatPublisher extends BasePlatformPublisher {
       ],
     };
 
-    // Add article as draft (we can publish immediately or save as draft)
-    const addUrl = `${this.getApiBaseUrl()}/draft/add?access_token=${accessToken}`;
-
     try {
-      const addResponse = await fetch(addUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(articleData),
-      });
+      // 草稿步骤（防孤儿草稿）：重试时若已有草稿 media_id 则更新原草稿，
+      // 更新失败（如草稿已在公众号后台被删除）再回退新建。
+      let draftMediaId: string | null = null;
 
-      const addData: WeChatArticlePublishResponse = await addResponse.json();
+      if (options.existingDraftMediaId) {
+        const updateUrl = `${this.getApiBaseUrl()}/draft/update?access_token=${accessToken}`;
+        const updateResponse = await fetch(updateUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            media_id: options.existingDraftMediaId,
+            index: 0,
+            articles: [articleData.articles[0]],
+          }),
+        });
+        const updateData: WeChatArticlePublishResponse = await updateResponse.json();
+        if (updateData.errcode === 0) {
+          draftMediaId = options.existingDraftMediaId;
+        }
+      }
 
-      if (addData.media_id) {
-        // Success - now publish the draft
-        const publishUrl = `${this.getApiBaseUrl()}/freepublish/submit?access_token=${accessToken}`;
-        const publishData = {
-          media_id: addData.media_id,
-        };
-
-        const publishResponse = await fetch(publishUrl, {
+      if (!draftMediaId) {
+        const addUrl = `${this.getApiBaseUrl()}/draft/add?access_token=${accessToken}`;
+        const addResponse = await fetch(addUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(publishData),
+          body: JSON.stringify(articleData),
         });
 
-        const publishResult: WeChatArticlePublishResponse = await publishResponse.json();
-
-        if (publishResult.errcode === 0) {
-          return {
-            success: true,
-            platformPostId: addData.media_id,
-            publishedUrl: `https://mp.weixin.qq.com/s/${addData.media_id}`,
-          };
+        const addData: WeChatArticlePublishResponse = await addResponse.json();
+        if (addData.media_id) {
+          draftMediaId = addData.media_id;
         } else {
           return {
             success: false,
-            errorMessage: formatWeChatFailure("发布", publishResult),
+            errorMessage: formatWeChatFailure("草稿创建", addData),
           };
         }
+      }
+
+      // Success - now publish the draft
+      const publishUrl = `${this.getApiBaseUrl()}/freepublish/submit?access_token=${accessToken}`;
+      const publishData = {
+        media_id: draftMediaId,
+      };
+
+      const publishResponse = await fetch(publishUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(publishData),
+      });
+
+      const publishResult: WeChatArticlePublishResponse = await publishResponse.json();
+
+      if (publishResult.errcode === 0) {
+        return {
+          success: true,
+          platformPostId: draftMediaId,
+          publishedUrl: `https://mp.weixin.qq.com/s/${draftMediaId}`,
+        };
       } else {
         return {
           success: false,
-          errorMessage: formatWeChatFailure("草稿创建", addData),
+          draftMediaId,
+          errorMessage: formatWeChatFailure("发布", publishResult),
         };
       }
     } catch (error) {
