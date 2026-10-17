@@ -319,3 +319,43 @@ model ContentGenerationRun {
   @@unique([workflowId, platform])
   @@index([status, nextAttemptAt, lockedUntil])
 }
+
+// Human work is separate from model generation and its quota ledger.
+model ManualEvidenceTask {
+  id               String   @id @db.VarChar(32)
+  workspaceId      String
+  projectId        String
+  approvalId       String   @db.VarChar(32)
+  briefSnapshot    String   @db.MediumText
+  snapshotHash     String   @db.VarChar(64)
+  createdByUserId  String
+  ownerUserId      String?
+  status           String   @default("pending") @db.VarChar(32)
+  version          Int      @default(1)
+  deliveryUrl      String?  @db.Text
+  completionNotes  String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  events           ManualEvidenceTaskEvent[]
+
+  @@unique([workspaceId, projectId, approvalId])
+  @@index([workspaceId, projectId, createdAt])
+}
+
+model ManualEvidenceTaskEvent {
+  id               String   @id @default(cuid())
+  taskId           String   @db.VarChar(32)
+  task             ManualEvidenceTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  version          Int
+  action           String   @db.VarChar(32)
+  actorId          String
+  reason           String   @db.Text
+  deliveryUrl      String?  @db.Text
+  idempotencyKey   String   @db.VarChar(100)
+  requestHash      String   @db.VarChar(64)
+  responseSnapshot String   @db.MediumText
+  createdAt        DateTime @default(now())
+
+  @@unique([taskId, version])
+  @@unique([taskId, idempotencyKey])
+}

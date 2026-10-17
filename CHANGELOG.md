@@ -5,6 +5,15 @@ All notable changes to ContentOS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0.0] - 2026-10-17
+
+### Added
+- EvidenceBriefV2 实时授权复验、持久草稿生成与人工渠道交付任务。
+- 新增两张人工任务表的受审增量发布迁移、结构检查与可重试恢复。
+### Fixed
+- 模型结果不确定或返回后保存失败时保留请求标记，等待人工确认，防止自动重复调用。
+- 保留微信公众号发布权限不足时的草稿和防孤立记录修复。
+
 ## [0.3.3.0] - 2026-04-30
 
 ### Fixed

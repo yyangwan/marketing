@@ -6,6 +6,9 @@ import {
   releaseUsageOperation as portalRelease,
 } from "@/lib/billing/portal-usage-client";
 import { prisma } from "@/lib/db";
+import fixture from '../../../contracts/fixtures/evidence-brief-v2-valid.json';
+import { verifyWorkflowEvidence, EvidenceAuthorityError } from './evidence-authority';
+vi.mock('./evidence-authority', () => ({ verifyWorkflowEvidence: vi.fn(), EvidenceAuthorityError: class extends Error { constructor(public code: string, public retryable: boolean) { super(code); } } }));
 
 vi.mock("@/lib/ai/client", () => ({
   callLLM: vi.fn(),
@@ -29,6 +32,7 @@ vi.mock("@/lib/ai/prompts/wechat", () => ({
 
 vi.mock("@/lib/platforms/capabilities", () => ({
   getGenerationCapabilities: vi.fn(),
+  IMPLEMENTED_PROMPT_BUILDERS: { wechat: 'wechat', weibo: 'weibo', xiaohongshu: 'xiaohongshu', douyin: 'douyin' },
 }));
 
 const OP = "content-workflow:ws-1:" + "a".repeat(64);
@@ -470,5 +474,106 @@ describe("WorkflowDataError", () => {
   it("carries a code for terminal data problems", () => {
     const err = new WorkflowDataError("PLATFORM_NOT_SUPPORTED", "不支持的平台");
     expect(err.code).toBe("PLATFORM_NOT_SUPPORTED");
+  });
+});
+
+describe('evidence generation fencing', () => {
+  beforeEach(() => {
+    vi.stubEnv('CONTENT_EVIDENCE_BRIEF_ENABLED', 'true');
+    vi.resetAllMocks();
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn: unknown) => (fn as (tx: typeof prisma) => unknown)(prisma) as never);
+    noExpiredRuns();
+    const candidate = candidateRow(); candidate.workflow.briefSnapshot = JSON.stringify(fixture);
+    Object.assign(candidate.workflow, { projectId: 'p1' });
+    vi.mocked(prisma.contentGenerationRun.findMany).mockResolvedValueOnce([candidate] as never).mockResolvedValue([]);
+    vi.mocked(prisma.contentGenerationRun.count).mockResolvedValue(0);
+    vi.mocked(prisma.contentGenerationRun.updateMany).mockResolvedValue({ count: 1 });
+    vi.mocked(prisma.contentWorkflow.updateMany).mockResolvedValue({ count: 1 });
+    vi.mocked(prisma.contentPiece.findUnique).mockResolvedValue({ id: 'piece_1', platformContents: [{ id: 'pc_1', platform: 'wechat' }] } as never);
+    vi.mocked(verifyWorkflowEvidence).mockResolvedValue(fixture as never);
+    vi.mocked(portalCommit).mockResolvedValue({ ok: true, status: 'committed' });
+    vi.mocked(callLLM).mockResolvedValue('待审核草稿');
+  });
+  it('revalidates before quota commitment and again before model generation', async () => {
+    expect((await runGenerationBatch('evidence-worker')).succeeded).toBe(1);
+    expect(verifyWorkflowEvidence).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(verifyWorkflowEvidence).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(portalCommit).mock.invocationCallOrder[0]);
+    expect(vi.mocked(verifyWorkflowEvidence).mock.invocationCallOrder[1]).toBeLessThan(vi.mocked(callLLM).mock.invocationCallOrder[0]);
+    const finalize = vi.mocked(prisma.contentGenerationRun.updateMany).mock.calls.find(([args]) => args.data.status === 'succeeded');
+    expect(finalize?.[0].where).toMatchObject({ lockedBy: 'evidence-worker', attemptCount: 1, lockedUntil: { gt: expect.any(Date) } });
+  });
+  it('never commits quota or calls the model for revoked facts', async () => {
+    vi.mocked(verifyWorkflowEvidence).mockRejectedValue(new EvidenceAuthorityError('EVIDENCE_AUTHORIZATION_STALE', false));
+    vi.mocked(prisma.contentWorkflow.findUnique).mockResolvedValue({ usageStatus: 'reserved', usageOperationId: OP } as never);
+    vi.mocked(portalRelease).mockResolvedValue({ ok: true, status: 'released' });
+    expect((await runGenerationBatch('evidence-worker')).failedTerminal).toBe(1);
+    expect(portalCommit).not.toHaveBeenCalled(); expect(callLLM).not.toHaveBeenCalled(); expect(portalRelease).toHaveBeenCalledWith(OP, 'evidence_verification_failed');
+  });
+  it('keeps a temporary authority failure retryable without a model call', async () => {
+    vi.mocked(verifyWorkflowEvidence).mockRejectedValue(new EvidenceAuthorityError('EVIDENCE_AUTHORITY_UNAVAILABLE', true));
+    expect((await runGenerationBatch('evidence-worker')).failedRetryable).toBe(1);
+    expect(portalCommit).not.toHaveBeenCalled(); expect(callLLM).not.toHaveBeenCalled(); expect(portalRelease).not.toHaveBeenCalled();
+  });
+  it('does not call the model when authorization changes during quota confirmation', async () => {
+    vi.mocked(verifyWorkflowEvidence).mockResolvedValueOnce(fixture as never).mockRejectedValueOnce(new EvidenceAuthorityError('EVIDENCE_AUTHORIZATION_STALE', false));
+    expect((await runGenerationBatch('evidence-worker')).failedTerminal).toBe(1);
+    expect(portalCommit).toHaveBeenCalledOnce(); expect(callLLM).not.toHaveBeenCalled(); expect(prisma.platformContent.update).not.toHaveBeenCalled();
+  });
+  it('does not persist output after losing the lease', async () => {
+    vi.mocked(prisma.contentGenerationRun.updateMany).mockImplementation(async args => ({ count: args.data.status === 'succeeded' ? 0 : 1 }));
+    expect((await runGenerationBatch('evidence-worker')).skipped).toBe(1);
+    expect(callLLM).toHaveBeenCalledOnce(); expect(prisma.platformContent.update).not.toHaveBeenCalled();
+  });
+  it('requires manual confirmation when renewal fails after sending the model request', async () => {
+    let renew: (() => Promise<void>) | undefined;
+    const timer = vi.spyOn(globalThis, 'setInterval').mockImplementation(callback => {
+      renew = callback as () => Promise<void>;
+      return 1 as unknown as ReturnType<typeof setInterval>;
+    });
+    vi.mocked(prisma.contentGenerationRun.updateMany).mockImplementation(args => {
+      if (args.data.lockedUntil && !args.data.status && !args.data.lockedBy) throw new Error('temporary_database_failure');
+      return Promise.resolve({ count: 1 }) as never;
+    });
+    vi.mocked(callLLM).mockImplementation(async (_prompt, _system, options) => {
+      await renew!();
+      expect(options?.signal?.aborted).toBe(true);
+      throw Object.assign(new Error('aborted'), { name: 'LLMError', statusCode: 408 });
+    });
+    try {
+      expect((await runGenerationBatch('evidence-worker')).failedTerminal).toBe(1);
+      const failure = vi.mocked(prisma.contentGenerationRun.updateMany).mock.calls.find(([args]) => args.data.failureCode === PROVIDER_RESULT_UNCONFIRMED);
+      expect(failure?.[0].where).toMatchObject({ status: 'generating', lockedBy: 'evidence-worker', attemptCount: 1, lockedUntil: { gt: expect.any(Date) } });
+      expect(failure?.[0].data).toMatchObject({ status: 'failed_terminal' });
+      expect(failure?.[0].data).not.toHaveProperty('providerRequestId');
+      expect(prisma.platformContent.update).not.toHaveBeenCalled();
+      expect(portalRelease).not.toHaveBeenCalled();
+    } finally { timer.mockRestore(); }
+  });
+  it('does not repeat the model request when its successful response cannot be persisted', async () => {
+    vi.mocked(prisma.platformContent.update).mockRejectedValueOnce(new Error('database_write_failed'));
+    expect((await runGenerationBatch('evidence-worker')).failedTerminal).toBe(1);
+    expect(callLLM).toHaveBeenCalledOnce();
+    const failure = vi.mocked(prisma.contentGenerationRun.updateMany).mock.calls.find(([args]) => args.data.failureCode === PROVIDER_RESULT_UNCONFIRMED);
+    expect(failure?.[0].data).toMatchObject({ status: 'failed_terminal' });
+    expect(failure?.[0].data).not.toHaveProperty('providerRequestId');
+    expect(prisma.contentGenerationRun.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'failed_retryable' }) }));
+    expect(portalRelease).not.toHaveBeenCalled();
+  });
+  it('leaves an unknown result to the takeover owner when its lease is lost', async () => {
+    vi.mocked(callLLM).mockRejectedValue(new Error('connection_closed_after_send'));
+    vi.mocked(prisma.contentGenerationRun.updateMany).mockImplementation(args => Promise.resolve({ count: args.data.failureCode === PROVIDER_RESULT_UNCONFIRMED ? 0 : 1 }) as never);
+    expect((await runGenerationBatch('evidence-worker')).skipped).toBe(1);
+    expect(prisma.platformContent.update).not.toHaveBeenCalled();
+    expect(prisma.contentGenerationRun.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'failed_retryable' }) }));
+  });
+  it('still retries a definite rate-limit response under the original attempt cap', async () => {
+    vi.mocked(callLLM).mockRejectedValue(Object.assign(new Error('rate limited'), { name: 'LLMError', statusCode: 429 }));
+    expect((await runGenerationBatch('evidence-worker')).failedRetryable).toBe(1);
+    expect(prisma.contentGenerationRun.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'failed_retryable', failureCode: 'LLM_RATE_LIMITED' }) }));
+  });
+  it('pauses evidence jobs when the feature is disabled without consuming attempts', async () => {
+    vi.stubEnv('CONTENT_EVIDENCE_BRIEF_ENABLED', 'false');
+    expect((await runGenerationBatch('evidence-worker')).claimed).toBe(0);
+    expect(prisma.contentGenerationRun.updateMany).not.toHaveBeenCalled(); expect(portalCommit).not.toHaveBeenCalled(); expect(callLLM).not.toHaveBeenCalled();
   });
 });

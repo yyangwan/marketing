@@ -1,0 +1,39 @@
+# 证据 Brief v2 与持久草稿工作流
+
+2026-10-14，本地实施，未部署。分支codex/citation-intelligence，从既有codex/content-workflow-v1创建。新路由POST /api/evidence-briefs/preview只接受approvalId，需要经中间件验证的project服务JWT，以及X-Visibility-Authorization临时visibility受众JWT。必须CONTENT_EVIDENCE_BRIEF_ENABLED=true才启用，默认关闭。VISIBILITY_SERVICE_URL仅配置受信智见地址。
+
+每次准备向智见GET /api/intelligence/draft-approvals/{id}/brief重读签名授权，拒绝旧/过期/撤回/不同项目材料；不缓存授权可用性，不接收浏览器Brief。Schema/UTC时间/事实窗口和实际生成能力二次校验，失败不降级到V1。网站/未开放渠道返回manual_task且generationInput=null。允许渠道仅准备生成input，publicationAllowed=false。
+
+共享contracts/content-evidence-brief-v2.schema.json及fixtures/evidence-brief-v2-valid.json与Portal逐字节一致。材料包含AI平台目标及独立执行渠道、适用范围和截止时间。生成输入不含权限JWT；来源文字作为数据，不能当成指令。
+
+prepared仍为即时材料预览，不调用模型。新增POST /api/evidence-briefs/workflows只接受approvalId与usageOperationId，经项目写入权限验证后，在单个事务中保存schemaVersion=2的ContentBrief、ContentPiece、ContentWorkflow和单渠道ContentGenerationRun。授权编号决定固定幂等键；同授权只创建一个任务。已受理任务先回放，不能因审批随后过期而错误退回额度。新渠道人工材料不进入自动生成，也不会回退公众号。
+
+Portal使用稳定evidence-draft操作编号预占一次content_generation额度，账本metadata绑定项目和审批编号。创建超时、5xx或无法证明未受理的4xx保持pending_reconcile；只有ContentOS明确查不到已创建任务才能释放。BILLING_DISABLED=true时新证据生成明确拒绝，因为实时复验依赖真实持久账本。标题超过现有ContentPiece字段的191字上限明确拒绝，不静默截断。
+
+后台不保存用户JWT。ContentOS通过GENILINK_PORTAL_URL的POST /api/internal/content-evidence/verify，使用现有CONTENT_USAGE_CALLBACK_SECRET回调。Portal由额度账本确定发起人、项目和审批编号，检查当前角色、项目归属及智见/内容订阅，签发临时visibility受众JWT重读智见的权威材料。ContentOS重新校验schema、事实时间窗口、审批编号及项目；将实时材料的稳定hash与冻结工作流快照逐项一致性比对。来源事实、授权或分析输入变化会终止本次模型请求；临时服务失败最多按现有3次策略重试。
+
+现有cron /api/cron/generate运行持久队列，创建接口不依赖HTTP请求寿命触发模型。worker在额度提交之前复验，提交后、构建模型请求之前再次复验；只有有效材料才能进入生成。V2结果写入和运行终态转移同事务，并校验worker、尝试次数及未过期租约，失去租约的实例不能写入输出。CONTENT_EVIDENCE_BRIEF_ENABLED关闭时暂停V2领取，不增加尝试次数。已有V1继续按自己的契约运行。额度已提交后的异常不自动退款，以保留现有账本终态和供应商结果不确定处理。
+
+生成输入保留逐条范围、期限和来源，以及独立的AI目标、原提示词和观测条件。只生成draft，publicationAllowed=false；尚未建立正式发布授权。V1建议消费者、旧编辑/生成入口的整体替换、人工材料的持久任务和固定cohort复测仍待完成。模型输出仍需要人工核对，代码不保证内容质量或AI可见性提升。
+
+本批仅使用假凭证、fixture和mock验证，无真实模型/数据库/生产环境调用。新的工作流复用既有表，本批未增加数据库迁移。
+
+正式发布需遵守本仓库AGENTS：本地release:check、PR+CI、master快进及既有ContentOS部署；协调发布ContentOS先于Portal。
+
+## 人工内容任务（第九批，2026-10-14）
+
+新增ManualEvidenceTask与ManualEvidenceTaskEvent两个Prisma模型。新空库按完整Prisma schema初始化；prisma/manual-evidence-tasks.sql是从Prisma生成并筛出的两个表及外键的静态DDL参考，本次未执行。不能把静态生成视为MySQL实库验收，也不能由API自动建表。生成Client/类型门禁只验证代码契约。
+
+POST /api/evidence-briefs/manual-tasks创建或流转，GET同路径读取当前项目最近50项，GET ?taskId=读取项目内任务及追加的操作记录。context来自验证的ContentOS项目JWT且与session subject一致；创建/流转要求writer角色，创建只接action=create+approvalId，流转只接taskId/action/expectedVersion/idempotencyKey/reason/可选deliveryUrl，不能覆盖actor、材料、owner或发布权限。CONTENT_EVIDENCE_BRIEF_ENABLED必须true。
+
+网站/知乎/头条的获批manual_task材料以完整快照与稳定hash持久化。workspace/project/approval唯一约束使同一授权只创建一个人工任务，重复创建优先回放，即使授权随后过期仍可恢复已受理任务。创建与初始事件同事务。临时visibility JWT只在请求头传递，不入库。自动生成渠道不能通过人工任务接口回退。
+
+pending→in_progress由领取动作记录当前实名用户为owner；in_progress→completed保存交付说明和可选HTTP(S)草稿地址；pending/in_progress→cancelled可由创建人/负责人或管理员取消。交付只能负责人或owner/admin，完成或取消后不重新开启。任务版本条件更新与事件/响应快照同事务，阻止并发覆盖，重复操作返回原始receipt，不因expectedVersion已变化错误失败。
+
+领取与交付前，用本次临时visibility受众JWT向智见实时导出材料，检查项目/schema/窗口/当前授权/HMAC和整个冻结快照一致性。材料过期/撤回/输入变化/不可用阻止推进，旧任务可取消；取消不依赖外部证据服务可用性。读取保留历史材料，仅标注expired或not_verified，不能把列表读取当实时有效授权。
+
+人工任务完全独立于ContentWorkflow/ContentGenerationRun/usageOperation，不调用模型、不生成自动采集/发布任务、不预占或扣content_generation额度。completed是人工交付状态，publicationAllowed永远false；成稿复核、发布记录和实验效果分开。操作事件保存实名actor、理由、版本、交付地址和首次响应，未开放自动删除。
+
+新GET /api/capabilities/evidence-briefs声明schemaVersion2、开关、实际四个生成渠道与三个人工渠道，manual generationQuota=0、publicationAllowed=false；不改变既有V1 capabilities契约。Portal已新增读取及创建/流转BFF和人工任务列表，所有服务请求使用各自受众JWT；即使BILLING_DISABLED=true也不需要伪造账本来授权人工任务。
+
+针对性14项测试覆盖创建/并发唯一键回放、当前材料复验、跨项目/角色阻断、负责人权限、版本丢失、完成交付、取消失效材料、receipt与快照完整性；最终完整门禁以第九批检查点为准。真实MySQL并发、人工交付闭环和正式发布审批仍待验收。
