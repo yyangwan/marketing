@@ -15,6 +15,20 @@ jobs:
     name: 验证与构建
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: contentos-ci-only
+          MYSQL_DATABASE: contentos_migration_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pcontentos-ci-only"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -38,6 +52,11 @@ jobs:
       - name: 生成 Prisma Client
         run: bunx prisma generate
 
+      - name: 验证可重试的增量发布迁移
+        run: node deploy/test-manual-evidence-mysql.mjs
+        env:
+          CONTENTOS_MIGRATION_TEST_URL: mysql://root:contentos-ci-only@127.0.0.1:3306/contentos_migration_ci
+
       - name: 运行 ESLint
         run: bun run lint
 
@@ -57,6 +76,11 @@ jobs:
         env:
           MOCK_AI: 'true'
           DATABASE_URL: 'mysql://ci:ci@localhost:3306/ci'
+
+      - name: 验证制品内迁移运行时
+        run: |
+          node deploy/package-migration-runtime.mjs
+          node .next/standalone/deploy/migrate-manual-evidence.mjs --check-runtime
 
       - name: 打包生产制品
         if: github.ref == 'refs/heads/master'

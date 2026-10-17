@@ -91,7 +91,7 @@ export async function proxy(request: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      const requestHeaders = new Headers(request.headers);
+      const requestHeaders = withoutGenilinkHeaders(request);
       requestHeaders.set("x-genilink-user-id", claims.sub);
       if (claims.email) requestHeaders.set("x-genilink-email", claims.email);
       if (claims.name) requestHeaders.set("x-genilink-name", encodeURIComponent(claims.name));

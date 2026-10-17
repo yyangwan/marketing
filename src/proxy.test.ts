@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock('@/lib/auth/genilink', () => ({ verifyBearerToken: vi.fn() }));
+import { verifyBearerToken } from '@/lib/auth/genilink';
 import { NextRequest } from "next/server";
 import { proxy } from "./proxy";
 
@@ -13,6 +15,13 @@ describe("ContentOS proxy public assets", () => {
 });
 
 describe("ContentOS proxy service endpoints", () => {
+  it('never carries forged project or role headers through a workspace JWT', async () => {
+    vi.mocked(verifyBearerToken).mockResolvedValue({ sub: 'user', wid: 'ws', scope: 'workspace' } as never);
+    const response = await proxy(new NextRequest('http://localhost/api/evidence-briefs/workflows', { headers: { authorization: 'Bearer fake-jwt', 'x-genilink-project-id': 'forged-project', 'x-genilink-role': 'owner' } }));
+    expect(response.headers.get('x-middleware-request-x-genilink-project-id')).toBeNull();
+    expect(response.headers.get('x-middleware-request-x-genilink-role')).toBeNull();
+    expect(response.headers.get('x-middleware-request-x-genilink-user-id')).toBe('user');
+  });
   it("passes /api/cron through without JWT verification (handler self-verifies the secret)", async () => {
     const request = new NextRequest("http://127.0.0.1:4002/api/cron/publish", {
       headers: { authorization: "Bearer cron-secret-value" },

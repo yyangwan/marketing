@@ -41,6 +41,11 @@ export interface PublishOptions {
   content: string;
   images?: string[];
   scheduledAt?: Date;
+  /**
+   * 上次发布尝试已创建的公众号草稿 media_id。
+   * 重试时更新该草稿而不是再建新草稿，防止公众号草稿箱堆积孤儿草稿。
+   */
+  existingDraftMediaId?: string;
 }
 
 export interface PublishResult {
@@ -49,6 +54,8 @@ export interface PublishResult {
   platformPostId?: string;
   errorMessage?: string;
   needsAuth?: boolean;
+  /** 草稿已创建但发布失败时保留草稿 media_id（重试复用 / 引导用户手动发布）。 */
+  draftMediaId?: string;
 }
 
 /**

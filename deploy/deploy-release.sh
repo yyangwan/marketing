@@ -48,6 +48,11 @@ if [[ ! -f "$release_dir/server.js" ]]; then
   exit 1
 fi
 
+# Execute only reviewed additive DDL from this exact release artifact. Node's
+# env-file parser loads runtime secrets without shell expansion or logging.
+# Failure leaves the active PM2 process untouched; table creation is retryable.
+node --env-file="$runtime_env" "$release_dir/deploy/migrate-manual-evidence.mjs"
+
 pm2 delete "$candidate_name" >/dev/null 2>&1 || true
 (
   cd "$release_dir"

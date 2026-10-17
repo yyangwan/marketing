@@ -40,6 +40,8 @@ import {
 import { LEASE_DURATION_MS, LEASE_RENEW_INTERVAL_MS, leaseExpiresAt } from "@/lib/workers/lease";
 import { emitContentEvent } from "@/lib/observability/events";
 import { disabledBatchResult, isContentWorkflowDisabled } from "./switch";
+import { checkedEvidenceBrief, evidenceToGenerationInput, type EvidenceBriefV2 } from '@/lib/content-brief/evidence-v2';
+import { verifyWorkflowEvidence, EvidenceAuthorityError } from './evidence-authority';
 
 const BUILDERS: Record<Platform, (brief: Brief, brandVoice?: BrandVoice) => string> = {
   wechat: buildWeChatPrompt,
@@ -87,6 +89,7 @@ interface ClaimedRun {
     briefSnapshot: string;
     contentPieceId: string | null;
     workspaceId: string;
+    projectId: string;
   };
 }
 
@@ -95,6 +98,7 @@ async function claimNextRun(workerId: string, now: Date): Promise<ClaimedRun | n
   const candidates = await prisma.contentGenerationRun.findMany({
     where: {
       status: { in: ["queued", "failed_retryable"] },
+      ...(process.env.CONTENT_EVIDENCE_BRIEF_ENABLED === 'true' ? {} : { workflow: { brief: { schemaVersion: { not: 2 } } } }),
       AND: [
         {
           OR: [
@@ -116,6 +120,9 @@ async function claimNextRun(workerId: string, now: Date): Promise<ClaimedRun | n
   });
 
   for (const candidate of candidates) {
+    try {
+      if (JSON.parse(candidate.workflow.briefSnapshot).schemaVersion === 2 && process.env.CONTENT_EVIDENCE_BRIEF_ENABLED !== 'true') continue;
+    } catch { /* Invalid snapshots are rejected after claiming. */ }
     if (candidate.workflow.status === "cancelled") {
       await prisma.contentGenerationRun.updateMany({
         where: { id: candidate.id, status: { in: ["queued", "failed_retryable"] } },
@@ -174,6 +181,7 @@ async function claimNextRun(workerId: string, now: Date): Promise<ClaimedRun | n
           briefSnapshot: candidate.workflow.briefSnapshot,
           contentPieceId: candidate.workflow.contentPieceId,
           workspaceId: candidate.workflow.workspaceId,
+          projectId: candidate.workflow.projectId,
         },
       };
     }
@@ -272,7 +280,22 @@ async function finalizeRun(params: {
   failureCode?: string;
   failureMessage?: string;
   platformContentUpdate?: { platformContentId: string; content: string };
+  lease?: { workerId: string; attemptCount: number };
 }): Promise<void> {
+  if (params.lease) {
+    await prisma.$transaction(async tx => {
+      // The status transition and content write share one transaction and the run row lock.
+      const changed = await tx.contentGenerationRun.updateMany({
+        where: { id: params.runId, status: 'generating', lockedBy: params.lease!.workerId, attemptCount: params.lease!.attemptCount, lockedUntil: { gt: new Date() } },
+        data: { status: params.status, failureCode: params.failureCode ?? null, failureMessage: params.failureMessage ?? null,
+          lockedBy: null, lockedUntil: null, ...(params.status === 'failed_retryable' ? { nextAttemptAt: new Date(Date.now() + retryDelayMs(params.attemptCount ?? 1)) } : { completedAt: new Date() }) },
+      });
+      if (changed.count !== 1) throw new WorkflowDataError('LEASE_LOST_BEFORE_CALL', '任务租约已丢失，放弃写入');
+      if (params.platformContentUpdate) await tx.platformContent.update({ where: { id: params.platformContentUpdate.platformContentId }, data: { content: params.platformContentUpdate.content, status: 'draft' } });
+    });
+    await aggregateAndUpdateWorkflow(params.workflowId);
+    return;
+  }
   if (params.platformContentUpdate) {
     await prisma.platformContent.update({
       where: { id: params.platformContentUpdate.platformContentId },
@@ -338,7 +361,7 @@ async function ensureUsageCommitted(claimed: ClaimedRun): Promise<{ ok: boolean;
   return { ok: true };
 }
 
-async function buildAndGenerate(claimed: ClaimedRun, workerId: string): Promise<string> {
+async function buildAndGenerate(claimed: ClaimedRun, workerId: string, execution: { requestSent: boolean; responseReceived: boolean }): Promise<string> {
   const piece = await prisma.contentPiece.findUnique({
     where: { id: claimed.workflow.contentPieceId ?? "" },
     include: { platformContents: true },
@@ -360,13 +383,19 @@ async function buildAndGenerate(claimed: ClaimedRun, workerId: string): Promise<
   }
 
   // 唯一生成输入：工作流 briefSnapshot（§8.6，评审指出此前读 ContentPiece.brief）。
-  const snapshot = parseBrief(claimed.workflow.briefSnapshot);
-  if (!snapshot) {
-    throw new WorkflowDataError("BRIEF_SNAPSHOT_CORRUPTED", "工作流快照损坏，无法生成");
+  const evidence = evidenceSnapshot(claimed);
+  let brief: Brief;
+  if (evidence) {
+    // Recheck after quota confirmation and immediately before building the model request.
+    const live = await revalidateEvidence(claimed, evidence);
+    const input = evidenceToGenerationInput(live);
+    if (!input || live.execution.channel !== claimed.run.platform) throw new WorkflowDataError('EVIDENCE_CHANNEL_MISMATCH', '获批渠道与任务不一致');
+    brief = input;
+  } else {
+    const snapshot = parseBrief(claimed.workflow.briefSnapshot);
+    if (!snapshot) throw new WorkflowDataError("BRIEF_SNAPSHOT_CORRUPTED", "工作流快照损坏，无法生成");
+    brief = effectiveBriefToGenerationBrief(snapshot, { brandVoiceId: piece.brandVoiceId });
   }
-  const brief = effectiveBriefToGenerationBrief(snapshot, {
-    brandVoiceId: piece.brandVoiceId,
-  });
   const builder = BUILDERS[claimed.run.platform as Platform];
   if (!builder) {
     throw new WorkflowDataError("PLATFORM_NOT_SUPPORTED", `不支持的平台: ${claimed.run.platform}`);
@@ -378,12 +407,13 @@ async function buildAndGenerate(claimed: ClaimedRun, workerId: string): Promise<
   const renewTimer = setInterval(async () => {
     try {
       const renewed = await prisma.contentGenerationRun.updateMany({
-        where: { id: claimed.run.id, lockedBy: workerId, status: "generating" },
+        where: { id: claimed.run.id, lockedBy: workerId, status: "generating", lockedUntil: { gt: new Date() }, attemptCount: claimed.run.attemptCount },
         data: { lockedUntil: new Date(Date.now() + LEASE_DURATION_MS) },
       });
       if (renewed.count === 0) abort.abort();
     } catch {
-      // 数据库抖动时保守续期失败不中止；租约到期后自然可被接管。
+      // A failed renewal cannot authorize further model work.
+      abort.abort();
     }
   }, LEASE_RENEW_INTERVAL_MS);
 
@@ -397,17 +427,26 @@ async function buildAndGenerate(claimed: ClaimedRun, workerId: string): Promise<
     // 模型请求标记（R1）：调用前落 providerRequestId，接管时据此区分
     // “从未请求”与“结果不确定”。条件更新失败（租约已丢）则不发起请求。
     const mark = await prisma.contentGenerationRun.updateMany({
-      where: { id: claimed.run.id, lockedBy: workerId, status: "generating" },
+      where: { id: claimed.run.id, lockedBy: workerId, status: "generating", lockedUntil: { gt: new Date() }, attemptCount: claimed.run.attemptCount },
       data: { providerRequestId: `llm-${randomUUID()}` },
     });
     if (mark.count !== 1) {
       throw new WorkflowDataError("LEASE_LOST_BEFORE_CALL", "租约已丢失，放弃本次模型请求");
     }
 
-    const content = await callLLM(prompt, undefined, {
-      timeoutMs: GENERATION_TIMEOUT_MS,
-      signal: abort.signal,
-    });
+    execution.requestSent = true;
+    let content: string;
+    try {
+      content = await callLLM(prompt, undefined, {
+        timeoutMs: GENERATION_TIMEOUT_MS,
+        signal: abort.signal,
+      });
+      execution.responseReceived = true;
+      if (abort.signal.aborted) throw new Error('generation_cancelled_after_request');
+    } catch (error) {
+      if (abort.signal.aborted) throw new WorkflowDataError(PROVIDER_RESULT_UNCONFIRMED, '模型请求期间续租失败或租约丢失，结果待人工确认');
+      throw error;
+    }
     return platformContent.id + "||" + content;
   } finally {
     clearInterval(renewTimer);
@@ -421,14 +460,45 @@ export class WorkflowDataError extends Error {
   }
 }
 
+function evidenceSnapshot(claimed: ClaimedRun): EvidenceBriefV2 | null {
+  let raw: { schemaVersion?: unknown; approval?: { id?: string } };
+  try { raw = JSON.parse(claimed.workflow.briefSnapshot); }
+  catch { throw new WorkflowDataError('BRIEF_SNAPSHOT_CORRUPTED', '工作流快照损坏'); }
+  if (raw.schemaVersion !== 2) return null;
+  try { return checkedEvidenceBrief(raw, claimed.workflow.projectId, raw.approval?.id || ''); }
+  catch { throw new WorkflowDataError('EVIDENCE_SNAPSHOT_INVALID', '草稿材料过期或不符合授权范围'); }
+}
+
+function revalidateEvidence(claimed: ClaimedRun, snapshot: EvidenceBriefV2) {
+  return verifyWorkflowEvidence({ operationId: claimed.workflow.usageOperationId, workspaceId: claimed.workflow.workspaceId,
+    projectId: claimed.workflow.projectId, approvalId: snapshot.approval.id, snapshot });
+}
+
+async function rejectEvidence(claimed: ClaimedRun, error: EvidenceAuthorityError | WorkflowDataError, workerId: string) {
+  const retryable = error instanceof EvidenceAuthorityError && error.retryable && claimed.run.attemptCount < MAX_ATTEMPTS;
+  await finalizeRun({ runId: claimed.run.id, workflowId: claimed.workflow.id, status: retryable ? 'failed_retryable' : 'failed_terminal',
+    attemptCount: claimed.run.attemptCount, failureCode: error.code, failureMessage: '证据授权复验未通过，未发起本次模型请求', lease: { workerId, attemptCount: claimed.run.attemptCount } });
+  if (!retryable) await releaseWorkflowUsage(claimed.workflow.id, 'evidence_verification_failed');
+  return retryable ? 'failed_retryable' as const : 'failed_terminal' as const;
+}
+
 async function processRun(claimed: ClaimedRun, workerId: string): Promise<
   "succeeded" | "failed_retryable" | "failed_terminal" | "skipped"
 > {
+  let isEvidence = true;
+  try { isEvidence = JSON.parse(claimed.workflow.briefSnapshot).schemaVersion === 2; } catch { /* Corrupt inputs fail closed below. */ }
+  const finishRun = (params: Parameters<typeof finalizeRun>[0]) => finalizeRun({ ...params, ...(isEvidence ? { lease: { workerId, attemptCount: claimed.run.attemptCount } } : {}) });
+  // An invalid or withdrawn source must not consume quota or enter the model.
+  try { const evidence = evidenceSnapshot(claimed); if (evidence) await revalidateEvidence(claimed, evidence); }
+  catch (error) {
+    if (error instanceof EvidenceAuthorityError || error instanceof WorkflowDataError) return rejectEvidence(claimed, error, workerId);
+    throw error;
+  }
   // 1. 额度先行（设计 §10.8）。
   const usage = await ensureUsageCommitted(claimed);
   if (!usage.ok) {
     // Portal 不可用：任务可重试，绝不绕过计费调模型。
-    await finalizeRun({
+    await finishRun({
       runId: claimed.run.id,
       workflowId: claimed.workflow.id,
       status: "failed_retryable",
@@ -445,11 +515,12 @@ async function processRun(claimed: ClaimedRun, workerId: string): Promise<
   }
 
   // 2. 生成。
+  const execution = { requestSent: false, responseReceived: false };
   try {
-    const result = await buildAndGenerate(claimed, workerId);
+    const result = await buildAndGenerate(claimed, workerId, execution);
     const [platformContentId, ...rest] = result.split("||");
     const content = rest.join("||");
-    await finalizeRun({
+    await finishRun({
       runId: claimed.run.id,
       workflowId: claimed.workflow.id,
       status: "succeeded",
@@ -461,13 +532,27 @@ async function processRun(claimed: ClaimedRun, workerId: string): Promise<
     });
     return "succeeded";
   } catch (err) {
+    if (err instanceof EvidenceAuthorityError) return rejectEvidence(claimed, err, workerId);
     if (err instanceof WorkflowDataError && err.code === "LEASE_LOST_BEFORE_CALL") {
       // 租约丢失：本实例不再持有任务，留给接管方，不计失败。
       await releaseLease(claimed.run.id, workerId).catch(() => undefined);
       return "skipped";
     }
+    const providerStatus = (err as { statusCode?: number } | null)?.statusCode;
+    if (err instanceof WorkflowDataError && err.code === PROVIDER_RESULT_UNCONFIRMED ||
+        execution.responseReceived || isEvidence && execution.requestSent &&
+        (!Number.isInteger(providerStatus) || providerStatus === 408)) {
+      // Transport cancellation and persistence failures cannot prove that the provider did
+      // no work. Keep the request marker and require an explicit human retry. A stale
+      // owner must not overwrite a takeover, even while recording this failure.
+      await finalizeRun({ runId: claimed.run.id, workflowId: claimed.workflow.id,
+        status: 'failed_terminal', failureCode: PROVIDER_RESULT_UNCONFIRMED,
+        failureMessage: '模型请求结果或保存结果尚待确认，请人工核对后重试',
+        lease: { workerId, attemptCount: claimed.run.attemptCount } });
+      return 'failed_terminal';
+    }
     if (err instanceof WorkflowDataError) {
-      await finalizeRun({
+      await finishRun({
         runId: claimed.run.id,
         workflowId: claimed.workflow.id,
         status: "failed_terminal",
@@ -479,7 +564,7 @@ async function processRun(claimed: ClaimedRun, workerId: string): Promise<
 
     const classified = classifyLlmError(err);
     if (classified.kind === "retryable" && claimed.run.attemptCount < MAX_ATTEMPTS) {
-      await finalizeRun({
+      await finishRun({
         runId: claimed.run.id,
         workflowId: claimed.workflow.id,
         status: "failed_retryable",
@@ -498,7 +583,7 @@ async function processRun(claimed: ClaimedRun, workerId: string): Promise<
 
     // 模型请求已发出后的供应商失败仍视为一次生成尝试（设计 §5.6）：
     // 额度保持 committed，不释放。
-    await finalizeRun({
+    await finishRun({
       runId: claimed.run.id,
       workflowId: claimed.workflow.id,
       status: "failed_terminal",
