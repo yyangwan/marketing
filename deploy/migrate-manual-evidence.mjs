@@ -59,16 +59,19 @@ async function foreignKeys(db) {
     ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME AND r.TABLE_NAME=k.TABLE_NAME
     WHERE k.TABLE_SCHEMA=DATABASE() AND k.TABLE_NAME IN (?, ?)`, [task, event]);
 }
-function validateKeys(rows, schema) {
+export function validateKeys(rows, schema, lowerCaseTableNames = 0) {
   if (rows.length !== 1) fail();
   const row = rows[0];
-  if (row.TABLE_NAME !== event || row.CONSTRAINT_NAME !== 'ManualEvidenceTaskEvent_taskId_fkey' || row.COLUMN_NAME !== 'taskId' || row.REFERENCED_TABLE_SCHEMA !== schema || row.REFERENCED_TABLE_NAME !== task || row.REFERENCED_COLUMN_NAME !== 'id' || row.DELETE_RULE !== 'RESTRICT' || row.UPDATE_RULE !== 'CASCADE') fail();
+  const tableMatches = (actual, expectedName) => [1, 2].includes(Number(lowerCaseTableNames))
+    ? String(actual).toLowerCase() === expectedName.toLowerCase() : actual === expectedName;
+  if (!tableMatches(row.TABLE_NAME, event) || row.CONSTRAINT_NAME !== 'ManualEvidenceTaskEvent_taskId_fkey' || row.COLUMN_NAME !== 'taskId' || row.REFERENCED_TABLE_SCHEMA !== schema || !tableMatches(row.REFERENCED_TABLE_NAME, task) || row.REFERENCED_COLUMN_NAME !== 'id' || row.DELETE_RULE !== 'RESTRICT' || row.UPDATE_RULE !== 'CASCADE') fail();
 }
 
 export async function migrate(db, sql) {
   const statements = sql.replace(/--[^\n]*/g, '').split(';').map(value => value.trim()).filter(Boolean);
   if (statements.length !== 3 || !statements[0].startsWith('CREATE TABLE `ManualEvidenceTask` (') || !statements[1].startsWith('CREATE TABLE `ManualEvidenceTaskEvent` (') || !statements[2].startsWith('ALTER TABLE `ManualEvidenceTaskEvent` ADD CONSTRAINT `ManualEvidenceTaskEvent_taskId_fkey` FOREIGN KEY')) throw new Error('manual_evidence_ddl_invalid');
   const schema = (await db.query('SELECT DATABASE() AS name'))[0].name;
+  const tableCase = Number((await db.query('SELECT @@lower_case_table_names AS mode'))[0].mode);
   if (!schema) throw new Error('manual_evidence_database_required');
   const lock = `contentos-manual-evidence:${schema}`.slice(0, 64);
   if (Number((await db.query('SELECT GET_LOCK(?, 30) AS acquired', [lock]))[0].acquired) !== 1) throw new Error('manual_evidence_lock_unavailable');
@@ -78,13 +81,13 @@ export async function migrate(db, sql) {
     const exists = {};
     for (const name of [task, event]) exists[name] = await validateTable(db, name);
     const keys = await foreignKeys(db);
-    if (keys.length) validateKeys(keys, schema);
+    if (keys.length) validateKeys(keys, schema, tableCase);
     for (const [index, name] of [task, event].entries()) {
       if (!exists[name]) await db.query(statements[index]);
       await validateTable(db, name);
     }
     if (!keys.length) await db.query(statements[2]);
-    validateKeys(await foreignKeys(db), schema);
+    validateKeys(await foreignKeys(db), schema, tableCase);
   } finally { await db.query('SELECT RELEASE_LOCK(?)', [lock]); }
 }
 
