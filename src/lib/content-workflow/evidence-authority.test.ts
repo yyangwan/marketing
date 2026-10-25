@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import fixture from '../../../contracts/fixtures/evidence-brief-v2-valid.json';
+import fixture from '../../../contracts/fixtures/evidence-brief-v3-valid.json';
 import { verifyWorkflowEvidence } from './evidence-authority';
 
 const params = { operationId: 'operation', workspaceId: 'workspace', projectId: 'p1', approvalId: fixture.approval.id };

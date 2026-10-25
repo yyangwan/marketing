@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/db';
 import { requestHash, isUniqueConstraintError } from '@/lib/contracts/hash';
-import { checkedEvidenceBrief, type EvidenceBriefV2 } from '@/lib/content-brief/evidence-v2';
+import { checkedEvidenceBrief, type EvidenceBriefV3 } from '@/lib/content-brief/evidence-v3';
 import { EvidenceAuthorityError } from './evidence-authority';
 import { WorkflowValidationError } from './service';
 import type { ManualEvidenceTask } from '@/generated/prisma/client';
@@ -9,7 +9,7 @@ import type { ManualEvidenceTask } from '@/generated/prisma/client';
 export type ManualContext = { workspaceId: string; projectId: string; userId: string; role: string };
 export type ManualChange = { taskId: string; action: 'start' | 'complete' | 'cancel'; expectedVersion: number; idempotencyKey: string; reason: string; deliveryUrl?: string };
 
-export async function readManualAuthority(ctx: ManualContext, approvalId: string, token: string | null): Promise<EvidenceBriefV2> {
+export async function readManualAuthority(ctx: ManualContext, approvalId: string, token: string | null): Promise<EvidenceBriefV3> {
   if (!token?.startsWith('Bearer ') || token.length > 8192) throw new WorkflowValidationError(403, 'AUTHORITY_REQUIRED', '需要当前项目的证据权限');
   let response: Response, raw: unknown;
   try {
@@ -18,7 +18,7 @@ export async function readManualAuthority(ctx: ManualContext, approvalId: string
     }); raw = await response.json();
   } catch { throw new EvidenceAuthorityError('EVIDENCE_AUTHORITY_UNAVAILABLE', true); }
   if (!response.ok) throw new EvidenceAuthorityError(response.status >= 500 ? 'EVIDENCE_AUTHORITY_UNAVAILABLE' : 'EVIDENCE_AUTHORIZATION_STALE', response.status >= 500);
-  let brief: EvidenceBriefV2;
+  let brief: EvidenceBriefV3;
   try { brief = checkedEvidenceBrief(raw, ctx.projectId, approvalId); }
   catch { throw new EvidenceAuthorityError('EVIDENCE_AUTHORITY_INVALID', false); }
   if (brief.execution.mode !== 'manual_task') throw new WorkflowValidationError(422, 'MANUAL_CHANNEL_REQUIRED', '该授权应进入草稿生成任务');
@@ -27,10 +27,11 @@ export async function readManualAuthority(ctx: ManualContext, approvalId: string
 
 export function manualView(row: ManualEvidenceTask) {
   // Keep historical material readable when expired; no live authorization claim is made by a GET.
-  const brief = JSON.parse(row.briefSnapshot) as EvidenceBriefV2;
+  const brief = JSON.parse(row.briefSnapshot) as EvidenceBriefV3;
   if (requestHash(brief) !== row.snapshotHash) throw new WorkflowValidationError(409, 'MANUAL_SNAPSHOT_CHANGED', '任务材料完整性检查失败');
   return { id: row.id, approvalId: row.approvalId, status: row.status, version: row.version, ownerUserId: row.ownerUserId,
-    title: brief.title, channel: brief.execution.channel, aiTargets: brief.aiTargets, facts: brief.facts,
+    title: brief.title, channel: brief.execution.channel, aiTargets: brief.aiTargets, facts: brief.ownFacts,
+    actionRevision: brief.actionRevision, taskPack: brief.taskPack,
     expiresAt: brief.approval.expiresAt, materialState: Date.parse(brief.approval.expiresAt) <= Date.now() ? 'expired' : 'not_verified',
     deliveryUrl: row.deliveryUrl, completionNotes: row.completionNotes, publicationAllowed: false as const };
 }
