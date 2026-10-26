@@ -42,11 +42,20 @@ const unique = (values: unknown[]) => new Set(values.map(value => JSON.stringify
 
 // Structural validation never substitutes for the live authority callback.
 export function checkedEvidenceBrief(raw: unknown, projectId: string, approvalId: string, now = Date.now()): EvidenceBriefV3 {
+  return validateBrief(raw, projectId, approvalId, now, false);
+}
+
+/** Completed artifact provenance is readable after expiry; this is never live generation authority. */
+export function checkedHistoricalBrief(raw: unknown, projectId: string, approvalId: string): EvidenceBriefV3 {
+  return validateBrief(raw, projectId, approvalId, Date.now(), true);
+}
+
+function validateBrief(raw: unknown, projectId: string, approvalId: string, now: number, historical: boolean): EvidenceBriefV3 {
   if (Buffer.byteLength(JSON.stringify(raw) ?? "", "utf8") > 2_000_000 || !validate(raw)) throw new Error("evidence_schema_invalid");
   const brief = raw as EvidenceBriefV3, pack = brief.taskPack, binding = brief.actionRevision;
   if (brief.projectId !== projectId || brief.approval.id !== approvalId || pack.project_id !== projectId) throw new Error("evidence_scope_mismatch");
   const expiry = time(brief.approval.expiresAt);
-  if (!Number.isFinite(expiry) || expiry <= now) throw new Error("evidence_expired");
+  if (!Number.isFinite(expiry) || !historical && expiry <= now) throw new Error("evidence_expired");
   if (binding.taskKey !== requestHash([pack.project_id, pack.own_target_id, pack.asset_key, pack.fact_change_key, pack.intent]) || binding.taskSignature !== requestHash(pack)) throw new Error("task_revision_mismatch");
   if (["material_verification", "channel_outreach"].includes(pack.intent)) throw new Error("investigation_is_not_content");
   if (!unique(pack.ai_targets.map(row => [row.platform, row.prompt_hash, row.scenario_id])) || !unique(pack.delivery.questions.map(row => row.prompt_hash)) || !unique(pack.own_fact_ids)) throw new Error("duplicate_task_members");
@@ -62,7 +71,7 @@ export function checkedEvidenceBrief(raw: unknown, projectId: string, approvalId
   if (refs.some(ref => ref.project_id !== projectId || ref.end - ref.start !== Array.from(ref.quote).length || ref.owner_kind !== "owned_asset" && (!ref.run_id || !ref.segment_id))) throw new Error("evidence_reference_invalid");
   for (const fact of brief.ownFacts) {
     const start = time(fact.validFrom), end = time(fact.validUntil), source = fact.source;
-    if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end || start > now || end <= now || expiry > end) throw new Error("fact_validity_invalid");
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end || expiry <= start || expiry > end || !historical && (start > now || end <= now)) throw new Error("fact_validity_invalid");
     if (fact.ownTargetId !== pack.own_target_id || fact.statement !== source.evidence.quote) throw new Error("own_fact_scope_invalid");
     if (source.kind === "owned_asset_revision" ? source.evidence.owner_kind !== "owned_asset" || source.evidence.owner_id !== source.asset_id : source.evidence.owner_kind !== "snapshot") throw new Error("fact_source_invalid");
   }
