@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import fixture from '../../../contracts/fixtures/evidence-brief-v2-valid.json';
+import fixture from '../../../contracts/fixtures/evidence-brief-v3-valid.json';
 import { prisma } from '@/lib/db';
 vi.mock('./evidence-authority', () => ({ verifyWorkflowEvidence: vi.fn() }));
 import { verifyWorkflowEvidence } from './evidence-authority';

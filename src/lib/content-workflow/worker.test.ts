@@ -6,7 +6,7 @@ import {
   releaseUsageOperation as portalRelease,
 } from "@/lib/billing/portal-usage-client";
 import { prisma } from "@/lib/db";
-import fixture from '../../../contracts/fixtures/evidence-brief-v2-valid.json';
+import fixture from '../../../contracts/fixtures/evidence-brief-v3-valid.json';
 import { verifyWorkflowEvidence, EvidenceAuthorityError } from './evidence-authority';
 vi.mock('./evidence-authority', () => ({ verifyWorkflowEvidence: vi.fn(), EvidenceAuthorityError: class extends Error { constructor(public code: string, public retryable: boolean) { super(code); } } }));
 

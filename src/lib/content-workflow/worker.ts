@@ -40,7 +40,7 @@ import {
 import { LEASE_DURATION_MS, LEASE_RENEW_INTERVAL_MS, leaseExpiresAt } from "@/lib/workers/lease";
 import { emitContentEvent } from "@/lib/observability/events";
 import { disabledBatchResult, isContentWorkflowDisabled } from "./switch";
-import { checkedEvidenceBrief, evidenceToGenerationInput, type EvidenceBriefV2 } from '@/lib/content-brief/evidence-v2';
+import { checkedEvidenceBrief, evidenceToGenerationInput, type EvidenceBriefV3 } from '@/lib/content-brief/evidence-v3';
 import { verifyWorkflowEvidence, EvidenceAuthorityError } from './evidence-authority';
 
 const BUILDERS: Record<Platform, (brief: Brief, brandVoice?: BrandVoice) => string> = {
@@ -98,7 +98,7 @@ async function claimNextRun(workerId: string, now: Date): Promise<ClaimedRun | n
   const candidates = await prisma.contentGenerationRun.findMany({
     where: {
       status: { in: ["queued", "failed_retryable"] },
-      ...(process.env.CONTENT_EVIDENCE_BRIEF_ENABLED === 'true' ? {} : { workflow: { brief: { schemaVersion: { not: 2 } } } }),
+      ...(process.env.CONTENT_EVIDENCE_BRIEF_ENABLED === 'true' ? {} : { workflow: { brief: { schemaVersion: { not: 3 } } } }),
       AND: [
         {
           OR: [
@@ -121,7 +121,7 @@ async function claimNextRun(workerId: string, now: Date): Promise<ClaimedRun | n
 
   for (const candidate of candidates) {
     try {
-      if (JSON.parse(candidate.workflow.briefSnapshot).schemaVersion === 2 && process.env.CONTENT_EVIDENCE_BRIEF_ENABLED !== 'true') continue;
+      if (JSON.parse(candidate.workflow.briefSnapshot).schemaVersion === 3 && process.env.CONTENT_EVIDENCE_BRIEF_ENABLED !== 'true') continue;
     } catch { /* Invalid snapshots are rejected after claiming. */ }
     if (candidate.workflow.status === "cancelled") {
       await prisma.contentGenerationRun.updateMany({
@@ -460,16 +460,16 @@ export class WorkflowDataError extends Error {
   }
 }
 
-function evidenceSnapshot(claimed: ClaimedRun): EvidenceBriefV2 | null {
+function evidenceSnapshot(claimed: ClaimedRun): EvidenceBriefV3 | null {
   let raw: { schemaVersion?: unknown; approval?: { id?: string } };
   try { raw = JSON.parse(claimed.workflow.briefSnapshot); }
   catch { throw new WorkflowDataError('BRIEF_SNAPSHOT_CORRUPTED', '工作流快照损坏'); }
-  if (raw.schemaVersion !== 2) return null;
+  if (raw.schemaVersion !== 3) return null;
   try { return checkedEvidenceBrief(raw, claimed.workflow.projectId, raw.approval?.id || ''); }
   catch { throw new WorkflowDataError('EVIDENCE_SNAPSHOT_INVALID', '草稿材料过期或不符合授权范围'); }
 }
 
-function revalidateEvidence(claimed: ClaimedRun, snapshot: EvidenceBriefV2) {
+function revalidateEvidence(claimed: ClaimedRun, snapshot: EvidenceBriefV3) {
   return verifyWorkflowEvidence({ operationId: claimed.workflow.usageOperationId, workspaceId: claimed.workflow.workspaceId,
     projectId: claimed.workflow.projectId, approvalId: snapshot.approval.id, snapshot });
 }
@@ -486,7 +486,7 @@ async function processRun(claimed: ClaimedRun, workerId: string): Promise<
   "succeeded" | "failed_retryable" | "failed_terminal" | "skipped"
 > {
   let isEvidence = true;
-  try { isEvidence = JSON.parse(claimed.workflow.briefSnapshot).schemaVersion === 2; } catch { /* Corrupt inputs fail closed below. */ }
+  try { isEvidence = JSON.parse(claimed.workflow.briefSnapshot).schemaVersion === 3; } catch { /* Corrupt inputs fail closed below. */ }
   const finishRun = (params: Parameters<typeof finalizeRun>[0]) => finalizeRun({ ...params, ...(isEvidence ? { lease: { workerId, attemptCount: claimed.run.attemptCount } } : {}) });
   // An invalid or withdrawn source must not consume quota or enter the model.
   try { const evidence = evidenceSnapshot(claimed); if (evidence) await revalidateEvidence(claimed, evidence); }

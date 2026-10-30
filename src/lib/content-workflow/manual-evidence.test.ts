@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import fixture from '../../../contracts/fixtures/evidence-brief-v2-valid.json';
+import fixture from '../../../contracts/fixtures/evidence-brief-v3-valid.json';
 vi.mock('@/lib/db', () => ({ prisma: { manualEvidenceTask: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() }, manualEvidenceTaskEvent: { findUnique: vi.fn(), create: vi.fn() }, $transaction: vi.fn() } }));
 import { prisma } from '@/lib/db';
 import { requestHash } from '@/lib/contracts/hash';

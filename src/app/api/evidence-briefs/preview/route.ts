@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServiceSession } from "@/lib/auth/service-auth";
 import { getServiceWorkspace } from "@/lib/auth/service-context";
-import { checkedEvidenceBrief, evidenceToGenerationInput } from "@/lib/content-brief/evidence-v2";
+import { checkedEvidenceBrief, evidenceToGenerationInput } from "@/lib/content-brief/evidence-v3";
 
 export async function POST(req: Request) {
   if (process.env.CONTENT_EVIDENCE_BRIEF_ENABLED !== "true") return NextResponse.json({ error: "evidence_brief_disabled" }, { status: 503 });

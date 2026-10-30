@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { requestHash, isUniqueConstraintError } from '@/lib/contracts/hash';
-import { evidenceToGenerationInput } from '@/lib/content-brief/evidence-v2';
+import { evidenceToGenerationInput } from '@/lib/content-brief/evidence-v3';
 import { verifyWorkflowEvidence } from './evidence-authority';
 import { WorkflowValidationError, toWorkflowView } from './service';
 
@@ -21,8 +21,8 @@ export async function createEvidenceWorkflow(ctx: { workspaceId: string; project
   try {
     const row = await prisma.$transaction(async tx => {
       const stored = await tx.contentBrief.create({ data: {
-        workspaceId: ctx.workspaceId, projectId: ctx.projectId, createdByUserId: ctx.userId, schemaVersion: 2,
-        status: 'confirmed', sourceType: 'evidence_v2', sourceSuggestionId: brief.approval.id, sourceHash: requestHash(brief),
+        workspaceId: ctx.workspaceId, projectId: ctx.projectId, createdByUserId: ctx.userId, schemaVersion: 3,
+        status: 'confirmed', sourceType: 'evidence_v3', sourceSuggestionId: brief.approval.id, sourceHash: requestHash(brief),
         sourceSnapshot: JSON.stringify(brief), projectSnapshot: JSON.stringify({ projectId: ctx.projectId }),
         baselineBrief: JSON.stringify(brief), effectiveBrief: JSON.stringify(brief), generationMeta: JSON.stringify({ source: 'human_approved_evidence', publicationAllowed: false }),
         idempotencyKey: key, idempotencyRequestHash: hash, refinementStatus: 'not_required', confirmedAt: new Date(), expiresAt: new Date(brief.approval.expiresAt),
