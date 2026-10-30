@@ -6,4 +6,4 @@ GET `/api/evidence-briefs/delivery-receipt?kind=content_workflow|manual_content_
 
 回执仅表示已完成产物的来源关系，authorization_state=historical_origin_only，publication_allowed=false，content_quality_verified=false。旧授权过期不抹掉已完成产物的来源；`checkedHistoricalBrief`独立于实时`checkedEvidenceBrief`，不能用于新生成。Portal核对回执后签发限定请求的执行声明，审计后端继续核对原授权HMAC、当前行动修订与计划依赖。
 
-此接口不创建内容、推进任务、调用模型或扣额度。是否正式交付和逐项验收由用户在行动中具名决定；不自动发布。专项5项及完整检查/构建通过；当前未部署，门户执行页面仍待原型确认。
+此接口不创建内容、推进任务、调用模型或扣额度。是否正式交付和逐项验收由用户在行动中具名决定；不自动发布。此前专项5项及完整检查/构建通过；门户执行局部原型已获确认并接入本地实现。2026-10-30 协调发布仍需本轮检查、PR/CI与线上核验，先发布本接收端，再发布审计API/worker及Portal。Q01/Q02 的真实采集、OSS、独立语义和客户行动价值验收仍未完成，来源回执不能替代这些结论。

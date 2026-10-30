@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.0.0] - 2026-10-30
+
+### Added
+- Consume complete v3 evidence briefs tied to approved action revisions, platform targets and selected own-brand facts.
+- Return scoped source receipts for completed content and manual deliverables so the audit workspace can verify execution.
+
+### Changed
+- Recheck current authorization before generating or delivering content; competitor observations remain diagnostic material and cannot become own-brand claims.
+- Replace the v2 evidence contract and fixtures with v3, with shared schema hash validation and updated execution guidance.
+
 All notable changes to ContentOS will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
