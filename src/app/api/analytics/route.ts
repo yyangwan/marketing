@@ -1,4 +1,4 @@
-﻿import { headers } from "next/headers";
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServiceSession } from "@/lib/auth/service-auth";
@@ -129,26 +129,26 @@ export async function GET(req: Request) {
     // Content trend over time (daily buckets)
     const contentTrend = await prisma.$queryRaw<Array<{ date: string; count: number }>>`
       SELECT
-        DATE_FORMAT(\`createdAt\`, '%Y-%m-%d') as date,
+        to_char("createdAt", 'YYYY-MM-DD') as date,
         COUNT(*) as count
-      FROM \`ContentPiece\`
-      WHERE \`workspaceId\` = ${ws.workspaceId}
-      AND \`createdAt\` >= ${startDate}
-      GROUP BY DATE_FORMAT(\`createdAt\`, '%Y-%m-%d')
+      FROM "ContentPiece"
+      WHERE "workspaceId" = ${ws.workspaceId}
+      AND "createdAt" >= ${startDate}
+      GROUP BY to_char("createdAt", 'YYYY-MM-DD')
       ORDER BY date ASC
     `;
 
     // Quality trend over time
     const qualityTrend = await prisma.$queryRaw<Array<{ date: string; avgQuality: number }>>`
       SELECT
-        DATE_FORMAT(\`evaluatedAt\`, '%Y-%m-%d') as date,
-        AVG(quality) as \`avgQuality\`
-      FROM \`ContentQuality\`
-      WHERE \`contentPieceId\` IN (
-        SELECT id FROM \`ContentPiece\` WHERE \`workspaceId\` = ${ws.workspaceId}
+        to_char("evaluatedAt", 'YYYY-MM-DD') as date,
+        AVG(quality) as "avgQuality"
+      FROM "ContentQuality"
+      WHERE "contentPieceId" IN (
+        SELECT id FROM "ContentPiece" WHERE "workspaceId" = ${ws.workspaceId}
       )
-      AND \`evaluatedAt\` >= ${startDate}
-      GROUP BY DATE_FORMAT(\`evaluatedAt\`, '%Y-%m-%d')
+      AND "evaluatedAt" >= ${startDate}
+      GROUP BY to_char("evaluatedAt", 'YYYY-MM-DD')
       ORDER BY date ASC
     `;
 

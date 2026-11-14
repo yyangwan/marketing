@@ -133,7 +133,7 @@ async function claimNextRun(workerId: string, now: Date): Promise<ClaimedRun | n
     // 工作流级并发互斥（R13）：SELECT ... FOR UPDATE 序列化同一工作流的领取，
     // count 与条件领取在同一个事务内原子完成。
     const claimed = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM ContentWorkflow WHERE id = ${candidate.workflowId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "ContentWorkflow" WHERE id = ${candidate.workflowId} FOR UPDATE`;
       const generating = await tx.contentGenerationRun.count({
         where: { workflowId: candidate.workflowId, status: "generating" },
       });

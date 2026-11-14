@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 model ContentPiece {
@@ -15,7 +15,7 @@ model ContentPiece {
   createdByUserId  String
   title            String
   type             String            @default("blog_post")
-  brief            String            @db.MediumText
+  brief            String            @db.Text
   brandVoiceId     String?
   brandVoice       BrandVoice?       @relation("ContentPieceBrandVoice", fields: [brandVoiceId], references: [id], onDelete: Restrict)
   status           String            @default("draft")
@@ -41,7 +41,7 @@ model PlatformContent {
   contentPiece   ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
   platform       String
   status         String       @default("draft")
-  content        String?      @db.MediumText
+  content        String?      @db.Text
   publishedUrl   String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -54,7 +54,7 @@ model ReviewComment {
   contentPieceId String
   contentPiece   ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
   authorName     String
-  comment        String?      @db.MediumText
+  comment        String?      @db.Text
   action         String
   createdAt      DateTime     @default(now())
 }
@@ -67,7 +67,7 @@ model BrandVoice {
   name            String
   description     String?        @db.Text
   guidelines      String?        @db.Text
-  samples         String         @db.MediumText
+  samples         String         @db.Text
   createdByUserId String
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -82,8 +82,8 @@ model AITemplate {
   name        String
   workspaceId String
   description String?  @db.Text
-  template    String   @db.MediumText
-  variables   String   @db.MediumText
+  template    String   @db.Text
+  variables   String   @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -101,9 +101,9 @@ model ContentQuality {
   sentiment        Int          @default(0)
   topicConsistency Int          @default(0)
   originality      Int          @default(0)
-  localMetrics     String?      @db.MediumText
-  suggestions      String?      @db.MediumText
-  previousScores   String?      @db.MediumText
+  localMetrics     String?      @db.Text
+  suggestions      String?      @db.Text
+  previousScores   String?      @db.Text
   evaluationCount  Int          @default(1)
   evaluatedAt      DateTime     @default(now())
 
@@ -147,7 +147,7 @@ model Notification {
   workspaceId String
   type        String
   title       String
-  message     String   @db.MediumText
+  message     String   @db.Text
   link        String?
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
@@ -162,12 +162,12 @@ model GenieSource {
   workspaceId     String
   url             String
   businessType    String?
-  keyProducts     String?  @db.MediumText
+  keyProducts     String?  @db.Text
   brandTone       String?
   targetAudience  String?
-  recurringTopics String?  @db.MediumText
-  contentThemes   String?  @db.MediumText
-  suggestedContentTypes String? @db.MediumText
+  recurringTopics String?  @db.Text
+  contentThemes   String?  @db.Text
+  suggestedContentTypes String? @db.Text
   lastAnalyzedAt  DateTime?
   enabled         Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -190,7 +190,7 @@ model PlatformApiConfig {
   refreshTokn    String?  @map("refresh_token")
   tokenExpiresAt DateTime?
   lastRefreshedAt DateTime?
-  extraConfig    String?  @db.MediumText
+  extraConfig    String?  @db.Text
   enabled        Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -206,7 +206,7 @@ model PublishHistory {
   platform          String
   platformContentId String
   title             String
-  content           String   @db.MediumText
+  content           String   @db.Text
   status            String
   publishedUrl      String?
   platformPostId    String?  @map("platform_post_id")
@@ -235,12 +235,12 @@ model ContentBrief {
   sourceType               String    @default("visibility_suggestion") @db.VarChar(64)
   sourceSuggestionId       String    @db.VarChar(191)
   sourceHash               String    @db.VarChar(64)
-  sourceSnapshot           String    @db.MediumText
-  projectSnapshot          String    @db.MediumText
-  baselineBrief            String    @db.MediumText
-  refinedCandidate         String?   @db.MediumText
-  effectiveBrief           String    @db.MediumText
-  generationMeta           String    @db.MediumText
+  sourceSnapshot           String    @db.Text
+  projectSnapshot          String    @db.Text
+  baselineBrief            String    @db.Text
+  refinedCandidate         String?   @db.Text
+  effectiveBrief           String    @db.Text
+  generationMeta           String    @db.Text
   idempotencyKey           String    @db.VarChar(64)
   idempotencyRequestHash   String    @db.VarChar(64)
   refinementStatus         String    @default("queued") @db.VarChar(32)
@@ -251,11 +251,11 @@ model ContentBrief {
   refinementLastError      String?   @db.Text
   // 提炼基线冻结（评审 R2）：入队时的 revision 与内容快照，用户后续编辑不影响本次提炼基线。
   refinementBaseRevision   Int?
-  refinementBaseBrief      String?   @db.MediumText
+  refinementBaseBrief      String?   @db.Text
   // PATCH 幂等重放（评审 R8）：记录最近一次保存的键/请求哈希/首次响应。
   lastPatchKey             String?   @db.VarChar(64)
   lastPatchHash            String?   @db.VarChar(64)
-  lastPatchResponse        String?   @db.MediumText
+  lastPatchResponse        String?   @db.Text
   confirmedAt              DateTime?
   expiresAt                DateTime?
   createdAt                DateTime  @default(now())
@@ -275,7 +275,7 @@ model ContentWorkflow {
   briefId                String
   brief                  ContentBrief @relation(fields: [briefId], references: [id])
   briefRevision          Int
-  briefSnapshot          String   @db.MediumText
+  briefSnapshot          String   @db.Text
   // 契约允许携带 templateId（评审覆盖审计）：持久化用于追溯；v1 生成提示词尚未消费。
   templateId             String?  @db.VarChar(64)
   contentPieceId         String?  @unique
@@ -326,7 +326,7 @@ model ManualEvidenceTask {
   workspaceId      String
   projectId        String
   approvalId       String   @db.VarChar(32)
-  briefSnapshot    String   @db.MediumText
+  briefSnapshot    String   @db.Text
   snapshotHash     String   @db.VarChar(64)
   createdByUserId  String
   ownerUserId      String?
@@ -353,7 +353,7 @@ model ManualEvidenceTaskEvent {
   deliveryUrl      String?  @db.Text
   idempotencyKey   String   @db.VarChar(100)
   requestHash      String   @db.VarChar(64)
-  responseSnapshot String   @db.MediumText
+  responseSnapshot String   @db.Text
   createdAt        DateTime @default(now())
 
   @@unique([taskId, version])

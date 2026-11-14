@@ -9,7 +9,21 @@ const destination = resolve(process.argv[2] || join(root, '.next/standalone'));
 const copied = new Set();
 async function copyPackage(name, from) {
   const require = createRequire(join(from, 'package.json'));
-  let packageDir = dirname(require.resolve(name));
+  let packageDir;
+  try {
+    packageDir = dirname(require.resolve(`${name}/package.json`));
+  } catch (error) {
+    if (!['ERR_PACKAGE_PATH_NOT_EXPORTED', 'MODULE_NOT_FOUND'].includes(error.code)) throw error;
+    for (const folder of require.resolve.paths(name) || []) {
+      const candidate = join(folder, name);
+      try {
+        await readFile(join(candidate, 'package.json'));
+        packageDir = candidate;
+        break;
+      } catch (missing) { if (missing.code !== 'ENOENT') throw missing; }
+    }
+    if (!packageDir) throw error;
+  }
   while (true) {
     try {
       const manifest = JSON.parse(await readFile(join(packageDir, 'package.json'), 'utf8'));
@@ -29,7 +43,10 @@ async function copyPackage(name, from) {
   }
 }
 await mkdir(join(destination, 'deploy'), { recursive: true });
-await cp(join(root, 'deploy/migrate-manual-evidence.mjs'), join(destination, 'deploy/migrate-manual-evidence.mjs'));
-await cp(join(root, 'prisma/manual-evidence-tasks.sql'), join(destination, 'deploy/manual-evidence-tasks.sql'));
-await copyPackage('mariadb', root);
-console.log('manual_evidence_runtime_packaged');
+await cp(join(root, 'prisma.config.ts'), join(destination, 'prisma.config.ts'));
+await mkdir(join(destination, 'prisma'), { recursive: true });
+await cp(join(root, 'prisma/schema.prisma'), join(destination, 'prisma/schema.prisma'));
+await cp(join(root, 'prisma/migrations'), join(destination, 'prisma/migrations'), { recursive: true });
+await copyPackage('prisma', root);
+await copyPackage('dotenv', root);
+console.log('postgresql_migration_runtime_packaged');
