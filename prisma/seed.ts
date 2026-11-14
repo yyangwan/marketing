@@ -1,9 +1,8 @@
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const url = process.env.DATABASE_URL!.replace(/^mysql:/, "mariadb:");
-const adapter = new PrismaMariaDb(url);
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
 const workspaceId = process.env.SEED_GENILINK_WORKSPACE_ID || "demo-workspace";

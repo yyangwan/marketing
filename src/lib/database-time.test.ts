@@ -2,22 +2,22 @@ import { describe, expect, it } from "vitest";
 import { withUtcDatabaseTimezone } from "./database-time";
 
 describe("database timezone", () => {
-  it("forces MariaDB connections and sessions to UTC", () => {
+  it("sets PostgreSQL sessions to UTC", () => {
     const result = new URL(
-      withUtcDatabaseTimezone("mysql://user:secret@localhost:3306/content"),
+      withUtcDatabaseTimezone("postgresql://user:secret@localhost:5432/content"),
     );
 
-    expect(result.protocol).toBe("mariadb:");
-    expect(result.searchParams.get("timezone")).toBe("Z");
+    expect(result.protocol).toBe("postgresql:");
+    expect(result.searchParams.get("options")).toBe("-c timezone=UTC");
   });
 
   it("overrides an unsafe existing timezone", () => {
     const result = new URL(
       withUtcDatabaseTimezone(
-        "mariadb://user:secret@localhost:3306/content?timezone=local",
+        "postgresql://user:secret@localhost:5432/content?options=-c+timezone%3DAsia%2FShanghai",
       ),
     );
 
-    expect(result.searchParams.get("timezone")).toBe("Z");
+    expect(result.searchParams.get("options")).toBe("-c timezone=Asia/Shanghai -c timezone=UTC");
   });
 });
